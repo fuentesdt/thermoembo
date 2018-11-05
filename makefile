@@ -13,6 +13,9 @@ $(WORKDIR)/HESSOBJ27.nii.gz: $(WORKDIR)/anatomy.nii.gz
 	for idvar in `seq 0 2`; do $(C3DEXE) -verbose $<  -hessobj $$idvar  6  6   -o $(WORKDIR)/HESSOBJ$${idvar}6.nii.gz; done
 	for idvar in `seq 0 2`; do $(C3DEXE) -verbose $<  -hessobj $$idvar  7  7   -o $(WORKDIR)/HESSOBJ$${idvar}7.nii.gz; done
 
+$(WORKDIR)/HESSOBJ.nii.gz: $(WORKDIR)/anatomy.nii.gz
+	$(C3DEXE) -verbose $<  -hessobj 1  1  5   -o $@
+
 $(WORKDIR)/vessel.nii.gz: $(WORKDIR)/HESSOBJ14.nii.gz
 	$(C3DEXE) $< -thresh 2 inf 1 0 $(WORKDIR)/mask.nii.gz -thresh 1 1 1 0 -multiply -dilate 1 3x3x3vox  -erode 1 3x3x3vox  -o $@
 
@@ -21,5 +24,7 @@ datalocation/radiomicsout.csv: datalocation/radiomics.csv
 
 viewseg:
 	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g datalocation/anatomy.nii.gz -s datalocation/vessel.nii.gz  -o datalocation/HESSOBJ14.nii.gz
+viewhess:
+	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g datalocation/anatomy.nii.gz -s datalocation/mask.nii.gz  -o datalocation/HESSOBJ.nii.gz
 view:
 	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g datalocation/anatomy.nii.gz -s datalocation/label.nii.gz -o datalocation/HESSOBJ*.nii.gz
