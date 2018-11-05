@@ -3,3 +3,7 @@ Image,Mask,Label
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/mask.nii.gz,2
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/HESSOBJ.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/mask.nii.gz,1
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/HESSOBJ.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/mask.nii.gz,2
+/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/HESSOBJ14.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/mask.nii.gz,1
+/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/HESSOBJ14.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/mask.nii.gz,2
+/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/HESSOBJ.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/vessel.nii.gz,1
+/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/HESSOBJ14.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/vessel.nii.gz,1

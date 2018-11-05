@@ -57,12 +57,15 @@ for row in inputCsv:
 
   print("Creating histogram " )
   voxelArray = sitk.GetArrayFromImage(itkimage)
-  voxelArray = voxelArray[~np.isnan(voxelArray)] #only non-nan voxels
+  maskArray  = sitk.GetArrayFromImage(itkmask)
+  #voxelArray = voxelArray[~np.isnan(voxelArray)] #only non-nan voxels
+  voxelArray = voxelArray[np.nonzero( maskArray  == label )] #only get labels
+  #voxelArray = voxelArray[np.argwhere( voxelArray > .05  )] 
   voxelMean = voxelArray.mean()
   print("Mean: " + str(voxelMean))
 
   #Print histogram
-  outname = imageName.split('/')[-1] + " label = %d" % label 
+  outname = imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "label%d" % label 
   plt.figure()
   n, bins, patched = plt.hist(voxelArray,25,facecolor='gray',alpha=0.75)
   plt.xlabel(outname )
