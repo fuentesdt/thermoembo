@@ -67,11 +67,15 @@ for idrow,row in enumerate(inputCsv):
   labeldict = {1:'TE',2:'control'}
   #Print histogram
   if ( idrow % 2 == 0  ) :
-    outname = imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "label%d" % label 
+    imageid =  imageName.split('/')[-1].split('.')[0] 
+    outname = imageName.split('/')[-2] + imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "label%d" % label 
+    print outname 
     plt.figure()
     plt.xlabel('intensity')
-    plt.xlim(-100,500)
-    #plt.xlim(-10,100)
+    if imageid == 'anatomy':
+      plt.xlim(-100,500)
+    if imageid == 'hessobj':
+      plt.xlim(-10,100)
     plt.ylabel('frequency')
     plt.title('histogram')
   # HACK
