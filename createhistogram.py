@@ -43,7 +43,7 @@ elif 'Label' not in inputCsv.fieldnames:
   sys.exit("CSV file does not contain 'Label' column")
 
 
-for row in inputCsv:
+for idrow,row in enumerate(inputCsv):
   imageName = row['Image']
   maskName  = row['Mask']
   label     = int(row['Label'])
@@ -64,15 +64,22 @@ for row in inputCsv:
   voxelMean = voxelArray.mean()
   print("Mean: " + str(voxelMean))
 
+  labeldict = {1:'TE',2:'control'}
   #Print histogram
-  outname = imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "label%d" % label 
-  plt.figure()
-  n, bins, patched = plt.hist(voxelArray,25,facecolor='gray',alpha=0.75)
-  plt.xlabel(outname )
-  plt.ylabel('frequency')
-  plt.title(imageName +"\n"+ maskName +"\n"+str(label))
-  plt.grid(True)
-  plt.savefig(outname  + '.png', bbox_inches='tight')
+  if ( idrow % 2 == 0  ) :
+    outname = imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "label%d" % label 
+    plt.figure()
+    plt.xlabel('intensity')
+    plt.xlim(-100,500)
+    #plt.xlim(-10,100)
+    plt.ylabel('frequency')
+    plt.title('histogram')
+  # HACK
+  n, bins, patched = plt.hist(voxelArray,50,density=True,alpha=0.75, label = labeldict[label])
+  if ( idrow % 2 == 1  ) :
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(outname  + '.png', bbox_inches='tight')
 
   ##   if args.writeImage:
   ##     print('Writing Image ' + outname)
