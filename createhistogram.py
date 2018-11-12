@@ -2,7 +2,7 @@
 
 # Requires pyradiomics version 2.0 or greater
 
-# example usage: python createhistogram.py --file hackhistogram.csv --param exampleVoxel.yaml --writeImage
+# example usage: python createhistogram.py --file hackhistogram.csv 
 
 from radiomics import featureextractor
 import matplotlib.pyplot as plt
@@ -68,7 +68,7 @@ for idrow,row in enumerate(inputCsv):
   #Print histogram
   if ( idrow % 2 == 0  ) :
     imageid =  imageName.split('/')[-1].split('.')[0] 
-    outname = imageName.split('/')[-2] + imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "label%d" % label 
+    outname = imageName.split('/')[-2] + imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "idrow%d" % idrow 
     print outname 
     plt.figure()
     plt.xlabel('intensity')
