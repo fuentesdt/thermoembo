@@ -202,6 +202,11 @@ int main(int argc, char **argv)
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
   ierr = DMProjectFunction(dm, t, ctx.exactFuncs, NULL, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
+  //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
+  // write vtk file at every time point
+  char               vtkfilenametemplate[PETSC_MAX_PATH_LEN] = "solution.%04d.vtu";
+  ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
+  // ierr = TSSetPostStage(ts,TSUpdateArrhenius);CHKERRQ(ierr);
   ierr = TSSolve(ts, u);CHKERRQ(ierr);
 
   ierr = TSGetTime(ts, &t);CHKERRQ(ierr);

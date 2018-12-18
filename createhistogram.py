@@ -64,9 +64,9 @@ for idrow,row in enumerate(inputCsv):
   voxelMean = voxelArray.mean()
   print("Mean: " + str(voxelMean))
 
-  labeldict = {1:'TE',2:'control'}
+  labeldict = {1:'TE',2:'control',3:'emulsion'}
   #Print histogram
-  if ( idrow % 2 == 0  ) :
+  if ( idrow % 3 == 0  ) :
     imageid =  imageName.split('/')[-1].split('.')[0] 
     outname = imageName.split('/')[-2] + imageName.split('/')[-1].split('.')[0] + maskName.split('/')[-1].split('.')[0] + "idrow%d" % idrow 
     print outname 
@@ -80,7 +80,7 @@ for idrow,row in enumerate(inputCsv):
     plt.title('histogram')
   # HACK
   n, bins, patched = plt.hist(voxelArray,50,density=True,alpha=0.75, label = labeldict[label])
-  if ( idrow % 2 == 1  ) :
+  if ( idrow % 3 == 2  ) :
     plt.grid(True)
     plt.legend()
     plt.savefig(outname  + '.png', bbox_inches='tight')

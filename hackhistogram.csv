@@ -1,10 +1,11 @@
 Image,Mask,Label
+/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/hessseg.nii.gz,1
+/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/pretwo.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/preseg.nii.gz,2
+/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S007/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S007/mask.nii.gz,3
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/mask.nii.gz,1
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/mask.nii.gz,2
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/hessseg.nii.gz,1
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/mask.nii.gz,2
-/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/anatomy.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/hessseg.nii.gz,1
-/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/pretwo.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/preseg.nii.gz,2
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/hessobj.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/mask.nii.gz,1
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/hessobj.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/mask.nii.gz,2
 /rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/hessobj.nii.gz,/rsrch1/ip/dtfuentes/github/thermoembo/datalocation/ZZ17S003/hessseg.nii.gz,1

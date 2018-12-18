@@ -12,3 +12,6 @@ CLEANFILES      = SA-data/*
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
+
+tags:
+	ctags -R --languages=c,c++ --langmap=c++:+.txx --langmap=c++:+.cu --langmap=c++:+.cl $(PETSC_DIR) 
