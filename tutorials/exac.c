@@ -1,3 +1,4 @@
+// ./exac -dim 3 -simplex -temp_petscspace_order 1 -dm_view -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary 
 static char help[] = "Heat Equation in 2d and 3d with finite elements.\n\
 We solve the heat equation in a rectangular\n\
 domain, using a parallel unstructured mesh (DMPLEX) to discretize it.\n\
