@@ -107,11 +107,22 @@ static PetscErrorCode CreateBCLabel(DM dm, const char name[])
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode testrefinement(const PetscReal xloc[], PetscReal *limit)
+{
+  *limit = 1.;
+  if (xloc[0] < .5)
+   {
+  *limit = 0.0001;
+   }
+  PetscFunctionReturn(0);
+}
+
 static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
 {
   DM             pdm = NULL;
   const PetscInt dim = ctx->dim;
   PetscBool      hasLabel;
+  DM             refinedm = NULL;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
@@ -128,6 +139,14 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
   }
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+
+
+  ierr =  DMPlexSetRefinementFunction(*dm, testrefinement);CHKERRQ(ierr);
+  ierr = DMRefine(*dm, PetscObjectComm((PetscObject) dm), &refinedm);CHKERRQ(ierr);
+  if (refinedm) {
+    ierr = DMDestroy(dm);CHKERRQ(ierr);
+    *dm  = refinedm;
+  }
   PetscFunctionReturn(0);
 }
 
