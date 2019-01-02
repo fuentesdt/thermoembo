@@ -19,4 +19,4 @@ exac: exac.o chkopts
 	-${CLINKER} -o exac exac.o ${PETSC_TS_LIB} ${VTK_LIB}
 
 tags:
-	ctags -R --languages=c,c++ --langmap=c++:+.txx --langmap=c++:+.cu --langmap=c++:+.cl $(PETSC_DIR) 
+	ctags -R --languages=c,c++ --langmap=c++:+.txx --langmap=c++:+.cu --langmap=c++:+.cl $(PETSC_DIR)  /usr/include/vtk-5.10/ .

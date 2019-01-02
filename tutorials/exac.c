@@ -1,5 +1,7 @@
-// c3d segmentation.nii.gz -replace 3 1 2 1 5 0  -canny 1mm 0 2 -o canny.vtk
-// ./exac -dim 3 -simplex -temp_petscspace_order 1 -dm_view -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary 
+// $ c3d segmentation.nii.gz -info
+// Image #1: dim = [512, 512, 37];  bb = {[-224.8 -200 -420], [175.2 200 -235]};  vox = [0.78125, 0.78125, 5];  range = [0, 5];  orient = RAI
+// c3d -verbose segmentation.nii.gz -region 0x0x15vox 512x512x17vox -type uchar -o liver.vtk -replace 3 1 2 1 5 0  -canny 1mm 0 2 -o canny.vtk -as A -dilate 1 1x1x0 -push A  -scale -1 -add -o cannyedge.vtk
+// ./exac -dim 3 -simplex -temp_petscspace_degree 1 -dm_view -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor  -vtk liver.vtk -edge cannyedge.vtk -log_summary 
 static char help[] = "Heat Equation in 2d and 3d with finite elements.\n\
 We solve the heat equation in a rectangular\n\
 domain, using a parallel unstructured mesh (DMPLEX) to discretize it.\n\
@@ -35,10 +37,15 @@ typedef struct {
   PetscInt          dim;
   PetscBool         simplex;
   char          imagefile[2048];   /* The vtk Image file */
+  char           edgefile[2048];   /* The vtk Image file */
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
   vtkSmartPointer<vtkImageData> ImageData ; 
+  vtkSmartPointer<vtkImageData> EdgeData ; 
   double bounds[6];
 } AppCtx;
+
+// FIXME - need interface update
+AppCtx         *_global_HACK_ctx;
 
 static PetscErrorCode analytic_temp(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
@@ -99,7 +106,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBegin(comm, "", "Heat Equation Options", "DMPLEX");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dim", "The topological mesh dimension", "ex45.c", options->dim, &options->dim, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "Simplicial (true) or tensor (false) mesh", "ex45.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
-  ierr = PetscOptionsString("-vtk", "vtk filename to read", "exac.c", options->imagefile, options->imagefile, sizeof(options->imagefile), &flg);CHKERRQ(ierr);
+  ierr = PetscOptionsString("-vtk", "vtk material filename to read", "exac.c", options->imagefile, options->imagefile, sizeof(options->imagefile), &flg);CHKERRQ(ierr);
   if (flg)
      {
        ierr = PetscPrintf(PETSC_COMM_WORLD, "opening file...\n");CHKERRQ(ierr);
@@ -110,12 +117,31 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
        options->ImageData = vtkImageData::SafeDownCast( reader->GetOutput()) ;
        options->ImageData->PrintSelf(std::cout,vtkIndent());
        options->ImageData->GetBounds(options->bounds);
-       ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds [%f,%f] \n",
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds [%10.3e,%10.3e] \n",
                             options->bounds[4],options->bounds[5]);
      }
   else 
      {
        options->ImageData = 0;
+     }
+  ierr = PetscOptionsString("-edge", "vtk edge enhancement file to read", "exac.c", options->edgefile, options->edgefile, sizeof(options->edgefile), &flg);CHKERRQ(ierr);
+  if (flg)
+     {
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "opening file...\n");CHKERRQ(ierr);
+       vtkSmartPointer<vtkDataSetReader> reader = vtkSmartPointer<vtkDataSetReader>::New();
+       reader->SetFileName(options->edgefile);
+       reader->Update();
+       // initilize the bounding data structure
+       options->EdgeData = vtkImageData::SafeDownCast( reader->GetOutput()) ;
+       options->EdgeData->PrintSelf(std::cout,vtkIndent());
+       // FIXME - add error checking that the bounds are the same
+       options->EdgeData->GetBounds(options->bounds);
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds [%10.3e,%10.3e] \n",
+                            options->bounds[4],options->bounds[5]);
+     }
+  else 
+     {
+       options->EdgeData = 0;
      }
   ierr = PetscOptionsEnd();
   PetscFunctionReturn(0);
@@ -134,26 +160,44 @@ static PetscErrorCode CreateBCLabel(DM dm, const char name[])
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode testrefinement(const PetscReal xloc[], PetscReal *limit)
+PetscErrorCode edgerefinement(const PetscReal xloc[], PetscReal *limit)
 {
-  *limit = 1.;
-  if (xloc[0] < .5)
+  PetscErrorCode ierr;
+  // FIXME - interface
+  AppCtx *user= _global_HACK_ctx;
+
+  double coord[3]= {xloc[0],xloc[1],xloc[2]};
+  double pcoord[3];
+  int    index[3];
+  //transform the point and return the intensity value
+  *limit = 50.;
+  if ( user->EdgeData->ComputeStructuredCoordinates(coord,index,pcoord) )
    {
-  *limit = 0.0001;
+     // get material property
+     PetscInt edgeid = static_cast<PetscInt>( user->EdgeData->GetScalarComponentAsDouble(index[0],index[1],index[2],0) );
+     ierr = PetscPrintf(PETSC_COMM_WORLD, "(%10.3e,%10.3e,%10.3e) %d \n",coord[0],coord[1],coord[2],edgeid );CHKERRQ(ierr);
+     // refine at the edges
+     if (edgeid == 1 )
+      {
+        *limit = 5.;
+      }
    }
+   
   PetscFunctionReturn(0);
 }
 
 static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
 {
-  DM             pdm = NULL;
-  const PetscInt dim = ctx->dim;
-  PetscBool      hasLabel;
-  DM             refinedm = NULL;
-  PetscErrorCode ierr;
+  DM              pdm = NULL;
+  const PetscInt  dim = ctx->dim;
+  const PetscReal lower[3]= {ctx->bounds[0],ctx->bounds[2],ctx->bounds[4]};
+  const PetscReal upper[3]= {ctx->bounds[1],ctx->bounds[3],ctx->bounds[5]};
+  PetscBool       hasLabel;
+  DM              refinedm = NULL;
+  PetscErrorCode  ierr;
 
   PetscFunctionBeginUser;
-  ierr = DMPlexCreateBoxMesh(comm, dim, ctx->simplex, NULL, NULL, NULL, NULL, PETSC_TRUE, dm);CHKERRQ(ierr);
+  ierr = DMPlexCreateBoxMesh(comm, dim, ctx->simplex, NULL, lower, upper, NULL, PETSC_TRUE, dm);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
   /* If no boundary marker exists, mark the whole boundary */
   ierr = DMHasLabel(*dm, "marker", &hasLabel);CHKERRQ(ierr);
@@ -168,7 +212,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
 
 
-  ierr =  DMPlexSetRefinementFunction(*dm, testrefinement);CHKERRQ(ierr);
+  ierr =  DMPlexSetRefinementFunction(*dm, edgerefinement);CHKERRQ(ierr);
   ierr = DMRefine(*dm, PetscObjectComm((PetscObject) dm), &refinedm);CHKERRQ(ierr);
   if (refinedm) {
     ierr = DMDestroy(dm);CHKERRQ(ierr);
@@ -221,6 +265,7 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
 int main(int argc, char **argv)
 {
   AppCtx         ctx;
+  _global_HACK_ctx =  &ctx; // FIXME  - interface
   DM             dm;
   TS             ts;
   Vec            u, r;
