@@ -1,3 +1,4 @@
+// c3d segmentation.nii.gz -replace 3 1 2 1 5 0  -canny 1mm 0 2 -o canny.vtk
 // ./exac -dim 3 -simplex -temp_petscspace_order 1 -dm_view -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary 
 static char help[] = "Heat Equation in 2d and 3d with finite elements.\n\
 We solve the heat equation in a rectangular\n\
@@ -7,6 +8,10 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 #include <petscdmplex.h>
 #include <petscds.h>
 #include <petscts.h>
+#include <vtkSmartPointer.h>
+#include <vtkPointData.h>
+#include <vtkStructuredPoints.h>
+#include <vtkDataSetReader.h>
 
 /*
   Heat equation:
@@ -29,7 +34,10 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 typedef struct {
   PetscInt          dim;
   PetscBool         simplex;
+  char          imagefile[2048];   /* The vtk Image file */
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
+  vtkSmartPointer<vtkImageData> ImageData ; 
+  double bounds[6];
 } AppCtx;
 
 static PetscErrorCode analytic_temp(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
@@ -82,6 +90,7 @@ static void g0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 {
   PetscErrorCode ierr;
+  PetscBool      flg;
 
   PetscFunctionBeginUser;
   options->dim     = 2;
@@ -90,6 +99,24 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsBegin(comm, "", "Heat Equation Options", "DMPLEX");CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dim", "The topological mesh dimension", "ex45.c", options->dim, &options->dim, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "Simplicial (true) or tensor (false) mesh", "ex45.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsString("-vtk", "vtk filename to read", "exac.c", options->imagefile, options->imagefile, sizeof(options->imagefile), &flg);CHKERRQ(ierr);
+  if (flg)
+     {
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "opening file...\n");CHKERRQ(ierr);
+       vtkSmartPointer<vtkDataSetReader> reader = vtkSmartPointer<vtkDataSetReader>::New();
+       reader->SetFileName(options->imagefile);
+       reader->Update();
+       // initilize the bounding data structure
+       options->ImageData = vtkImageData::SafeDownCast( reader->GetOutput()) ;
+       options->ImageData->PrintSelf(std::cout,vtkIndent());
+       options->ImageData->GetBounds(options->bounds);
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds [%f,%f] \n",
+                            options->bounds[4],options->bounds[5]);
+     }
+  else 
+     {
+       options->ImageData = 0;
+     }
   ierr = PetscOptionsEnd();
   PetscFunctionReturn(0);
 }
