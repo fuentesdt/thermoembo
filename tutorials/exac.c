@@ -1,7 +1,7 @@
 // $ c3d segmentation.nii.gz -info
 // Image #1: dim = [512, 512, 37];  bb = {[-224.8 -200 -420], [175.2 200 -235]};  vox = [0.78125, 0.78125, 5];  range = [0, 5];  orient = RAI
-// c3d -verbose segmentation.nii.gz -region 0x0x15vox 512x512x17vox -type uchar -o liver.vtk -replace 3 1 2 1 5 0  -canny 1mm 0 2 -o canny.vtk -as A -dilate 1 1x1x0 -push A  -scale -1 -add -o cannyedge.vtk
-// ./exac -dim 3 -simplex -temp_petscspace_degree 1 -dm_view -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor  -vtk liver.vtk -edge cannyedge.vtk -log_summary 
+// c3d -verbose segmentation.nii.gz -region 0x0x15vox 512x512x17vox -type uchar -o liver.vtk -replace 3 1 2 1 5 0  -canny 1mm 0 2 -o canny.vtk -as A -dilate 1 1x1x0 -push A  -scale -1 -add -o cannyedge.vtk     -sdt  -o cannydist.vtk
+// ./exac -dim 3 -simplex 1 -temp_petscspace_degree 1 -dm_view -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor  -vtk liver.vtk -edge cannydist.vtk -log_summary
 static char help[] = "Heat Equation in 2d and 3d with finite elements.\n\
 We solve the heat equation in a rectangular\n\
 domain, using a parallel unstructured mesh (DMPLEX) to discretize it.\n\
@@ -14,6 +14,8 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 #include <vtkPointData.h>
 #include <vtkStructuredPoints.h>
 #include <vtkDataSetReader.h>
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkPolyData.h>
 
 /*
   Heat equation:
@@ -41,11 +43,15 @@ typedef struct {
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
   vtkSmartPointer<vtkImageData> ImageData ; 
   vtkSmartPointer<vtkImageData> EdgeData ; 
+  vtkSmartPointer<vtkPoints> mycentroidpoints ; 
   double bounds[6];
 } AppCtx;
 
 // FIXME - need interface update
-AppCtx         *_global_HACK_ctx;
+AppCtx         *_fixme_global_HACK_ctx;
+int            _fixme_global_counter;
+int            _fixme_global_tetnumber;
+PetscReal      *_fixme_tmpVolumes;
 
 static PetscErrorCode analytic_temp(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
@@ -144,6 +150,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
        options->EdgeData = 0;
      }
   ierr = PetscOptionsEnd();
+  options->mycentroidpoints = vtkSmartPointer<vtkPoints>::New();
   PetscFunctionReturn(0);
 }
 
@@ -160,29 +167,49 @@ static PetscErrorCode CreateBCLabel(DM dm, const char name[])
   PetscFunctionReturn(0);
 }
 
-PetscErrorCode edgerefinement(const PetscReal xloc[], PetscReal *limit)
+PetscErrorCode edgerefinement(const PetscReal xloc[], PetscReal *volumelimit)
 {
   PetscErrorCode ierr;
   // FIXME - interface
-  AppCtx *user= _global_HACK_ctx;
+  AppCtx *user= _fixme_global_HACK_ctx;
 
+  // FIXME - is this transpose ? 
   double coord[3]= {xloc[0],xloc[1],xloc[2]};
+  user->mycentroidpoints->InsertNextPoint(xloc[0],xloc[1],xloc[2]);
   double pcoord[3];
   int    index[3];
   //transform the point and return the intensity value
-  *limit = 50.;
+  *volumelimit = 10000.;
   if ( user->EdgeData->ComputeStructuredCoordinates(coord,index,pcoord) )
    {
      // get material property
-     PetscInt edgeid = static_cast<PetscInt>( user->EdgeData->GetScalarComponentAsDouble(index[0],index[1],index[2],0) );
-     ierr = PetscPrintf(PETSC_COMM_WORLD, "(%10.3e,%10.3e,%10.3e) %d \n",coord[0],coord[1],coord[2],edgeid );CHKERRQ(ierr);
+     PetscReal edgedistance = static_cast<PetscReal>( user->EdgeData->GetScalarComponentAsDouble(index[0],index[1],index[2],0) );
+     PetscReal distancethreshold  = 20.0;
+     PetscBool refineelement = edgedistance < distancethreshold   ? PETSC_TRUE : PETSC_FALSE;
+
      // refine at the edges
-     if (edgeid == 1 )
+     if (refineelement )
       {
-        *limit = 5.;
+        *volumelimit = 5.;
       }
+     ierr = PetscPrintf(PETSC_COMM_WORLD, "(%d,%d,%d) (%10.3e,%10.3e,%10.3e) %10.3e %d  %10.3e  \n",index[0],index[1],index[2], coord[0],coord[1],coord[2],edgedistance, refineelement, *volumelimit );CHKERRQ(ierr);
    }
    
+  // FIXME - HACK - shift by one
+  if ( _fixme_global_counter < _fixme_global_tetnumber) 
+   {
+    _fixme_tmpVolumes[_fixme_global_counter ] = *volumelimit;
+    _fixme_global_counter++;
+   }
+  // if ( _fixme_global_counter ==  _fixme_global_tetnumber) 
+  //  {
+  //     volumelimit[0 +1 -_fixme_global_tetnumber ] = _fixme_tmpVolumes[_fixme_global_tetnumber-1];
+  //     volumelimit[1 +1 -_fixme_global_tetnumber ] = _fixme_tmpVolumes[_fixme_global_tetnumber-1];
+  //     for (int iii = 2 ; iii < _fixme_global_tetnumber - 2; iii++)
+  //       {
+  //          volumelimit[iii +1 -_fixme_global_tetnumber ] = _fixme_tmpVolumes[iii-2];
+  //       }
+  //  }
   PetscFunctionReturn(0);
 }
 
@@ -212,12 +239,43 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
 
 
-  ierr =  DMPlexSetRefinementFunction(*dm, edgerefinement);CHKERRQ(ierr);
+  ierr = DMPlexSetRefinementFunction(*dm, edgerefinement);CHKERRQ(ierr);
+  ierr = DMPlexSetRefinementUniform(*dm, PETSC_FALSE);CHKERRQ(ierr);
+
+  PetscInt          mycStart, mycEnd;
+  ierr = DMPlexGetHeightStratum(*dm, 0, &mycStart, &mycEnd);CHKERRQ(ierr);
+  _fixme_global_tetnumber = mycEnd - mycStart;
+  _fixme_global_counter = 0;
+  ierr = PetscMalloc1(mycEnd - mycStart, &_fixme_tmpVolumes);CHKERRQ(ierr);
+
+
+
   ierr = DMRefine(*dm, PetscObjectComm((PetscObject) dm), &refinedm);CHKERRQ(ierr);
+  ierr = PetscFree(_fixme_tmpVolumes);CHKERRQ(ierr);
   if (refinedm) {
     ierr = DMDestroy(dm);CHKERRQ(ierr);
     *dm  = refinedm;
   }
+  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+
+  // Create a polydata object and add the points to it.
+  vtkSmartPointer<vtkPolyData> polydata = 
+    vtkSmartPointer<vtkPolyData>::New();
+  polydata->SetPoints(ctx->mycentroidpoints );
+
+  // Write the file
+  vtkSmartPointer<vtkXMLPolyDataWriter> writer =  
+    vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+  writer->SetFileName("test.vtp");
+  writer->SetInput(polydata);
+
+  // Optional - set the mode. The default is binary.
+  //writer->SetDataModeToBinary();
+  writer->SetDataModeToAscii();
+
+  writer->Write();
+
+
   PetscFunctionReturn(0);
 }
 
@@ -265,7 +323,7 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
 int main(int argc, char **argv)
 {
   AppCtx         ctx;
-  _global_HACK_ctx =  &ctx; // FIXME  - interface
+  _fixme_global_HACK_ctx =  &ctx; // FIXME  - interface
   DM             dm;
   TS             ts;
   Vec            u, r;
