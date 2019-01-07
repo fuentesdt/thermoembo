@@ -1,7 +1,9 @@
 // $ c3d segmentation.nii.gz -info
 // Image #1: dim = [512, 512, 37];  bb = {[-224.8 -200 -420], [175.2 200 -235]};  vox = [0.78125, 0.78125, 5];  range = [0, 5];  orient = RAI
-// c3d -verbose segmentation.nii.gz -region 0x0x15vox 512x512x17vox -type uchar -o liver.vtk -replace 3 1 2 1 5 0  -canny 1mm 0 2 -o canny.vtk -as A -dilate 1 1x1x0 -push A  -scale -1 -add -o cannyedge.vtk     -sdt  -o cannydist.vtk
-// ./exac -dim 3 -simplex 1 -temp_petscspace_degree 1 -dm_view -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor  -vtk liver.vtk -edge cannydist.vtk -log_summary
+// c3d -verbose segmentation.nii.gz -region 0x0x15vox 512x512x17vox -type uchar -o liver.vtk -replace 3 1 2 1 5 0  -canny 1mm 0 2 -o canny.vtk -as A -dilate 1 1x1x0 -push A  -scale -1 -add -o cannyedge.vtk     -sdt  -o cannydist.vtk; vglrun itksnap -s liver.vtk -g  cannyedge.vtk -o cannydist.vtk canny.vtk
+// c3d -verbose segmentation.nii.gz -region 0x0x15vox 512x512x17vox  -as A  -replace 3 1 2 1 4 1 5 0  -o liver.vtk  -sdt  -o liverdist.vtk -push A -type uchar -replace 3 10 2 10 5 1 4 10 0 1 1 10 -canny 1mm -inf 2 -type uchar -o cannyliver.vtk -type float -sdt -o cannyliverdist.vtk ; vglrun itksnap -s liver.vtk -g  liverdist.vtk -o  cannyliver.vtk cannyliverdist.vtk
+// ./exac -dim 3 -simplex 1 -temp_petscspace_degree 1 -dm_view -ts_type beuler -ts_max_steps 20 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor  -vtk liver.vtk -edge cannyliverdist.vtk -log_summary -dm_refine 2
+// ./exac -dim 3 -simplex 1 -temp_petscspace_degree 1 -dm_view -ts_type beuler -ts_max_steps 20 -pc_type bjacobi -ksp_monitor_short -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor  -vtk liver.vtk -edge cannyliverdist.vtk -log_summary -dm_refine 4
 static char help[] = "Heat Equation in 2d and 3d with finite elements.\n\
 We solve the heat equation in a rectangular\n\
 domain, using a parallel unstructured mesh (DMPLEX) to discretize it.\n\
@@ -37,6 +39,10 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 
 typedef struct {
   PetscInt          dim;
+  PetscInt          refine;
+  PetscReal         max_time;               /* max time allowed */
+  PetscReal         time_step;
+  PetscInt          max_steps; 
   PetscBool         simplex;
   char          imagefile[2048];   /* The vtk Image file */
   char           edgefile[2048];   /* The vtk Image file */
@@ -45,6 +51,7 @@ typedef struct {
   vtkSmartPointer<vtkImageData> EdgeData ; 
   vtkSmartPointer<vtkPoints> mycentroidpoints ; 
   double bounds[6];
+  double spacing[3];
 } AppCtx;
 
 // FIXME - need interface update
@@ -52,13 +59,25 @@ AppCtx         *_fixme_global_HACK_ctx;
 int            _fixme_global_counter;
 int            _fixme_global_tetnumber;
 PetscReal      *_fixme_tmpVolumes;
+PetscScalar  _fixme_global_epsilon;
 
 static PetscErrorCode analytic_temp(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
-  PetscInt d;
+  PetscInt d; 
+  PetscReal imagevalue;
+  // AppCtx *user= static_cast<AppCtx*>(ctx);
+  AppCtx *user= _fixme_global_HACK_ctx;
 
-  *u = dim*time;
-  for (d = 0; d < dim; ++d) *u += x[d]*x[d];
+  double coord[3]= {x[0],x[1],x[2]};
+  double pcoord[3];
+  int    index[3];
+  if ( user->ImageData->ComputeStructuredCoordinates(coord,index,pcoord) )
+   {
+     // get material property
+     imagevalue = static_cast<PetscReal>( user->ImageData->GetScalarComponentAsDouble(index[0],index[1],index[2],0) );
+   }
+  *u = imagevalue;
+  
   return 0;
 }
 
@@ -67,7 +86,9 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
-  f0[0] = u_t[0] + (PetscScalar) dim;
+  // F(c) = 2c^2 (c-1)^2 - 1/8
+  PetscScalar  doublewell =  4.*u[0] *(u[0] -1.)*(u[0] -1.) + 4. * u[0] * u[0] * (u[0] - 1.)  ; 
+  f0[0] = u_t[0] + doublewell ;
 }
 
 static void f1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -76,8 +97,9 @@ static void f1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 {
   PetscInt d;
+  const PetscScalar  epsilon = _fixme_global_epsilon ; 
   for (d = 0; d < dim; ++d) {
-    f1[d] = u_x[d];
+    f1[d] = epsilon*epsilon * u_x[d];
   }
 }
 
@@ -87,6 +109,7 @@ static void g3_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt d;
+  const PetscScalar  epsilon = _fixme_global_epsilon; 
   for (d = 0; d < dim; ++d) {
     g3[d*dim+d] = 1.0;
   }
@@ -123,8 +146,11 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
        options->ImageData = vtkImageData::SafeDownCast( reader->GetOutput()) ;
        options->ImageData->PrintSelf(std::cout,vtkIndent());
        options->ImageData->GetBounds(options->bounds);
-       ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds [%10.3e,%10.3e] \n",
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds {%10.3e,%10.3e} \n",
                             options->bounds[4],options->bounds[5]);
+       options->ImageData->GetSpacing(options->spacing);
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "spacing {%10.3e,%10.3e,%10.3e} \n",
+                            options->spacing[0],options->spacing[1],options->spacing[2]);
      }
   else 
      {
@@ -140,17 +166,32 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
        // initilize the bounding data structure
        options->EdgeData = vtkImageData::SafeDownCast( reader->GetOutput()) ;
        options->EdgeData->PrintSelf(std::cout,vtkIndent());
-       // FIXME - add error checking that the bounds are the same
+       // FIXME - add error checking that the bounds/spacing are the same
        options->EdgeData->GetBounds(options->bounds);
        ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds [%10.3e,%10.3e] \n",
                             options->bounds[4],options->bounds[5]);
+       options->EdgeData->GetSpacing(options->spacing);
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "spacing {%10.3e,%10.3e,%10.3e} \n",
+                            options->spacing[0],options->spacing[1],options->spacing[2]);
      }
   else 
      {
        options->EdgeData = 0;
      }
+
+  // FIXME error handle time steps. max time  should be  < epsilon^{-1}
+  // FIXME epsilon^{-1} ~ 1/2 * voxel width
+  _fixme_global_epsilon = options->spacing[0]/2.; 
+  options->max_time = 1./_fixme_global_epsilon;
+  ierr = PetscOptionsInt("-ts_max_steps","Maximum number of time steps","TSSetMaxSteps",options->max_steps,&options->max_steps,NULL);CHKERRQ(ierr);
+  options->time_step = options->max_time/options->max_steps;
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "epsilon should be half voxel size %10.3e, max time step should be less than %10.3e, time step %10.3e \n",_fixme_global_epsilon,options->max_time,options->time_step);
+
+  ierr = PetscOptionsInt("-dm_refine", "The number of uniform refinements", "DMCreate", options->refine, &options->refine, NULL);CHKERRQ(ierr);
+
   ierr = PetscOptionsEnd();
   options->mycentroidpoints = vtkSmartPointer<vtkPoints>::New();
+
   PetscFunctionReturn(0);
 }
 
@@ -224,6 +265,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
   PetscErrorCode  ierr;
 
   PetscFunctionBeginUser;
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "lower = (%14.7e,%14.7e,%14.7e), upper = (%14.7e,%14.7e,%14.7e) \n",lower[0],lower[1],lower[2], upper[0],upper[1],upper[2]);CHKERRQ(ierr);
   ierr = DMPlexCreateBoxMesh(comm, dim, ctx->simplex, NULL, lower, upper, NULL, PETSC_TRUE, dm);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
   /* If no boundary marker exists, mark the whole boundary */
@@ -235,46 +277,45 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
     ierr = DMDestroy(dm);CHKERRQ(ierr);
     *dm  = pdm;
   }
+  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
   ierr = DMSetFromOptions(*dm);CHKERRQ(ierr);
   ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
 
+  // FIXME - just use uniform refinement for now
 
   ierr = DMPlexSetRefinementFunction(*dm, edgerefinement);CHKERRQ(ierr);
-  ierr = DMPlexSetRefinementUniform(*dm, PETSC_FALSE);CHKERRQ(ierr);
+  // ierr = DMPlexSetRefinementUniform(*dm, PETSC_FALSE);CHKERRQ(ierr);
 
-  PetscInt          mycStart, mycEnd;
-  ierr = DMPlexGetHeightStratum(*dm, 0, &mycStart, &mycEnd);CHKERRQ(ierr);
-  _fixme_global_tetnumber = mycEnd - mycStart;
-  _fixme_global_counter = 0;
-  ierr = PetscMalloc1(mycEnd - mycStart, &_fixme_tmpVolumes);CHKERRQ(ierr);
+  // PetscInt          mycStart, mycEnd;
+  // ierr = DMPlexGetHeightStratum(*dm, 0, &mycStart, &mycEnd);CHKERRQ(ierr);
+  // _fixme_global_tetnumber = mycEnd - mycStart;
+  // _fixme_global_counter = 0;
+  // ierr = PetscMalloc1(mycEnd - mycStart, &_fixme_tmpVolumes);CHKERRQ(ierr);
 
+  // ierr = DMRefine(*dm, PetscObjectComm((PetscObject) dm), &refinedm);CHKERRQ(ierr);
+  // ierr = PetscFree(_fixme_tmpVolumes);CHKERRQ(ierr);
+  // if (refinedm) {
+  //   ierr = DMDestroy(dm);CHKERRQ(ierr);
+  //   *dm  = refinedm;
+  // }
+  // ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
 
+  // // Create a polydata object and add the points to it.
+  // vtkSmartPointer<vtkPolyData> polydata = 
+  //   vtkSmartPointer<vtkPolyData>::New();
+  // polydata->SetPoints(ctx->mycentroidpoints );
 
-  ierr = DMRefine(*dm, PetscObjectComm((PetscObject) dm), &refinedm);CHKERRQ(ierr);
-  ierr = PetscFree(_fixme_tmpVolumes);CHKERRQ(ierr);
-  if (refinedm) {
-    ierr = DMDestroy(dm);CHKERRQ(ierr);
-    *dm  = refinedm;
-  }
-  ierr = DMViewFromOptions(*dm, NULL, "-dm_view");CHKERRQ(ierr);
+  // // Write the file
+  // vtkSmartPointer<vtkXMLPolyDataWriter> writer =  
+  //   vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+  // writer->SetFileName("test.vtp");
+  // writer->SetInput(polydata);
 
-  // Create a polydata object and add the points to it.
-  vtkSmartPointer<vtkPolyData> polydata = 
-    vtkSmartPointer<vtkPolyData>::New();
-  polydata->SetPoints(ctx->mycentroidpoints );
+  // // Optional - set the mode. The default is binary.
+  // //writer->SetDataModeToBinary();
+  // writer->SetDataModeToAscii();
 
-  // Write the file
-  vtkSmartPointer<vtkXMLPolyDataWriter> writer =  
-    vtkSmartPointer<vtkXMLPolyDataWriter>::New();
-  writer->SetFileName("test.vtp");
-  writer->SetInput(polydata);
-
-  // Optional - set the mode. The default is binary.
-  //writer->SetDataModeToBinary();
-  writer->SetDataModeToAscii();
-
-  writer->Write();
-
+  // writer->Write();
 
   PetscFunctionReturn(0);
 }
@@ -349,11 +390,14 @@ int main(int argc, char **argv)
   ierr = DMTSSetIJacobianLocal(dm, DMPlexTSComputeIJacobianFEM, &ctx);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(ts,ctx.time_step);CHKERRQ(ierr);
+  ierr = TSViewFromOptions(ts, NULL, "-ts_view");CHKERRQ(ierr);
 
   ierr = DMProjectFunction(dm, t, ctx.exactFuncs, NULL, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
   //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
   // write vtk file at every time point
-  char               vtkfilenametemplate[PETSC_MAX_PATH_LEN] = "solution.%04d.vtu";
+  char             vtkfilenametemplate[PETSC_MAX_PATH_LEN],  vtkfilenametemplatetemplate[PETSC_MAX_PATH_LEN] = "solution%02d.%%04d.vtu";
+  ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),(const char*)vtkfilenametemplatetemplate,ctx.refine);CHKERRQ(ierr);
   ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
   // ierr = TSSetPostStage(ts,TSUpdateArrhenius);CHKERRQ(ierr);
   ierr = TSSolve(ts, u);CHKERRQ(ierr);
