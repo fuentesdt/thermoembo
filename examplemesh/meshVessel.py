@@ -41,7 +41,7 @@ cubit.cmd('volume        4 5 size 2.' )
 cubit.cmd('mesh volume 1 4 5')
 
 # BC
-cubit.cmd('nodeset 2 node in surface 17')
+cubit.cmd('sideset 2 face in surface 17')
 cubit.cmd('nodeset 3 node in surface 11')
 cubit.cmd('nodeset 4 node in surface 16')
 #cubit.cmd('nodeset 2 name "marker"') TODO: name note used in DMPlex
