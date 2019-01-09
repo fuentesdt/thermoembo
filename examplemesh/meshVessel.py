@@ -42,6 +42,8 @@ cubit.cmd('mesh volume 1 4 5')
 
 # BC
 cubit.cmd('nodeset 2 node in surface 17')
+cubit.cmd('nodeset 3 node in surface 11')
+cubit.cmd('nodeset 4 node in surface 16')
 #cubit.cmd('nodeset 2 name "marker"') TODO: name note used in DMPlex
 
 cubit.cmd('export mesh "meshVessel.e" overwrite' )
