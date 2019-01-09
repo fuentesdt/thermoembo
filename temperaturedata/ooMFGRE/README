@@ -1,0 +1,28 @@
+The MGE class reads complex DICOM or Bruker raw data and imports it so that 
+it can be processed using an autoregressive moving average (ARMA) model. 
+The class calls functions from the following paths:
+
+ {GITREPO/MATLAB}/projects/mfgreScripts/ooMFGRE
+ {GITREPO/MATLAB}/projects/mfgreScripts
+ {GITREPO/MATLAB}/common
+
+Example script:
+
+% Create MGE object by passing a path to DICOM or Bruker data
+ims=MGE('/mnt/FUS4/data2/CJM/SPIO_mice/inVivoSPIO/20140520/e652/s5575');
+
+% Select an user defined ROI/calculate ARMA coefficients
+ims.setProcessingROI;
+
+% Crop out bad echoes (if needed)
+ims.cropEchoes([2:12])
+
+% Display processed data
+
+imagesc(ims.ppm(:,:,1,5))
+imagesc(ims.deltaT(:,:,1,5))
+imagesc(ims.r2star(:,:,1,5))
+imagesc(ims.amp(:,:,1,5))
+
+etc...
+
