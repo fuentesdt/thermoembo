@@ -6,27 +6,42 @@
 cubit.cmd('set developer on')
 cubit.cmd('   reset')
 
+exitradius = 3.
 
-# bounding box for ROI (mm)')
-cubit.cmd('create brick  width 50 height 80 depth 60')
+# bounding box for ROI (mm)'
+cubit.cmd('create brick  width 70 height 80 depth 70')
 cubit.cmd('volume 1 name "healthy" ')
 idhealthy = cubit.get_id_from_name('healthy')
 print "id" ,idhealthy
-cubit.cmd('create frustum height 40 radius 8 top 4')
+
+# taper vessel
+cubit.cmd('create frustum height 40 radius 5 top %f' % exitradius)
 cubit.cmd('volume 2 name "vessel" ')
 idvessel = cubit.get_id_from_name('vessel')
 print "id" ,idvessel
 cubit.cmd('volume %d  move z -20' % idvessel)
 
-cubit.cmd('webcut volume 1 tool volume 2 ')
+# exit driven by pressure at the surface
+cubit.cmd('create sphere radius  %f' % exitradius)
+cubit.cmd('volume 3 name "vesselexit" ')
+
+cubit.cmd('webcut volume 1 tool volume 2')
+cubit.cmd('webcut volume 1 tool volume 3')
 cubit.cmd('delete volume 2 3')
 
-cubit.cmd('volume 1 scheme tetmesh' )
-cubit.cmd('volume      1 size 4.' )
-cubit.cmd('mesh volume 1')
+# merge geometry
+cubit.cmd('imprint volume 1 4 5')
+cubit.cmd('merge volume   1 4 5')
+
+
+# mesh
+cubit.cmd('volume 1 4 5 scheme tetmesh' )
+cubit.cmd('volume      1     size 4.' )
+cubit.cmd('volume        4 5 size 2.' )
+cubit.cmd('mesh volume 1 4 5')
 
 # BC
-cubit.cmd('nodeset 2 node in surface 11')
+cubit.cmd('nodeset 2 node in surface 17')
 #cubit.cmd('nodeset 2 name "marker"') TODO: name note used in DMPlex
 
 cubit.cmd('export mesh "meshVessel.e" overwrite' )
@@ -56,10 +71,6 @@ cubit.cmd('export mesh "meshVessel.e" overwrite' )
 ## cubit.cmd('create cylinder radius %f height 100' % outerRadius)
 ## cubit.cmd('webcut volume 1 4 5 6 tool volume 7 ')
 ## cubit.cmd('delete volume 7 8 10 11')
-## 
-## # merge geometry
-## cubit.cmd('imprint volume 1 4 5 6 9')
-## cubit.cmd('merge volume   1 4 5 6 9')
 ## 
 ## resolutionID = 'lores'
 ## resolutionID = 'midres'
