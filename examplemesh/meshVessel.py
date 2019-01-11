@@ -42,9 +42,14 @@ cubit.cmd('mesh volume 1 4 5')
 
 # BC
 cubit.cmd('sideset 2 surface 17')
-cubit.cmd('nodeset 3 node in surface 11')
-cubit.cmd('nodeset 4 node in surface 16')
+#cubit.cmd('nodeset 3 node in surface 11')
+cubit.cmd('nodeset 3 node in surface 16')
 #cubit.cmd('nodeset 2 name "marker"') TODO: name note used in DMPlex
+
+cubit.cmd('skin volume 1 make group 7')
+cubit.cmd('group 7 name "appface"')
+cubit.cmd('nodeset 4 node in tri in group 7')
+cubit.cmd('nodeset 4 node in surface 17  remove')
 
 cubit.cmd('export mesh "meshVessel.e" overwrite' )
 
