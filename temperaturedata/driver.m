@@ -25,7 +25,8 @@ for jjj = 1 : length(outputPathList )
     mkdir(outputdir)
 
     fulldata = load(outputPath);
-    temperaturedata = fulldata.img.deltaT;
+    %temperaturedata = fulldata.img.newdeltaT;
+    temperaturedata = fulldata.newDeltaT;
     
     
     header.PixelSpacing   = fulldata.img.hdrEx.PixelSpacing;
