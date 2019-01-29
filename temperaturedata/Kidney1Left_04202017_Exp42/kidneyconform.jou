@@ -1,0 +1,40 @@
+## Cubit 
+## play "kidneyconform.jou"
+reset
+set developer on
+import stl "holes.stl" feature_angle 0 make_elements
+
+
+
+volume  1 scheme tetmesh
+volume  1 tetmesh respect tri all
+volume  1 size 5.0
+mesh volume  1 
+
+## BC
+skin volume 1 make group 9
+## group 9  remove tri in surface 3 4 5 
+nodeset 4 node in tri in group 9
+
+
+## ## 
+## ## ## SideSet 2 Surface 1 Patch Center 130 135 2.1  Outer_radius 60 Inner_radius 40
+## ## ## sideset 2 tri with ((x_coord-130)*(x_coord-130)+(y_coord-135)*(y_coord-135)+(z_coord-2.1)*(z_coord-2.1))>  40*40 in group 9
+## ## 
+## ## nodeset 4 node in tri in sideset 2 remove
+## sideset 2 tri  in surface 3 4 5
+## ## 
+## ## 
+## ## 
+## ## # output mesh
+## ## block 1 volume 2 
+## ## block 1 name "tissue" 
+## ## 
+## ## group 7 name "appface"
+## ## nodeset 3 node in tri in group 7
+## ## ## nodeset 3 node in surface 2 3 4 5 6 7 remove
+## ## ## nodeset 2 surface 2 3 4 5 6 7 
+## ## ## 
+## ## ## #volume all scale 0.001
+export mesh "kidneyvessel.e" overwrite 
+## ## ## 
