@@ -3,3 +3,4 @@ FIXME - load pixel size in amira
 
 incorrect pixel spacing causing registration errors
 
+FIXME - save stl as binary to load (ascii files not working)
