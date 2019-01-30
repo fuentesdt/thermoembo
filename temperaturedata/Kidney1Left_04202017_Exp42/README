@@ -1,4 +1,9 @@
 
+need to upsample the resolution to have separate surfaces per nodeset/sideset
+
+c3d temperature.0050.vtk -resample-mm 0.7031x0.7031x1.25mm -type float -o temperature.0050.nii.gz
+
+
 FIXME - load pixel size in amira 
 
 incorrect pixel spacing causing registration errors
