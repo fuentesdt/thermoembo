@@ -26,6 +26,6 @@ sideset 2 tri  in surface 2 3
 ## 
 ## 
 ## 
-## volume all scale 0.001
+volume all scale 0.001
 export mesh "kidneyvessel.e" overwrite 
 ## 
