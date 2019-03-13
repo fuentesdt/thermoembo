@@ -2,7 +2,7 @@
 ## play "kidneyconform.jou"
 reset
 set developer on
-import stl "holes.stl" feature_angle 0 make_elements
+import stl "padholes.stl" feature_angle 0 make_elements
 ##import stl "combine.stl" feature_angle 0 make_elements
 
 
