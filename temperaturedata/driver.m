@@ -15,7 +15,7 @@
 outputPathList = {'/FUS4/data2/sfholtz/Cressman/Mar2018Pub/EXP38_kidney1_03022017/MGE_obj_ARMA90_Model1.mat','/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1Left_04202017_Exp42/MGE_obj_ARMA90_Model1.mat', '/FUS4/data2/sfholtz/Cressman/Mar2018Pub/EXP38_kidney2_03022017/MGE_obj_ARMA90_Model1.mat','/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney2_01242017_Exp31/MGE_obj_ARMA90_Model1.mat', '/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1_01242017_Exp31/MGE_obj_ARMA90_Model1.mat','/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney2Right_04202017_Exp42/MGE_obj_ARMA90_Model1.mat'}
 
 
-outputPathList = {'/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1Left_04202017_Exp42/newDeltaT.mat'}
+outputPathList = {'/mnt/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1Left_04202017_Exp42/newDeltaT.mat', '/mnt/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney2Right_04202017_Exp42/newDeltaT.mat' , '/mnt/FUS4/data2/sfholtz/Cressman/Mar2018Pub/EXP38_kidney2_03022017/newDeltaT.mat' }
 
 
 for jjj = 1 : length(outputPathList )
