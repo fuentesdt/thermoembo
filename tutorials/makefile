@@ -1,4 +1,5 @@
 
+all: phasemodel
 CFLAGS          =
 FFLAGS          =
 CPPFLAGS	= -I/usr/include/vtk-5.10
@@ -14,6 +15,9 @@ include ${PETSC_DIR}/lib/petsc/conf/rules
 include ${PETSC_DIR}/lib/petsc/conf/test
 
 VTK_LIB = -rdynamic /usr/lib/libvtkVolumeRendering.so.5.10 /usr/lib/libvtkIO.so.5.10 /usr/lib/libvtkRendering.so.5.10 /usr/lib/libvtkIO.so.5.10 /usr/lib/libvtkGraphics.so.5.10 /usr/lib/libvtkImaging.so.5.10 /usr/lib/libvtkFiltering.so.5.10 /usr/lib/libvtkCommon.so.5.10 /usr/lib/libvtksys.so.5.10 /usr/lib/libvtkHybrid.so.5.10
+
+phasemodel: phasemodel.o chkopts
+	-${CLINKER} -o phasemodel phasemodel.o ${PETSC_TS_LIB} ${VTK_LIB}
 
 exac: exac.o chkopts
 	-${CLINKER} -o exac exac.o ${PETSC_TS_LIB} ${VTK_LIB}
