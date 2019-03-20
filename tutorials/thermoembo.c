@@ -1,4 +1,4 @@
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_1_pc_type bjacobi -fieldsplit_1_ksp_rtol 1.e-9 -fieldsplit_1_ksp_converged_reason -fieldsplit_1_ksp_monitor_short -fieldsplit_1_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_pc_type bjacobi -phasepresolve_ksp_monitor_short -phasepresolve_ksp_rtol 1.e-12 -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ts_monitor  -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 1 -o test
+// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_1_pc_type bjacobi -fieldsplit_1_ksp_rtol 1.e-9 -fieldsplit_1_ksp_converged_reason -fieldsplit_1_ksp_monitor_short -fieldsplit_1_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_1_pctype none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ts_monitor  -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 1 -o test
 
 // PCApply_FieldSplit 
 // -snes_type <newtonls>: Nonlinear solver method (one of) newtonls newtontr test nrichardson ksponly vinewtonrsls vinewtonssls ngmres qn shell ngs ncg fas ms nasm anderson aspin composite (SNESSetType)
@@ -795,7 +795,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   PetscFunctionBeginUser;
   options->dim     = 3;
   options->simplex = PETSC_TRUE;
-  options->variableCoefficient = COEFF_FIELD;
+  options->variableCoefficient = COEFF_NONE;
   options->fieldBC             = PETSC_FALSE;
 
   // set initial parameters
@@ -880,11 +880,6 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsReal("-gamma", "time constanst permeability [...]", "ex45.c", gammaconst, &gammaconst, NULL);CHKERRQ(ierr);
   strcpy(options->imagefile, "./vessel.vtk");
   ierr = PetscOptionsString("-vtk", "vtk material filename to read", "exac.c", options->imagefile, options->imagefile, sizeof(options->imagefile), &flg);CHKERRQ(ierr);
-  char              *tmpstring;
-  ierr = PetscStrcpy(options->filenosuffix,options->imagefile);CHKERRQ(ierr);
-  ierr = PetscStrrstr(options->filenosuffix,".vtk",&tmpstring);CHKERRQ(ierr);
-  if (tmpstring) tmpstring[0] = 0;
-  ierr = PetscOptionsString("-o", "file output", "ex45.c", options->filenosuffix, options->filenosuffix, sizeof(options->filenosuffix), &flg);CHKERRQ(ierr);
   if (flg)
      {
        ierr = PetscPrintf(PETSC_COMM_WORLD, "opening file...\n");CHKERRQ(ierr);
@@ -905,6 +900,12 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
      {
        options->ImageData = 0;
      }
+
+  char              *tmpstring;
+  ierr = PetscStrcpy(options->filenosuffix,options->imagefile);CHKERRQ(ierr);
+  ierr = PetscStrrstr(options->filenosuffix,".vtk",&tmpstring);CHKERRQ(ierr);
+  if (tmpstring) tmpstring[0] = 0;
+  ierr = PetscOptionsString("-o", "file output", "ex45.c", options->filenosuffix, options->filenosuffix, sizeof(options->filenosuffix), &flg);CHKERRQ(ierr);
 
   // FIXME error handle time steps. max time  should be  < epsilon^{-1}
   // FIXME epsilon^{-1} ~ 1/2 * voxel width
@@ -1046,6 +1047,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   ierr = PetscDSSetJacobian(prob, 0, 0, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
 
   // evaluate exact solution
+  const PetscInt numberfields=5;
+  ierr = PetscMalloc1(numberfields, &ctx->exactFuncs);CHKERRQ(ierr);
   ctx->exactFuncs[FIELD_TEMPERATURE] = analytic_temp;
   ctx->exactFuncs[FIELD_PRESSURE   ] = analytic_pres;
   ctx->exactFuncs[FIELD_DAMAGE     ] = analytic_damg;
@@ -1057,15 +1060,15 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   const PetscInt nodeSetNeumannBoundaryValue = 4; // node set value assigned to exodus mesh
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "wall", "marker", 0, 0, NULL, (void (*)(void)) ctx->exactFuncs[0], 1, &id, ctx);CHKERRQ(ierr);
   // Dirichlet BC
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_TEMPERATURE,  0, NULL, (void(*)())salttemperature   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
+  //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_TEMPERATURE,  0, NULL, (void(*)())salttemperature   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Vertex Sets", FIELD_TEMPERATURE,  0, NULL, (void(*)())bodytemperature   , 1, &nodeSetNeumannBoundaryValue , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, (void(*)())vessel_pres       , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Vertex Sets", FIELD_PRESSURE   ,  0, NULL, (void(*)())baseline_pres     , 1, &nodeSetNeumannBoundaryValue , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_DAMAGE     ,  0, NULL, (void(*)())tissuedamagefcn   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, (void(*)())bolusinjection    , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Vertex Sets", FIELD_SATURATION ,  0, NULL, (void(*)())fieldzero         , 1, &nodeSetNeumannBoundaryValue , ctx);CHKERRQ(ierr);
+  //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, (void(*)())vessel_pres       , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "marker", FIELD_PRESSURE   ,  0, NULL, (void(*)())baseline_pres     , 1, &id , ctx);CHKERRQ(ierr);
+  //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_DAMAGE     ,  0, NULL, (void(*)())tissuedamagefcn   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
+  //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, (void(*)())bolusinjection    , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "marker", FIELD_SATURATION ,  0, NULL, (void(*)())fieldzero         , 1, &id , ctx);CHKERRQ(ierr);
   // Neuman BC
-  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
+  //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   // DMAddBoundary(*dm, DM_BC_ESSENTIAL, "wall", "boundary", 0, 0, NULL, (void (*)(void)) user->bcFuncs[0], 1, &id, user);
   ierr = PetscDSSetConstants(prob, NUMPARAMETERS, ctx->parameters); CHKERRQ(ierr);
@@ -1083,24 +1086,6 @@ static PetscErrorCode SetupMaterial(DM dm, DM dmAux, AppCtx *user)
   ierr = DMProjectFunctionLocal(dmAux, 0.0, matFuncs, NULL, INSERT_ALL_VALUES, nu);CHKERRQ(ierr);
   ierr = PetscObjectCompose((PetscObject) dm, "A", (PetscObject) nu);CHKERRQ(ierr);
   ierr = VecDestroy(&nu);CHKERRQ(ierr);
-  PetscFunctionReturn(0);
-}
-
-static PetscErrorCode SetupBC(DM dm, DM dmAux, AppCtx *user)
-{
-  PetscErrorCode (*bcFuncs[1])(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar u[], void *ctx);
-  Vec            uexact;
-  PetscInt       dim;
-  PetscErrorCode ierr;
-
-  PetscFunctionBegin;
-  ierr = DMGetDimension(dm, &dim);CHKERRQ(ierr);
-  if (dim == 2) bcFuncs[0] = quadratic_u_2d;
-  else          bcFuncs[0] = quadratic_u_3d;
-  ierr = DMCreateLocalVector(dmAux, &uexact);CHKERRQ(ierr);
-  ierr = DMProjectFunctionLocal(dmAux, 0.0, bcFuncs, NULL, INSERT_ALL_VALUES, uexact);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject) dm, "A", (PetscObject) uexact);CHKERRQ(ierr);
-  ierr = VecDestroy(&uexact);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1156,35 +1141,8 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
   ierr = SetupProblem(prob, ctx);CHKERRQ(ierr);
   while (cdm) {
     PetscBool hasLabel;
-    DM coordDM;
 
     ierr = DMSetDS(cdm, prob);CHKERRQ(ierr);
-    ierr = DMGetCoordinateDM(cdm,&coordDM);CHKERRQ(ierr);
-    if (feAux) {
-      DM      dmAux;
-
-      ierr = DMClone(cdm, &dmAux);CHKERRQ(ierr);
-      ierr = DMSetCoordinateDM(dmAux, coordDM);CHKERRQ(ierr);
-      ierr = DMSetDS(dmAux, probAux);CHKERRQ(ierr);
-      ierr = PetscObjectCompose((PetscObject) dm, "dmAux", (PetscObject) dmAux);CHKERRQ(ierr);
-      if (ctx->fieldBC) {ierr = SetupBC(cdm, dmAux, ctx);CHKERRQ(ierr);}
-      else 
-       {
-         ierr = SetupMaterial(cdm, dmAux, ctx);CHKERRQ(ierr);
-         // ierr = PetscPrintf(PETSC_COMM_WORLD, "Writing Material...\n");CHKERRQ(ierr);
-         // PetscViewer viewer;
-         // Vec            localnu; // local vector
-         // ierr = PetscObjectQuery((PetscObject) cdm, "A", (PetscObject *) &localnu);CHKERRQ(ierr);
-         // ierr = PetscObjectSetName((PetscObject) localnu, "conductivity");CHKERRQ(ierr);
-         // char               vtkfilename[PETSC_MAX_PATH_LEN];
-         // sprintf(vtkfilename,"%smaterial.vtk","./");
-         // ierr = PetscViewerVTKOpen(PETSC_COMM_WORLD,vtkfilename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
-         // // FIXME : should I be viewing from the global vector ? 
-         // ierr = VecView(localnu,viewer);CHKERRQ(ierr);
-         // ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
-       }
-      ierr = DMDestroy(&dmAux);CHKERRQ(ierr);
-    }
     ierr = DMHasLabel(cdm, "marker", &hasLabel);CHKERRQ(ierr);
     if (!hasLabel) {ierr = CreateBCLabel(cdm, "marker");CHKERRQ(ierr);}
     ierr = DMGetCoarseDM(cdm, &cdm);CHKERRQ(ierr);
@@ -1207,14 +1165,12 @@ int main(int argc, char **argv)
   Vec            u, r;
   PetscReal      t       = 0.0;
   PetscReal      L2error = 0.0;
-  void          *ctxarray[5];
   PetscErrorCode ierr;
 
   ierr = PetscInitialize(&argc, &argv, NULL, help);if (ierr) return ierr;
   ierr = ProcessOptions(PETSC_COMM_WORLD, &ctx);CHKERRQ(ierr);
   ierr = CreateMesh(PETSC_COMM_WORLD, &dm, &ctx);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &ctx);CHKERRQ(ierr);
-  ierr = PetscMalloc1(4, &ctx.exactFuncs);CHKERRQ(ierr);
   ierr = SetupDiscretization(dm, &ctx);CHKERRQ(ierr);
 
   // get index subsets
@@ -1242,6 +1198,7 @@ int main(int argc, char **argv)
     ierr = SNESGetKSP(presnes,&preksp);CHKERRQ(ierr);
     ierr = KSPSetOptionsPrefix(preksp,"phasepresolve_");CHKERRQ(ierr);
     ierr = KSPGetPC(preksp,&prepc);CHKERRQ(ierr);
+    ierr = PCFieldSplitSetIS(prepc,"c",ctx.fields[4]);CHKERRQ(ierr);
     ierr = PCSetOptionsPrefix(prepc,"phasepresolve_");CHKERRQ(ierr);
    }
 
@@ -1255,6 +1212,7 @@ int main(int argc, char **argv)
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
   // same application context for each field
+  void          *ctxarray[ctx.numFields];
   ctxarray[0] = &ctx; ctxarray[1] = &ctx; ctxarray[2] = &ctx; ctxarray[3] = &ctx; ctxarray[4] = &ctx;
   ierr = DMProjectFunction(dm, t, ctx.exactFuncs, ctxarray, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
 
