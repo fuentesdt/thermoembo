@@ -1,4 +1,4 @@
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_1_pc_type bjacobi -fieldsplit_1_ksp_rtol 1.e-9 -fieldsplit_1_ksp_converged_reason -fieldsplit_1_ksp_monitor_short -fieldsplit_1_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_1_pctype none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ts_monitor  -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 1 -o test
+// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-9 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_fieldsplit_1_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_1_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
 
 // PCApply_FieldSplit 
 // -snes_type <newtonls>: Nonlinear solver method (one of) newtonls newtontr test nrichardson ksponly vinewtonrsls vinewtonssls ngmres qn shell ngs ncg fas ms nasm anderson aspin composite (SNESSetType)
@@ -33,7 +33,7 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 
 typedef enum {COEFF_NONE, COEFF_ANALYTIC, COEFF_FIELD, COEFF_NONLINEAR} CoeffType;
 // use enum to identify fields and field deriviatives
-typedef enum {FIELD_TEMPERATURE, FIELD_PRESSURE, FIELD_DAMAGE, FIELD_SATURATION, FIELD_PHASE} FieldEnumType;
+typedef enum {FIELD_PHASE,FIELD_TEMPERATURE, FIELD_DAMAGE, FIELD_PRESSURE, FIELD_SATURATION} FieldEnumType;
 const     int NUMPARAMETERS=25;
 const     double _globalepsilon = 1.e-12;
 // list of parameters
@@ -62,10 +62,8 @@ typedef enum {PARAM_OMEGA,
               PARAM_ARTIFICIALDIFFUSION} ParameterType;
 typedef struct {
   PetscInt          dim;
-  PetscInt          refine;
-  PetscReal         max_time;               /* max time allowed */
-  PetscReal         time_step;
-  PetscInt          max_steps; 
+  PetscReal         time_step; /* phase field timestep */
+  PetscInt          max_steps; /* phase field max steps */
   PetscBool         simplex;
   PetscBool      fieldBC;
   char              imagefile[2048];   /* The vtk Image file */
@@ -691,7 +689,7 @@ static void f0_phas(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 {
   // F(c) = 2c^2 (c-1)^2 - 1/8
   PetscScalar  doublewell =  4.*u[FIELD_PHASE] *(u[FIELD_PHASE] -1.)*(u[FIELD_PHASE] -1.) + 4. * u[FIELD_PHASE] * u[FIELD_PHASE] * (u[FIELD_PHASE] - 1.)  ; 
-  f0[0] = u_t[0] + doublewell ;
+  f0[0] = u_t[FIELD_PHASE] + doublewell ;
 }
 
 static void f1_phas(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -714,7 +712,7 @@ static void g3_phas(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt d;
   const PetscScalar  epsilon = constants[PARAM_PHASEEPSILON]; 
   for (d = 0; d < dim; ++d) {
-    g3[d*dim+d] = 1.0;
+    g3[d*dim+d] = epsilon*epsilon ;
   }
 }
 
@@ -910,13 +908,13 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   // FIXME error handle time steps. max time  should be  < epsilon^{-1}
   // FIXME epsilon^{-1} ~ 1/2 * voxel width
   options->parameters[PARAM_PHASEEPSILON] = options->spacing[0]; 
-  options->max_time = 1./options->parameters[PARAM_PHASEEPSILON];
-  ierr = PetscOptionsInt("-ts_max_steps","Maximum number of time steps","TSSetMaxSteps",options->max_steps,&options->max_steps,NULL);CHKERRQ(ierr);
-  options->time_step = options->max_time/options->max_steps;
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "epsilon should be half voxel size %10.3e, max time step should be less than %10.3e, time step %10.3e \n",options->parameters[PARAM_PHASEEPSILON],options->max_time,options->time_step);
+  PetscReal         max_time;               /* phase field max time allowed */
+  max_time = 1./options->parameters[PARAM_PHASEEPSILON];
+  ierr = PetscOptionsInt("-phasepresolve_ts_max_steps","Maximum number of time steps","TSSetMaxSteps",options->max_steps,&options->max_steps,NULL);CHKERRQ(ierr);
+  options->time_step = max_time/options->max_steps;
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "epsilon should be half voxel size %10.3e, max time step should be less than %10.3e, time step %10.3e \n",options->parameters[PARAM_PHASEEPSILON],max_time,options->time_step);
 
   
-  ierr = PetscOptionsInt("-dm_refine", "The number of uniform refinements", "DMCreate", options->refine, &options->refine, NULL);CHKERRQ(ierr);
 
   ierr = PetscOptionsEnd();
   
@@ -1043,8 +1041,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   //ierr = PetscDSSetBdResidual(prob, FIELD_SATURATION, f0_bd_conc, NULL);CHKERRQ(ierr);
   
   // phase field
-  ierr = PetscDSSetResidual(prob, 0, f0_phas, f1_phas);CHKERRQ(ierr);
-  ierr = PetscDSSetJacobian(prob, 0, 0, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
+  ierr = PetscDSSetResidual(prob, FIELD_PHASE, f0_phas, f1_phas);CHKERRQ(ierr);
+  ierr = PetscDSSetJacobian(prob, FIELD_PHASE, FIELD_PHASE, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
 
   // evaluate exact solution
   const PetscInt numberfields=5;
@@ -1102,25 +1100,25 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
 
   PetscFunctionBeginUser;
   /* Create finite element */
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "temp_", -1, &fe[0]);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fe[0], "temperature");CHKERRQ(ierr);
-  ierr = PetscFEGetQuadrature(fe[0], &q);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "phas_", PETSC_DEFAULT, &fe[FIELD_PHASE]);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(fe[FIELD_PHASE], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fe[FIELD_PHASE], "phasefield");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "pres_", PETSC_DEFAULT, &fe[1]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[1], q);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fe[1], "pressure");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "temp_", -1, &fe[FIELD_TEMPERATURE]);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fe[FIELD_TEMPERATURE], "temperature");CHKERRQ(ierr);
+  ierr = PetscFEGetQuadrature(fe[FIELD_TEMPERATURE], &q);CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "damg_", PETSC_DEFAULT, &fe[2]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[2], q);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fe[2], "damage");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "damg_", PETSC_DEFAULT, &fe[FIELD_DAMAGE]);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(fe[FIELD_DAMAGE], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fe[FIELD_DAMAGE], "damage");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "conc_", PETSC_DEFAULT, &fe[3]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[3], q);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fe[3], "concentration");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "pres_", PETSC_DEFAULT, &fe[FIELD_PRESSURE]);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(fe[FIELD_PRESSURE], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fe[FIELD_PRESSURE], "pressure");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "phas_", PETSC_DEFAULT, &fe[4]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[4], q);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject) fe[4], "phasefield");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "conc_", PETSC_DEFAULT, &fe[FIELD_SATURATION]);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(fe[FIELD_SATURATION], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) fe[FIELD_SATURATION], "concentration");CHKERRQ(ierr);
 
   /* Setup Variable Coeff */
   if (ctx->variableCoefficient == COEFF_FIELD) {
@@ -1189,6 +1187,10 @@ int main(int argc, char **argv)
   ierr = TSSetExactFinalTime(prets, TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
   ierr = TSSetOptionsPrefix(prets,"phasepresolve_");CHKERRQ(ierr);
   ierr = TSSetFromOptions(prets);CHKERRQ(ierr);
+  ierr = TSSetTimeStep(prets,ctx.time_step);CHKERRQ(ierr);
+  char              prevtkfilenametemplate[PETSC_MAX_PATH_LEN];
+  ierr = PetscSNPrintf(prevtkfilenametemplate,sizeof(prevtkfilenametemplate),"%spre.%%04d.vtu",ctx.filenosuffix);CHKERRQ(ierr);
+  ierr = TSMonitorSet(prets,TSMonitorSolutionVTK,&prevtkfilenametemplate,NULL);CHKERRQ(ierr);
    { // PCApply_FieldSplit
     SNES presnes;
     KSP  preksp;
@@ -1198,7 +1200,7 @@ int main(int argc, char **argv)
     ierr = SNESGetKSP(presnes,&preksp);CHKERRQ(ierr);
     ierr = KSPSetOptionsPrefix(preksp,"phasepresolve_");CHKERRQ(ierr);
     ierr = KSPGetPC(preksp,&prepc);CHKERRQ(ierr);
-    ierr = PCFieldSplitSetIS(prepc,"c",ctx.fields[4]);CHKERRQ(ierr);
+    ierr = PCFieldSplitSetIS(prepc,"c",ctx.fields[FIELD_PHASE]);CHKERRQ(ierr);
     ierr = PCSetOptionsPrefix(prepc,"phasepresolve_");CHKERRQ(ierr);
    }
 
@@ -1223,7 +1225,7 @@ int main(int argc, char **argv)
   ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
   ierr = TSSetPostStage(ts,TSUpdateArrhenius);CHKERRQ(ierr);
 
-    //IS   istemperaturedamage,ispressuresaturation;
+  IS   ispressuresaturation;
    { // PCApply_FieldSplit
     SNES mysnes;
     KSP  myksp;
@@ -1236,18 +1238,13 @@ int main(int argc, char **argv)
     ierr = SNESLineSearchSetPreCheck(mylinesearch,myprecheck,&ctx); CHKERRQ(ierr);
 
     ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
-    //ierr = ISConcatenate(PETSC_COMM_WORLD,2, ctx.fields   ,&istemperaturedamage); CHKERRQ(ierr);
-    //ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.fields[2],&ispressuresaturation); CHKERRQ(ierr);
-    //ierr = PCFieldSplitSetIS(mypc,"ud",istemperaturedamage);CHKERRQ(ierr);
-    //ierr = PCFieldSplitSetIS(mypc,"ps",ispressuresaturation);CHKERRQ(ierr);
-    ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[0]);CHKERRQ(ierr);
+    ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.fields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
+    ierr = PCFieldSplitSetIS(mypc,"s",ispressuresaturation);CHKERRQ(ierr);
+    ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
    }
 
   // first solve is for phase field
   ierr = TSSolve(prets, u);CHKERRQ(ierr);
-
-  // given phase field, run one step to stabilize initial conditions
-  ierr = TSStep(ts);CHKERRQ(ierr);
 
   // solve full problem 
   ierr = TSSolve(ts, u);CHKERRQ(ierr);
@@ -1262,8 +1259,7 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
-  //ierr = ISDestroy(&istemperaturedamage); CHKERRQ(ierr);
-  //ierr = ISDestroy(&ispressuresaturation);CHKERRQ(ierr);
+  ierr = ISDestroy(&ispressuresaturation);CHKERRQ(ierr);
 
   for(PetscInt iii = 0 ; iii < ctx.numFields; iii++)
     {
