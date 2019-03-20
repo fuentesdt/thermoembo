@@ -76,6 +76,7 @@ typedef struct {
   PetscInt numFields;
   char  **fieldNames;
   IS         *fields;
+  IS   isnotpressuresaturation;
   CoeffType      variableCoefficient;
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
 } AppCtx;
@@ -734,7 +735,7 @@ static void g0_phas(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 PetscErrorCode subspaceobjective(SNES snes,Vec X,PetscReal *f,void *voidctx)
 {
   AppCtx *ctx = (AppCtx*)voidctx;
-  Vec            temperatureresidual,work;
+  Vec            complementresidual,work;
   PetscErrorCode    ierr;
 
   // compute residual
@@ -742,9 +743,9 @@ PetscErrorCode subspaceobjective(SNES snes,Vec X,PetscReal *f,void *voidctx)
   ierr = SNESComputeFunction(snes,X,work);CHKERRQ(ierr);
 
   // evaluate objective function only on pressure and saturation equations
-  ierr = VecGetSubVector(work, ctx->fields[FIELD_TEMPERATURE], &temperatureresidual);CHKERRQ(ierr);
-  ierr = VecSet(temperatureresidual,0.0);CHKERRQ(ierr);
-  ierr = VecRestoreSubVector(work, ctx->fields[FIELD_TEMPERATURE], &temperatureresidual);CHKERRQ(ierr);
+  ierr = VecGetSubVector(work, ctx->isnotpressuresaturation, &complementresidual);CHKERRQ(ierr);
+  ierr = VecSet(complementresidual,0.0);CHKERRQ(ierr);
+  ierr = VecRestoreSubVector(work, ctx->isnotpressuresaturation, &complementresidual);CHKERRQ(ierr);
   ierr = VecNormBegin(work, NORM_2, f);CHKERRQ(ierr);
   ierr = VecNormEnd(  work, NORM_2, f);CHKERRQ(ierr);
 
@@ -1101,12 +1102,12 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
   PetscFunctionBeginUser;
   /* Create finite element */
   ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "phas_", PETSC_DEFAULT, &fe[FIELD_PHASE]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[FIELD_PHASE], q);CHKERRQ(ierr);
+  ierr = PetscFEGetQuadrature(fe[FIELD_PHASE], &q);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe[FIELD_PHASE], "phasefield");CHKERRQ(ierr);
 
   ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "temp_", -1, &fe[FIELD_TEMPERATURE]);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(fe[FIELD_TEMPERATURE], q);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe[FIELD_TEMPERATURE], "temperature");CHKERRQ(ierr);
-  ierr = PetscFEGetQuadrature(fe[FIELD_TEMPERATURE], &q);CHKERRQ(ierr);
 
   ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "damg_", PETSC_DEFAULT, &fe[FIELD_DAMAGE]);CHKERRQ(ierr);
   ierr = PetscFESetQuadrature(fe[FIELD_DAMAGE], q);CHKERRQ(ierr);
@@ -1239,6 +1240,7 @@ int main(int argc, char **argv)
 
     ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
     ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.fields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
+    ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.fields[FIELD_PHASE],&ctx.isnotpressuresaturation); CHKERRQ(ierr);
     ierr = PCFieldSplitSetIS(mypc,"s",ispressuresaturation);CHKERRQ(ierr);
     ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
    }
@@ -1260,6 +1262,7 @@ int main(int argc, char **argv)
   ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
   ierr = ISDestroy(&ispressuresaturation);CHKERRQ(ierr);
+  ierr = ISDestroy(&ctx.isnotpressuresaturation);CHKERRQ(ierr);
 
   for(PetscInt iii = 0 ; iii < ctx.numFields; iii++)
     {
