@@ -3,6 +3,7 @@
 // ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 2 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-9 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 2 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_fieldsplit_1_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_1_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
 
 // PCApply_FieldSplit 
+// PCFieldSplitSetDefaults
 // -snes_type <newtonls>: Nonlinear solver method (one of) newtonls newtontr test nrichardson ksponly vinewtonrsls vinewtonssls ngmres qn shell ngs ncg fas ms nasm anderson aspin composite (SNESSetType)
 // SNESSolve_KSPONLY
 // SNESSolve_NEWTONLS SNESLineSearchApply_BT  SNESLineSearchApply_CP
@@ -1191,7 +1192,6 @@ int main(int argc, char **argv)
   ierr = DMTSSetIFunctionLocal(dm, DMPlexTSComputeIFunctionFEM, &ctx);CHKERRQ(ierr);
   ierr = DMTSSetIJacobianLocal(dm, DMPlexTSComputeIJacobianFEM, &ctx);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
-  ierr = TSSetTimeStep(ts,ctx.time_step);CHKERRQ(ierr);
 
   // setup solver
   SNES mysnes;
@@ -1203,6 +1203,7 @@ int main(int argc, char **argv)
   ierr = SNESGetLineSearch(mysnes,&mylinesearch);CHKERRQ(ierr);
   ierr = SNESSetObjective(mysnes,subspaceobjective,&ctx); CHKERRQ(ierr);
   ierr = SNESLineSearchSetPreCheck(mylinesearch,myprecheck,&ctx); CHKERRQ(ierr);
+  ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
 
 
   // first solve is for phase field
@@ -1212,20 +1213,9 @@ int main(int argc, char **argv)
   PetscBool      flg;
   ierr = PetscTestFile(phasefieldsolution, 'r', &flg);CHKERRQ(ierr);
 
-  if( flg == PETSC_TRUE ) 
-    {/* Read in previously computed solution in binary format */
-     PetscViewer    viewer;
-     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from %s...\n",phasefieldsolution); CHKERRQ(ierr);
-     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
-     ierr = VecLoad(u,viewer); CHKERRQ(ierr);
-     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-    } 
-  else
+  // solve in multiple steps
+  if( flg == PETSC_FALSE ) 
     {/* solve and write phase field solution to disk in vector in binary format */
-
-     // PCApply_FieldSplit
-     ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
-     ierr = PCFieldSplitSetIS(mypc,"c",ctx.fields[FIELD_PHASE]);CHKERRQ(ierr);
 
      // same application context for each field
      void          *ctxarray[ctx.numFields];
@@ -1235,61 +1225,68 @@ int main(int argc, char **argv)
      ierr = TSSetOptionsPrefix(ts,"phasepresolve_");CHKERRQ(ierr);
      ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
+     // PCApply_FieldSplit
+     // PCFieldSplitSetDefaults
+     ierr = PCFieldSplitSetIS(mypc,"c",ctx.fields[FIELD_PHASE]);CHKERRQ(ierr);
+
      char              prevtkfilenametemplate[PETSC_MAX_PATH_LEN];
      ierr = PetscSNPrintf(prevtkfilenametemplate,sizeof(prevtkfilenametemplate),"%spre%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
      ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&prevtkfilenametemplate,NULL);CHKERRQ(ierr);
 
      PetscViewer    viewer;
+     ierr = TSSetTimeStep(ts,ctx.time_step);CHKERRQ(ierr);
      ierr = TSSolve(ts, u);CHKERRQ(ierr);
-     //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
+     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
      ierr = VecView(u,viewer); CHKERRQ(ierr);
  
      //  clean up
      ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-     ierr = PCReset(mypc);CHKERRQ(ierr);
-     ierr = TSMonitorCancel(ts);CHKERRQ(ierr);
-
      ierr = PetscPrintf(PETSC_COMM_WORLD,"phase solution saved to binary vector %s...\n",phasefieldsolution); CHKERRQ(ierr);
+    } 
+  else
+    {/* Read in previously computed solution in binary format */
+     PetscViewer    viewer;
+     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from %s...\n",phasefieldsolution); CHKERRQ(ierr);
+     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
+     ierr = VecLoad(u,viewer); CHKERRQ(ierr);
+     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+
+     //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
+     // write vtk file at every time point
+     char              vtkfilenametemplate[PETSC_MAX_PATH_LEN];
+     ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssolution%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
+     ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
+     ierr = TSSetPostStage(ts,TSUpdateArrhenius);CHKERRQ(ierr);
+
+     // update options
+     ierr = TSSetOptionsPrefix(ts,NULL);CHKERRQ(ierr);
+     ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
+
+     // setup field split
+     // PCApply_FieldSplit
+     // PCFieldSplitSetDefaults
+     IS   ispressuresaturation;
+     ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.fields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
+     ierr = ISSort(ispressuresaturation);CHKERRQ(ierr);
+     ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.fields[FIELD_PHASE],&ctx.isnotpressuresaturation); CHKERRQ(ierr);
+     ierr = PCFieldSplitSetIS(mypc,"s",ispressuresaturation);CHKERRQ(ierr);
+     ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
+
+     // solve full problem 
+     ierr = TSSetTime(ts, 0.0);CHKERRQ(ierr);
+     ierr = TSSetStepNumber(ts,0);CHKERRQ(ierr);
+     ierr = TSSolve(ts, u);CHKERRQ(ierr);
+     ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
+     ierr = ISDestroy(&ispressuresaturation);CHKERRQ(ierr);
+     ierr = ISDestroy(&ctx.isnotpressuresaturation);CHKERRQ(ierr);
 
     } 
 
-
-  //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
-  // write vtk file at every time point
-  char              vtkfilenametemplate[PETSC_MAX_PATH_LEN];
-  ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssolution%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
-  ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
-  ierr = TSSetPostStage(ts,TSUpdateArrhenius);CHKERRQ(ierr);
-
-  // setup field split
-  IS   ispressuresaturation;
-  ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.fields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
-  ierr = ISSort(ispressuresaturation);CHKERRQ(ierr);
-  ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.fields[FIELD_PHASE],&ctx.isnotpressuresaturation); CHKERRQ(ierr);
-  ierr = PCFieldSplitSetIS(mypc,"s",ispressuresaturation);CHKERRQ(ierr);
-  ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
-
-  // update options
-  ierr = TSSetOptionsPrefix(ts,NULL);CHKERRQ(ierr);
-  ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
-
-  // solve full problem 
-  ierr = TSSetTime(ts, 0.0);CHKERRQ(ierr);
-  ierr = TSSetStepNumber(ts,0);CHKERRQ(ierr);
-  ierr = TSSolve(ts, u);CHKERRQ(ierr);
-  ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
-
-  // ierr = DMComputeL2Diff(dm, t, ctx.exactFuncs, NULL, u, &L2error);CHKERRQ(ierr);
-  // if (L2error < 1.0e-11) {ierr = PetscPrintf(PETSC_COMM_WORLD, "L_2 Error: < 1.0e-11\n");CHKERRQ(ierr);}
-  // else                   {ierr = PetscPrintf(PETSC_COMM_WORLD, "L_2 Error: %g\n", (double)L2error);CHKERRQ(ierr);}
-  ierr = VecViewFromOptions(u, NULL, "-sol_vec_view");CHKERRQ(ierr);
-
   // clean up
+  ierr = VecViewFromOptions(u, NULL, "-sol_vec_view");CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
   ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
-  ierr = ISDestroy(&ispressuresaturation);CHKERRQ(ierr);
-  ierr = ISDestroy(&ctx.isnotpressuresaturation);CHKERRQ(ierr);
 
   for(PetscInt iii = 0 ; iii < ctx.numFields; iii++)
     {
