@@ -1200,20 +1200,14 @@ int main(int argc, char **argv)
     KSP  preksp;
     PC   prepc;
     ierr = TSGetSNES(prets,&presnes);
-    ierr = SNESSetOptionsPrefix(presnes,"phasepresolve_");CHKERRQ(ierr);
     ierr = SNESGetKSP(presnes,&preksp);CHKERRQ(ierr);
-    ierr = KSPSetOptionsPrefix(preksp,"phasepresolve_");CHKERRQ(ierr);
     ierr = KSPGetPC(preksp,&prepc);CHKERRQ(ierr);
     ierr = PCFieldSplitSetIS(prepc,"c",ctx.fields[FIELD_PHASE]);CHKERRQ(ierr);
-    ierr = PCSetOptionsPrefix(prepc,"phasepresolve_");CHKERRQ(ierr);
    }
 
   // time stepper for coupled equations
   ierr = TSCreate(PETSC_COMM_WORLD, &ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts, dm);CHKERRQ(ierr);
-  ierr = DMTSSetBoundaryLocal(dm, DMPlexTSComputeBoundary, &ctx);CHKERRQ(ierr);
-  ierr = DMTSSetIFunctionLocal(dm, DMPlexTSComputeIFunctionFEM, &ctx);CHKERRQ(ierr);
-  ierr = DMTSSetIJacobianLocal(dm, DMPlexTSComputeIJacobianFEM, &ctx);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
   ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
@@ -1254,24 +1248,24 @@ int main(int argc, char **argv)
   ierr = PetscSNPrintf(phasefieldsolution,sizeof(phasefieldsolution),"./vector.%04d.dat",ctx.refine);CHKERRQ(ierr);
 
   PetscBool      flg;
-  ierr = PetscTestFile(phasefieldsolution, 'r', &flg);
+  ierr = PetscTestFile(phasefieldsolution, 'r', &flg);CHKERRQ(ierr);
 
   if( flg == PETSC_TRUE ) 
     {/* Read in previously computed solution in binary format */
      PetscViewer    viewer;
-     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from vector.dat ...\n");
-     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_READ,&viewer);
-     ierr = VecLoad(u,viewer);
-     ierr = PetscViewerDestroy(&viewer);
+     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from vector.dat ...\n"); CHKERRQ(ierr);
+     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
+     ierr = VecLoad(u,viewer); CHKERRQ(ierr);
+     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
     } 
   else
     {/* solve and write phase field solution to disk in vector in binary format */
      PetscViewer    viewer;
      ierr = TSSolve(prets, u);CHKERRQ(ierr);
-     ierr = PetscPrintf(PETSC_COMM_WORLD,"writing vector in binary to vector.dat ...\n");
-     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_WRITE,&viewer);
-     ierr = VecView(u,viewer);
-     ierr = PetscViewerDestroy(&viewer);
+     ierr = PetscPrintf(PETSC_COMM_WORLD,"writing vector in binary to vector.dat ...\n"); CHKERRQ(ierr);
+     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
+     ierr = VecView(u,viewer); CHKERRQ(ierr);
+     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
     } 
 
 
