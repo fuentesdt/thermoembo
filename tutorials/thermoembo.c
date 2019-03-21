@@ -1,6 +1,5 @@
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type ksponly  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-9 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_fieldsplit_1_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_1_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
+// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type ksponly  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-9 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
 
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 2 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-9 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 2 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_fieldsplit_1_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_1_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
 
 // PCApply_FieldSplit 
 // PCFieldSplitSetDefaults
@@ -128,6 +127,31 @@ PetscErrorCode TSUpdateArrhenius(TS ts, PetscReal stagetime, PetscInt stageindex
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_DAMAGE]     , &damage     );CHKERRQ(ierr);
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_SATURATION] , &saturation );CHKERRQ(ierr);
   ierr = VecDestroy( &work);CHKERRQ(ierr);
+
+  return 0;
+}
+
+PetscErrorCode TSUpdatePhase(TS ts, PetscReal stagetime, PetscInt stageindex, Vec *Y)
+{
+  AppCtx         *ctx;
+  DM dm;
+  Vec            phase;
+  PetscReal deltaT; 
+  PetscErrorCode ierr;
+
+  ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
+  ierr = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr);
+  // post process phase - bound between 0 and 1
+  ierr = VecGetSubVector(*Y, ctx->fields[FIELD_PHASE], &phase);CHKERRQ(ierr);
+  int iii,nlocal;
+  PetscReal    *array;
+  ierr = VecGetLocalSize(phase,&nlocal);
+  ierr = VecGetArray(phase,&array);
+  for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
+  ierr = VecRestoreArray(phase,&array);
+
+  // cleanup
+  ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_PHASE] , &phase );CHKERRQ(ierr);
 
   return 0;
 }
@@ -728,7 +752,7 @@ static void f1_phas(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt d;
   const PetscScalar  epsilon = constants[PARAM_PHASEEPSILON]; 
   for (d = 0; d < dim; ++d) {
-    f1[d] = epsilon*epsilon * u_x[d];
+    f1[d] = epsilon*epsilon * u_x[uOff_x[FIELD_PHASE]+d];
   }
 }
 
@@ -812,6 +836,14 @@ PetscErrorCode myprecheck(SNESLineSearch linesearch,Vec xcurrent,Vec y, PetscBoo
   ierr = VecRestoreSubVector(xcurrent, ctx->fields[FIELD_TEMPERATURE], &temperature);CHKERRQ(ierr);
   *changed_y = PETSC_TRUE;
   PetscFunctionReturn(0);
+}
+
+// PCApply_None copies the vector... need shell to do nothing
+PetscErrorCode DoNothingShellPCApply(PC pc,Vec x,Vec y)
+{
+  PetscErrorCode ierr;
+
+  return 0;
 }
 
 static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
@@ -1190,7 +1222,7 @@ int main(int argc, char **argv)
   AppCtx         ctx;
   DM             dm;
   TS             ts;
-  Vec            u, r, vecone,veczero;
+  Vec            u, r;
   PetscReal      t       = 0.0;
   PetscReal      L2error = 0.0;
   PetscErrorCode ierr;
@@ -1207,10 +1239,6 @@ int main(int argc, char **argv)
   ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u, "solution");CHKERRQ(ierr);
   ierr = VecDuplicate(u, &r);CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &vecone);CHKERRQ(ierr);
-  ierr = VecSet(vecone,1.0);CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &veczero);CHKERRQ(ierr);
-  ierr = VecSet(veczero,0.0);CHKERRQ(ierr);
 
   // time stepper for phase field
   ierr = TSCreate(PETSC_COMM_WORLD, &ts);CHKERRQ(ierr);
@@ -1231,7 +1259,6 @@ int main(int argc, char **argv)
   ierr = SNESSetObjective(mysnes,subspaceobjective,&ctx); CHKERRQ(ierr);
   ierr = SNESLineSearchSetPreCheck(mylinesearch,myprecheck,&ctx); CHKERRQ(ierr);
   ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
-
 
   // first solve is for phase field
   char   phasefieldsolution[PETSC_MAX_PATH_LEN];
@@ -1255,18 +1282,28 @@ int main(int argc, char **argv)
      // PCApply_FieldSplit
      // PCFieldSplitSetDefaults
      ierr = PCFieldSplitSetIS(mypc,"c",ctx.fields[FIELD_PHASE]);CHKERRQ(ierr);
+     // use damage a dummy field to 'solve'
+     ierr = PCFieldSplitSetIS(mypc,"d",ctx.fields[FIELD_DAMAGE]);CHKERRQ(ierr);
 
      char              prevtkfilenametemplate[PETSC_MAX_PATH_LEN];
      ierr = PetscSNPrintf(prevtkfilenametemplate,sizeof(prevtkfilenametemplate),"%spre%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
      ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&prevtkfilenametemplate,NULL);CHKERRQ(ierr);
+     ierr = TSSetPostStage(ts,TSUpdatePhase);CHKERRQ(ierr);
+
+     // set pc to do nothing
+     //ierr = SNESSetUp(mysnes);CHKERRQ(ierr);
+     //ierr = KSPSetUp(myksp);CHKERRQ(ierr);
+     //int numsplit;
+     //KSP *ksplist;
+     //PC  shellpc;
+     //ierr = PCFieldSplitGetSubKSP(mypc,&numsplit ,&ksplist);
+     //ierr = KSPGetPC(ksplist[1],&shellpc);CHKERRQ(ierr);
+     //ierr = PCShellSetApply(shellpc,DoNothingShellPCApply);CHKERRQ(ierr);
+     //ierr = PetscFree(ksplist);CHKERRQ(ierr);
 
      PetscViewer    viewer;
      ierr = TSSetTimeStep(ts,ctx.time_step);CHKERRQ(ierr);
      ierr = TSSolve(ts, u);CHKERRQ(ierr);
-
-     // post process to [0,1]
-     ierr = VecPointwiseMin(u,u,vecone);CHKERRQ(ierr);
-     ierr = VecPointwiseMax(u,u,veczero);CHKERRQ(ierr);
 
      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
      ierr = VecView(u,viewer); CHKERRQ(ierr);
