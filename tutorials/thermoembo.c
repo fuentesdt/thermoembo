@@ -121,7 +121,6 @@ PetscErrorCode TSUpdateArrhenius(TS ts, PetscReal stagetime, PetscInt stageindex
   for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
   ierr = VecRestoreArray(saturation,&array);
 
-
   // cleanup
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_TEMPERATURE], &temperature);CHKERRQ(ierr);
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_DAMAGE]     , &damage     );CHKERRQ(ierr);
@@ -137,21 +136,27 @@ PetscErrorCode TSUpdatePhase(TS ts, PetscReal stagetime, PetscInt stageindex, Ve
   DM dm;
   Vec            phase;
   PetscReal deltaT; 
+  PetscInt       currenttimestep; 
   PetscErrorCode ierr;
 
   ierr = TSGetDM(ts, &dm);CHKERRQ(ierr);
+  ierr = TSGetStepNumber(ts,&currenttimestep);CHKERRQ(ierr);
   ierr = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr);
-  // post process phase - bound between 0 and 1
-  ierr = VecGetSubVector(*Y, ctx->fields[FIELD_PHASE], &phase);CHKERRQ(ierr);
-  int iii,nlocal;
-  PetscReal    *array;
-  ierr = VecGetLocalSize(phase,&nlocal);
-  ierr = VecGetArray(phase,&array);
-  for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
-  ierr = VecRestoreArray(phase,&array);
+  if (currenttimestep == (ctx->max_steps-1)  )
+   {
+     ierr = PetscPrintf(PETSC_COMM_WORLD, "post process phase - bound between 0 and 1...\n");CHKERRQ(ierr);
+     // post process phase - bound between 0 and 1
+     ierr = VecGetSubVector(*Y, ctx->fields[FIELD_PHASE], &phase);CHKERRQ(ierr);
+     int iii,nlocal;
+     PetscReal    *array;
+     ierr = VecGetLocalSize(phase,&nlocal);
+     ierr = VecGetArray(phase,&array);
+     for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
+     ierr = VecRestoreArray(phase,&array);
 
-  // cleanup
-  ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_PHASE] , &phase );CHKERRQ(ierr);
+     // cleanup
+     ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_PHASE] , &phase );CHKERRQ(ierr);
+   }
 
   return 0;
 }
@@ -1305,6 +1310,7 @@ int main(int argc, char **argv)
      ierr = TSSetTimeStep(ts,ctx.time_step);CHKERRQ(ierr);
      ierr = TSSolve(ts, u);CHKERRQ(ierr);
 
+     // save to disk
      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
      ierr = VecView(u,viewer); CHKERRQ(ierr);
  
