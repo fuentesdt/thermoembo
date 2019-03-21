@@ -947,7 +947,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsString("-vtk", "vtk material filename to read", "exac.c", options->imagefile, options->imagefile, sizeof(options->imagefile), &flg);CHKERRQ(ierr);
   if (flg)
      {
-       ierr = PetscPrintf(PETSC_COMM_WORLD, "opening file...\n");CHKERRQ(ierr);
+       ierr = PetscPrintf(PETSC_COMM_WORLD, "opening image file. assume images are in mm...\n");CHKERRQ(ierr);
        vtkSmartPointer<vtkDataSetReader> reader = vtkSmartPointer<vtkDataSetReader>::New();
        reader->SetFileName(options->imagefile);
        reader->Update();
@@ -955,9 +955,13 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
        options->ImageData = vtkImageData::SafeDownCast( reader->GetOutput()) ;
        options->ImageData->PrintSelf(std::cout,vtkIndent());
        options->ImageData->GetBounds(options->bounds);
+       // convert to mm
+       for (int jjj=0;jjj<6;jjj++)options->bounds[ jjj]= .001*options->bounds[jjj];
        ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds {%10.3e,%10.3e} \n",
                             options->bounds[4],options->bounds[5]);
        options->ImageData->GetSpacing(options->spacing);
+       // convert to mm
+       for (int jjj=0;jjj<3;jjj++)options->spacing[jjj]= .001*options->spacing[jjj];
        ierr = PetscPrintf(PETSC_COMM_WORLD, "spacing {%10.3e,%10.3e,%10.3e} \n",
                             options->spacing[0],options->spacing[1],options->spacing[2]);
      }
