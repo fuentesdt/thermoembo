@@ -62,6 +62,7 @@ typedef enum {PARAM_OMEGA,
               PARAM_ARTIFICIALDIFFUSION} ParameterType;
 typedef struct {
   PetscInt          dim;
+  PetscInt          refine;
   PetscReal         time_step; /* phase field timestep */
   PetscInt          max_steps; /* phase field max steps */
   PetscBool         simplex;
@@ -868,7 +869,9 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 
   ierr = PetscOptionsBegin(comm, "", "Thermoembolization model parameter options", "DMPLEX");CHKERRQ(ierr);
   PetscBool      flg;
+  options->refine = 0;
   ierr = PetscOptionsInt("-dim", "The topological mesh dimension", "ex45.c", options->dim, &options->dim, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsInt("-dm_refine", "The number of uniform refinements", "DMCreate", options->refine, &options->refine, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "Simplicial (true) or tensor (false) mesh", "ex45.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-artdiff", "artificial diffusion [...]", "ex45.c", options->parameters[PARAM_ARTIFICIALDIFFUSION], &options->parameters[PARAM_ARTIFICIALDIFFUSION], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-advection", "scale temperature advection term[...]", "ex45.c", options->parameters[PARAM_ADVECTIONTERM], &options->parameters[PARAM_ADVECTIONTERM], NULL);CHKERRQ(ierr);
@@ -1240,13 +1243,37 @@ int main(int argc, char **argv)
 
     ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
     ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.fields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
+    ierr = ISSort(ispressuresaturation);CHKERRQ(ierr);
     ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.fields[FIELD_PHASE],&ctx.isnotpressuresaturation); CHKERRQ(ierr);
     ierr = PCFieldSplitSetIS(mypc,"s",ispressuresaturation);CHKERRQ(ierr);
     ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
    }
 
   // first solve is for phase field
-  ierr = TSSolve(prets, u);CHKERRQ(ierr);
+  char   phasefieldsolution[PETSC_MAX_PATH_LEN];
+  ierr = PetscSNPrintf(phasefieldsolution,sizeof(phasefieldsolution),"./vector.%04d.dat",ctx.refine);CHKERRQ(ierr);
+
+  PetscBool      flg;
+  ierr = PetscTestFile(phasefieldsolution, 'r', &flg);
+
+  if( flg == PETSC_TRUE ) 
+    {/* Read in previously computed solution in binary format */
+     PetscViewer    viewer;
+     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from vector.dat ...\n");
+     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_READ,&viewer);
+     ierr = VecLoad(u,viewer);
+     ierr = PetscViewerDestroy(&viewer);
+    } 
+  else
+    {/* solve and write phase field solution to disk in vector in binary format */
+     PetscViewer    viewer;
+     ierr = TSSolve(prets, u);CHKERRQ(ierr);
+     ierr = PetscPrintf(PETSC_COMM_WORLD,"writing vector in binary to vector.dat ...\n");
+     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,phasefieldsolution,FILE_MODE_WRITE,&viewer);
+     ierr = VecView(u,viewer);
+     ierr = PetscViewerDestroy(&viewer);
+    } 
+
 
   // solve full problem 
   ierr = TSSolve(ts, u);CHKERRQ(ierr);
