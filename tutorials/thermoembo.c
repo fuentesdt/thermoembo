@@ -67,6 +67,7 @@ typedef struct {
   PetscInt          refine;
   PetscReal         time_step; /* phase field timestep */
   PetscInt          max_steps; /* phase field max steps */
+  PetscReal         lengthscale; /* image usually in mm, convert image to meters*/
   PetscBool         simplex;
   PetscBool      fieldBC;
   char              imagefile[2048];   /* The vtk Image file */
@@ -213,7 +214,8 @@ static PetscErrorCode analytic_phas(PetscInt dim, PetscReal time, const PetscRea
   PetscReal imagevalue;
   AppCtx *user = (AppCtx *)ctx;
 
-  double coord[3]= {x[0],x[1],x[2]};
+  // convert from meters to mm to sample image
+  double coord[3]= {x[0]/user->lengthscale,x[1]/user->lengthscale,x[2]/user->lengthscale};
   double pcoord[3];
   int    index[3];
   if ( user->ImageData->ComputeStructuredCoordinates(coord,index,pcoord) )
@@ -945,6 +947,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsReal("-gamma", "time constanst permeability [...]", "ex45.c", gammaconst, &gammaconst, NULL);CHKERRQ(ierr);
   strcpy(options->imagefile, "./vessel.vtk");
   ierr = PetscOptionsString("-vtk", "vtk material filename to read", "exac.c", options->imagefile, options->imagefile, sizeof(options->imagefile), &flg);CHKERRQ(ierr);
+  options->lengthscale = .001; // convert to meters
   if (flg)
      {
        ierr = PetscPrintf(PETSC_COMM_WORLD, "opening image file. assume images are in mm...\n");CHKERRQ(ierr);
@@ -956,12 +959,12 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
        options->ImageData->PrintSelf(std::cout,vtkIndent());
        options->ImageData->GetBounds(options->bounds);
        // convert to mm
-       for (int jjj=0;jjj<6;jjj++)options->bounds[ jjj]= .001*options->bounds[jjj];
+       for (int jjj=0;jjj<6;jjj++)options->bounds[ jjj]= options->lengthscale*options->bounds[jjj];
        ierr = PetscPrintf(PETSC_COMM_WORLD, "ZBounds {%10.3e,%10.3e} \n",
                             options->bounds[4],options->bounds[5]);
        options->ImageData->GetSpacing(options->spacing);
        // convert to mm
-       for (int jjj=0;jjj<3;jjj++)options->spacing[jjj]= .001*options->spacing[jjj];
+       for (int jjj=0;jjj<3;jjj++)options->spacing[jjj]= options->lengthscale*options->spacing[jjj];
        ierr = PetscPrintf(PETSC_COMM_WORLD, "spacing {%10.3e,%10.3e,%10.3e} \n",
                             options->spacing[0],options->spacing[1],options->spacing[2]);
      }
@@ -978,9 +981,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 
   // FIXME error handle time steps. max time  should be  < epsilon^{-1}
   // FIXME epsilon^{-1} ~ 1/2 * voxel width
+  // FIXME epsilon units of m/s ? 
   options->parameters[PARAM_PHASEEPSILON] = options->spacing[0]; 
   PetscReal         max_time;               /* phase field max time allowed */
-  max_time = 1./options->parameters[PARAM_PHASEEPSILON];
+  max_time = options->lengthscale/options->parameters[PARAM_PHASEEPSILON];
   ierr = PetscOptionsInt("-phasepresolve_ts_max_steps","Maximum number of time steps","TSSetMaxSteps",options->max_steps,&options->max_steps,NULL);CHKERRQ(ierr);
   options->time_step = max_time/options->max_steps;
   ierr = PetscPrintf(PETSC_COMM_WORLD, "epsilon should be half voxel size %10.3e, max time step should be less than %10.3e, time step %10.3e \n",options->parameters[PARAM_PHASEEPSILON],max_time,options->time_step);
