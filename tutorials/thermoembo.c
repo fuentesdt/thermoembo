@@ -82,6 +82,7 @@ typedef struct {
   PetscInt numFields;
   char  **fieldNames;
   IS         *fields;
+  Vec        solvedirection;
   IS   isnotpressuresaturation;
   CoeffType      variableCoefficient;
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
@@ -400,7 +401,7 @@ static PetscErrorCode vessel_pres(PetscInt dim, PetscReal time, const PetscReal 
 static PetscErrorCode baseline_pres(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   AppCtx *options = (AppCtx *)ctx;
-  *u = options->parameters[PARAM_BASELINEPRESSURE];
+  *u = options->solvesystem ? options->parameters[PARAM_BASELINEPRESSURE] : 0.0;
   return 0;
 }
 
@@ -839,7 +840,7 @@ PetscErrorCode myprecheck(SNESLineSearch linesearch,Vec xcurrent,Vec y, PetscBoo
   PetscErrorCode    ierr;
 
   PetscFunctionBeginUser;
-  // zero search direction for temperature and update from linear linear solve with lambda = 1
+  // zero search direction for temperature  and update from linear linear solve with lambda = 1
   //  ie solve linear system with SNESSolve_KSPONLY
   ierr = VecGetSubVector(y, ctx->fields[FIELD_TEMPERATURE], &temperaturesearch);CHKERRQ(ierr);
   ierr = VecGetSubVector(xcurrent, ctx->fields[FIELD_TEMPERATURE], &temperature);CHKERRQ(ierr);
@@ -847,6 +848,8 @@ PetscErrorCode myprecheck(SNESLineSearch linesearch,Vec xcurrent,Vec y, PetscBoo
   ierr = VecSet(temperaturesearch,0.0);CHKERRQ(ierr);
   ierr = VecRestoreSubVector(y, ctx->fields[FIELD_TEMPERATURE], &temperaturesearch);CHKERRQ(ierr);
   ierr = VecRestoreSubVector(xcurrent, ctx->fields[FIELD_TEMPERATURE], &temperature);CHKERRQ(ierr);
+  // zero search direction for dirichlet data 
+  ierr = VecPointwiseMult(y,y,ctx->solvedirection);CHKERRQ(ierr);
   *changed_y = PETSC_TRUE;
   PetscFunctionReturn(0);
 }
@@ -1000,7 +1003,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   // first solve is for phase field
   ierr = PetscSNPrintf(options->phasefieldsolution,sizeof(options->phasefieldsolution),"%s.%04d.dat",options->filenosuffix,options->refine);CHKERRQ(ierr);
   ierr = PetscTestFile(options->phasefieldsolution, 'r', &options->solvesystem);CHKERRQ(ierr);
-  options->solvesystem         = PETSC_FALSE;
+  //options->solvesystem         = PETSC_FALSE;
 
   // update solve parameters
   options->parameters[PARAM_MOBILITYOIL        ] = tissue_permeability/oil_viscosity  *atmosphericpressure; // [m^2/atm/s]
@@ -1260,7 +1263,7 @@ PetscErrorCode KSPPostSolve_ZeroSearch(KSP ksp, Vec b, Vec x, void *ctx)
   AppCtx *options = (AppCtx *)ctx;
 
   PetscFunctionBegin;
-  
+  ierr = VecPointwiseMult(x,x,options->solvedirection);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1364,6 +1367,12 @@ int main(int argc, char **argv)
      ierr = VecLoad(u,viewer); CHKERRQ(ierr);
      ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
+     // solve direction implements dirichlet BC
+     ierr = VecDuplicate(u, &ctx.solvedirection);CHKERRQ(ierr);
+     ierr = VecCopy(u,ctx.solvedirection);CHKERRQ(ierr);
+     ierr = VecShift(ctx.solvedirection,-1.0);CHKERRQ(ierr);
+     ierr = VecAbs(ctx.solvedirection);CHKERRQ(ierr);
+
      // setup initial conditions
      Vec        temperaturevector,   pressurevector ;
      ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
@@ -1402,8 +1411,11 @@ int main(int argc, char **argv)
      ierr = TSSetStepNumber(ts,0);CHKERRQ(ierr);
      ierr = TSSolve(ts, u);CHKERRQ(ierr);
      ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
+
+     // clean up
      ierr = ISDestroy(&ispressuresaturation);CHKERRQ(ierr);
      ierr = ISDestroy(&ctx.isnotpressuresaturation);CHKERRQ(ierr);
+     ierr = VecDestroy(&ctx.solvedirection);CHKERRQ(ierr);
 
     } 
 
