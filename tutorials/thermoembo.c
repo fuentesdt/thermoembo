@@ -1,4 +1,4 @@
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-9 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
+// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-6 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_c_pc_type bjacobi -phasepresolve_fieldsplit_c_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_c_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test
 
 
 // PCApply_FieldSplit 
@@ -1122,10 +1122,10 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   // evaluate exact solution
   const PetscInt numberfields=5;
   ierr = PetscMalloc1(numberfields, &ctx->exactFuncs);CHKERRQ(ierr);
-  ctx->exactFuncs[FIELD_TEMPERATURE] = analytic_temp;
-  ctx->exactFuncs[FIELD_PRESSURE   ] = analytic_pres;
+  ctx->exactFuncs[FIELD_TEMPERATURE] = analytic_phas;
+  ctx->exactFuncs[FIELD_PRESSURE   ] = analytic_phas;
   ctx->exactFuncs[FIELD_DAMAGE     ] = analytic_damg;
-  ctx->exactFuncs[FIELD_SATURATION ] = analytic_conc;
+  ctx->exactFuncs[FIELD_SATURATION ] = analytic_phas;
   ctx->exactFuncs[FIELD_PHASE ]      = analytic_phas;
   const PetscInt id = 1;
   const PetscInt nodeSetApplicatorValue = 2; // node set value assigned to exodus mesh
@@ -1287,8 +1287,20 @@ int main(int argc, char **argv)
      // same application context for each field
      void          *ctxarray[ctx.numFields];
      ctxarray[0] = &ctx; ctxarray[1] = &ctx; ctxarray[2] = &ctx; ctxarray[3] = &ctx; ctxarray[4] = &ctx;
-     ierr = DMProjectFunction(dm, t, ctx.exactFuncs, ctxarray, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
 
+     // setup initial conditions
+     ierr = DMProjectFunction(dm, t, ctx.exactFuncs, ctxarray, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
+     Vec        temperaturevector,   pressurevector ;
+     ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     ierr = VecGetSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
+     ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
+     ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     ierr = VecShift(pressurevector,                                         ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+
+     // setup ts options
      ierr = TSSetOptionsPrefix(ts,"phasepresolve_");CHKERRQ(ierr);
      ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
 
