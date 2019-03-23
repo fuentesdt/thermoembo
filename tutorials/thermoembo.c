@@ -1371,7 +1371,7 @@ int main(int argc, char **argv)
                // ierr = PetscPrintf(PETSC_COMM_WORLD, "field=%d ix=%d y[ix]=%f \n",jjj,nindices[kkk],vectordata[kkk]);CHKERRQ(ierr);
               }
             ierr = ISCreateGeneral(PETSC_COMM_WORLD,isdirichlet.size(),&isdirichlet[0],PETSC_COPY_VALUES,&ctx.subfields[jjj]);
-            ierr = ISView(ctx.subfields[jjj],0);
+            //ierr = ISView(ctx.subfields[jjj],0);
             // cleanup
             ierr = ISRestoreIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
             ierr = PetscFree(vectordata);CHKERRQ(ierr);
