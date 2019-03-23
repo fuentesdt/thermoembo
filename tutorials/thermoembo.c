@@ -26,6 +26,7 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 #include <vtkDataSetReader.h>
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkPolyData.h>
+#include <vector>
 
 /*
   parabolic equation:
@@ -83,6 +84,7 @@ typedef struct {
   PetscInt numFields;
   char  **fieldNames;
   IS         *fields;
+  IS         *subfields;
   Vec        solvedirection;
   IS   isnotpressuresaturation;
   CoeffType      variableCoefficient;
@@ -1264,6 +1266,7 @@ int main(int argc, char **argv)
 
   // get index subsets
   ierr = DMCreateFieldIS(dm, &ctx.numFields, &ctx.fieldNames, &ctx.fields);CHKERRQ(ierr);
+  ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
 
   ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u, "solution");CHKERRQ(ierr);
@@ -1346,16 +1349,39 @@ int main(int argc, char **argv)
      ierr = VecLoad(u,viewer); CHKERRQ(ierr);
      ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
-     int nlocalsize, istart,iend;
-     PetscScalar *ulocal ;
-     ierr = VecGetLocalSize(u,&nlocalsize); CHKERRQ(ierr);
-     ierr = VecGetOwnershipRange(u, &istart,&iend); CHKERRQ(ierr);
-     ierr = VecGetLocalSize(u,&); CHKERRQ(ierr);
-       for (int ivec=0; ivec<nlocalsize; ivec++) {
-         iglobal = ivec + istart;
-         ix[ivec]   = iglobal;
+
+     // solve outside the phase field
+     for(PetscInt jjj = 0 ; jjj < ctx.numFields; jjj++)
+       {
+         if (jjj == FIELD_PRESSURE || jjj ==  FIELD_SATURATION || jjj == FIELD_TEMPERATURE) 
+           {
+            int nlocalsize;
+            const PetscInt *nindices;
+            PetscScalar  *vectordata;
+            ierr = ISGetLocalSize(ctx.fields[jjj],&nlocalsize);  CHKERRQ(ierr);
+            ierr = ISGetIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
+            ierr = PetscMalloc1(nlocalsize, &vectordata);CHKERRQ(ierr);
+            ierr = VecGetValues(u,nlocalsize, nindices,vectordata);CHKERRQ(ierr);
+
+            // create IS without dirichlet nodes
+            std::vector<int> isdirichlet; 
+            for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < .5)
+              {
+               isdirichlet.push_back(nindices[kkk] );
+               // ierr = PetscPrintf(PETSC_COMM_WORLD, "field=%d ix=%d y[ix]=%f \n",jjj,nindices[kkk],vectordata[kkk]);CHKERRQ(ierr);
+              }
+            ierr = ISCreateGeneral(PETSC_COMM_WORLD,isdirichlet.size(),&isdirichlet[0],PETSC_COPY_VALUES,&ctx.subfields[jjj]);
+            ierr = ISView(ctx.subfields[jjj],0);
+            // cleanup
+            ierr = ISRestoreIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
+            ierr = PetscFree(vectordata);CHKERRQ(ierr);
+           }
+         else
+           {
+            ctx.subfields[jjj]  = NULL;
+           }
        }
-     ierr = VecGetValues(u,nlocalsize, const PetscInt ix[],PetscScalar y[])
+      
 
      // solve direction implements dirichlet BC
      ierr = VecDuplicate(u, &ctx.solvedirection);CHKERRQ(ierr);
@@ -1393,11 +1419,11 @@ int main(int argc, char **argv)
      // PCApply_FieldSplit
      // PCFieldSplitSetDefaults
      IS   ispressuresaturation;
-     ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.fields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
+     ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.subfields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
      ierr = ISSort(ispressuresaturation);CHKERRQ(ierr);
      ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.fields[FIELD_PHASE],&ctx.isnotpressuresaturation); CHKERRQ(ierr);
      ierr = PCFieldSplitSetIS(mypc,"s",ispressuresaturation);CHKERRQ(ierr);
-     ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
+     ierr = PCFieldSplitSetIS(mypc,"u",ctx.subfields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
      ierr = KSPSetPostSolve(myksp,KSPPostSolve_ZeroSearch,&ctx);CHKERRQ(ierr);
 
      // solve full problem 
@@ -1423,6 +1449,7 @@ int main(int argc, char **argv)
     {
      ierr = PetscFree(ctx.fieldNames[iii]);CHKERRQ(ierr);
      ierr = ISDestroy(&ctx.fields[iii]);CHKERRQ(ierr);
+     ierr = ISDestroy(&ctx.subfields[iii]);CHKERRQ(ierr);
     }
   ierr = PetscFree(ctx.fieldNames);CHKERRQ(ierr);
   ierr = PetscFree(ctx.fields);CHKERRQ(ierr);
