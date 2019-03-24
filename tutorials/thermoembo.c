@@ -1290,7 +1290,6 @@ int main(int argc, char **argv)
 
   // get index subsets
   ierr = DMCreateFieldIS(dm, &ctx.numFields, &ctx.fieldNames, &ctx.fields);CHKERRQ(ierr);
-  ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
 
   ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u, "solution");CHKERRQ(ierr);
@@ -1375,6 +1374,7 @@ int main(int argc, char **argv)
 
 
      // solve outside the phase field
+     ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
      for(PetscInt jjj = 0 ; jjj < ctx.numFields; jjj++)
        {
          if (jjj == FIELD_PRESSURE || jjj ==  FIELD_SATURATION || jjj == FIELD_TEMPERATURE) 
@@ -1476,6 +1476,8 @@ int main(int argc, char **argv)
      ierr = ISDestroy(&ctx.isnotpressuresaturation);CHKERRQ(ierr);
      ierr = VecDestroy(&ctx.solvedirection);CHKERRQ(ierr);
 
+     for(PetscInt iii = 0 ; iii < ctx.numFields; iii++) 
+          ierr = ISDestroy(&ctx.subfields[iii]);CHKERRQ(ierr);
     } 
 
   // clean up
@@ -1488,7 +1490,6 @@ int main(int argc, char **argv)
     {
      ierr = PetscFree(ctx.fieldNames[iii]);CHKERRQ(ierr);
      ierr = ISDestroy(&ctx.fields[iii]);CHKERRQ(ierr);
-     ierr = ISDestroy(&ctx.subfields[iii]);CHKERRQ(ierr);
     }
   ierr = PetscFree(ctx.fieldNames);CHKERRQ(ierr);
   ierr = PetscFree(ctx.fields);CHKERRQ(ierr);
