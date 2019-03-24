@@ -445,9 +445,21 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
   
+
+  double normphasesq=0.0;	
+  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
+  double projection=0.0;	
+  for (comp = 0; comp < dim; ++comp) projection  = projection  + u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
+  projection=projection/normphasesq;	
+
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[comp] ,
+                             u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[comp] ,
+                             u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[comp]  };
+  PetscReal temperature    = u[FIELD_PHASE] > .2 ? constants[PARAM_USALT] :   u[FIELD_TEMPERATURE];
+  PetscReal temperaturedot = u[FIELD_PHASE] > .2 ?         0.0            : u_t[FIELD_TEMPERATURE];
   //PetscPrintf(PETSC_COMM_WORLD, "f0: u_t = %12.5e beta = %12.5e %12.5e %12.5e   ",u_t[FIELD_TEMPERATURE],beta[0], beta[1], beta[2] );
   double advection=0.0;
-  for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * beta[comp];
+  for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * betaproj[comp];
   f0[0] = u_t[FIELD_TEMPERATURE] + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION];
 
 }
@@ -1365,7 +1377,7 @@ int main(int argc, char **argv)
 
             // create IS without dirichlet nodes
             std::vector<int> isdirichlet; 
-            for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < .5)
+            for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < .95)
               {
                isdirichlet.push_back(nindices[kkk] );
                // ierr = PetscPrintf(PETSC_COMM_WORLD, "field=%d ix=%d y[ix]=%f \n",jjj,nindices[kkk],vectordata[kkk]);CHKERRQ(ierr);
@@ -1391,9 +1403,9 @@ int main(int argc, char **argv)
 
      // view solve direction
      char              vtkfilenametemplate[PETSC_MAX_PATH_LEN];
-     ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssolution%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
-     ierr = TSMonitorSolutionVTK(ts,9998,1.e9,                 u,vtkfilenametemplate);CHKERRQ(ierr);
-     ierr = TSMonitorSolutionVTK(ts,9999,1.e9,ctx.solvedirection,vtkfilenametemplate);CHKERRQ(ierr);
+     ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssetup%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
+     ierr = TSMonitorSolutionVTK(ts,0,1.e9,                 u,vtkfilenametemplate);CHKERRQ(ierr);
+     ierr = TSMonitorSolutionVTK(ts,1,1.e9,ctx.solvedirection,vtkfilenametemplate);CHKERRQ(ierr);
 
      // setup initial conditions
      Vec        temperaturevector,   pressurevector ;
@@ -1408,6 +1420,7 @@ int main(int argc, char **argv)
 
      //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
      // write vtk file at every time point
+     ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssolution%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
      ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
      ierr = TSSetPostStage(ts,TSUpdateArrhenius);CHKERRQ(ierr);
 
