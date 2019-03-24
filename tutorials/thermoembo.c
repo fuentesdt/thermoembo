@@ -447,14 +447,9 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
   
 
-  double normphasesq=0.0;	
-  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
-  double projection=0.0;	
-  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
-  projection=projection/(normphasesq + _globalepsilon);	
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   PetscReal temperaturedot = u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ?         0.0            : u_t[FIELD_TEMPERATURE];
   //PetscPrintf(PETSC_COMM_WORLD, "f0: u_t = %12.5e beta = %12.5e %12.5e %12.5e   ",u_t[FIELD_TEMPERATURE],beta[0], beta[1], beta[2] );
@@ -488,14 +483,9 @@ static void f1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
-  double normphasesq=0.0;	
-  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
-  double projection=0.0;	
-  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
-  projection=projection/(normphasesq + _globalepsilon);	
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   //PetscPrintf(PETSC_COMM_WORLD, "f1: u_x  %12.5e %12.5e %12.5e \n",u_x[uOff_x[FIELD_TEMPERATURE]+0] ,u_x[uOff_x[FIELD_TEMPERATURE]+1] ,u_x[uOff_x[FIELD_TEMPERATURE]+2] );
   double  innerprod = 0.0;
@@ -521,14 +511,9 @@ static void g1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
-  double normphasesq=0.0;	
-  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
-  double projection=0.0;	
-  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
-  projection=projection/(normphasesq + _globalepsilon);	
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   for (comp = 0; comp < dim; ++comp) {
     g1[comp] =  betaproj[comp];
@@ -550,14 +535,9 @@ static void g3_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
-  double normphasesq=0.0;	
-  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
-  double projection=0.0;	
-  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
-  projection=projection/(normphasesq + _globalepsilon);	
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   //PetscPrintf(PETSC_COMM_WORLD, "%f ",conduction );
   for (comp = 0; comp < dim; ++comp) {
@@ -963,7 +943,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   double     heatofreaction          = 93.e3;   // [J/mole]
 
   // boundary threshold
-  options->parameters[PARAM_PHASETHRESH]  = 0.2;
+  options->parameters[PARAM_PHASETHRESH]  = 0.05;
 
   ierr = PetscOptionsBegin(comm, "", "Thermoembolization model parameter options", "DMPLEX");CHKERRQ(ierr);
   PetscBool      flg;
@@ -1059,6 +1039,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_BASELINEPRESSURE    [atm] = %12.5e\n",options->parameters[PARAM_BASELINEPRESSURE    ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_BOUNDARYPRESSURE    [atm] = %12.5e\n",options->parameters[PARAM_BOUNDARYPRESSURE    ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_EPSILON                   = %12.5e\n",options->parameters[PARAM_EPSILON             ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PHASEEPSILON              = %12.5e\n",options->parameters[PARAM_PHASEEPSILON        ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PHASETHRESH               = %12.5e\n",options->parameters[PARAM_PHASETHRESH         ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SATURATION_SOURCE         = %12.5e\n",options->parameters[PARAM_SATURATION_SOURCE   ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PRESSURE_SOURCE           = %12.5e\n",options->parameters[PARAM_PRESSURE_SOURCE     ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_TEMPERATURE_SOURCE [hK/s] = %12.5e\n",options->parameters[PARAM_TEMPERATURE_SOURCE  ]);CHKERRQ(ierr);
@@ -1407,7 +1389,7 @@ int main(int argc, char **argv)
 
             // create IS without dirichlet nodes
             std::vector<int> isdirichlet; 
-            for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < .95)
+            for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < .7)
               {
                isdirichlet.push_back(nindices[kkk] );
                // ierr = PetscPrintf(PETSC_COMM_WORLD, "field=%d ix=%d y[ix]=%f \n",jjj,nindices[kkk],vectordata[kkk]);CHKERRQ(ierr);
