@@ -1419,16 +1419,28 @@ int main(int argc, char **argv)
      ierr = TSMonitorSolutionVTK(ts,0,1.e9,                 u,vtkfilenametemplate);CHKERRQ(ierr);
      ierr = TSMonitorSolutionVTK(ts,1,1.e9,ctx.solvedirection,vtkfilenametemplate);CHKERRQ(ierr);
 
-     // setup initial conditions
+     // setup initial conditions inside dirichlet boundary
      Vec        temperaturevector,   pressurevector ;
      ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecGetSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
-     ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
-     ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
-     ierr = VecShift(pressurevector,                                         ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     // smooth BC
+     // ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
+     // ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
+     // ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     // ierr = VecShift(pressurevector,                                         ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     // strong boundary
+     ierr = VecSet(temperaturevector,ctx.parameters[PARAM_USALT]           );CHKERRQ(ierr);
+     ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+
+     // setup initial conditions outside dirichlet boundary
+     ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     ierr = VecGetSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecSet(temperaturevector,ctx.parameters[PARAM_UARTERY]         );CHKERRQ(ierr);
+     ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
 
      //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
      // write vtk file at every time point
