@@ -59,6 +59,7 @@ typedef enum {PARAM_OMEGA,
               PARAM_BOUNDARYPRESSURE,
               PARAM_EPSILON,
               PARAM_PHASEEPSILON,
+              PARAM_PHASETHRESH,
               PARAM_SATURATION_SOURCE,
               PARAM_PRESSURE_SOURCE, 
               PARAM_TEMPERATURE_SOURCE, 
@@ -449,18 +450,17 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   double normphasesq=0.0;	
   for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
   double projection=0.0;	
-  for (comp = 0; comp < dim; ++comp) projection  = projection  + u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
+  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
   projection=projection/(normphasesq + _globalepsilon);	
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
 
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[comp] ,
-                             u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[comp] ,
-                             u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[comp]  };
-  PetscReal temperature    = u[FIELD_PHASE] > .2 ? constants[PARAM_USALT] :   u[FIELD_TEMPERATURE];
-  PetscReal temperaturedot = u[FIELD_PHASE] > .2 ?         0.0            : u_t[FIELD_TEMPERATURE];
+  PetscReal temperaturedot = u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ?         0.0            : u_t[FIELD_TEMPERATURE];
   //PetscPrintf(PETSC_COMM_WORLD, "f0: u_t = %12.5e beta = %12.5e %12.5e %12.5e   ",u_t[FIELD_TEMPERATURE],beta[0], beta[1], beta[2] );
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * betaproj[comp];
-  f0[0] = u_t[FIELD_TEMPERATURE] + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION];
+  f0[0] = temperaturedot  + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION];
 
 }
 
@@ -478,7 +478,7 @@ static void f1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 {
-  PetscInt d;
+  PetscInt comp;
   PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
   // buffers
   PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]*dpds;
@@ -488,12 +488,21 @@ static void f1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
+  double normphasesq=0.0;	
+  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
+  double projection=0.0;	
+  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
+  projection=projection/(normphasesq + _globalepsilon);	
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
+
   //PetscPrintf(PETSC_COMM_WORLD, "f1: u_x  %12.5e %12.5e %12.5e \n",u_x[uOff_x[FIELD_TEMPERATURE]+0] ,u_x[uOff_x[FIELD_TEMPERATURE]+1] ,u_x[uOff_x[FIELD_TEMPERATURE]+2] );
   double  innerprod = 0.0;
-  for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_TEMPERATURE]+d]  * beta[d];
-  for (d = 0; d < dim; ++d) {
-    f1[d] = constants[PARAM_ALPHA] * u_x[uOff_x[FIELD_TEMPERATURE]+d] 
-          + constants[PARAM_ARTIFICIALDIFFUSION] * innerprod * beta[d];
+  for (comp = 0; comp < dim; ++comp)  innerprod = innerprod + u_x[uOff_x[FIELD_TEMPERATURE]+comp]  * betaproj[comp];
+  for (comp = 0; comp < dim; ++comp) {
+    f1[comp] = constants[PARAM_ALPHA] * u_x[uOff_x[FIELD_TEMPERATURE]+comp] 
+          + constants[PARAM_ARTIFICIALDIFFUSION] * innerprod * betaproj[comp];
   }
 }
 
@@ -502,7 +511,7 @@ static void g1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
 {
-  PetscInt d;
+  PetscInt comp;
   PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
   // buffers
   PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]*dpds;
@@ -511,8 +520,18 @@ static void g1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
-  for (d = 0; d < dim; ++d) {
-    g1[d] =  beta[d];
+
+  double normphasesq=0.0;	
+  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
+  double projection=0.0;	
+  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
+  projection=projection/(normphasesq + _globalepsilon);	
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
+
+  for (comp = 0; comp < dim; ++comp) {
+    g1[comp] =  betaproj[comp];
   }
 }
 
@@ -521,7 +540,7 @@ static void g3_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
-  PetscInt d,iii,jjj;
+  PetscInt comp,iii,jjj;
   PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
   // buffers
   PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]*dpds;
@@ -531,12 +550,21 @@ static void g3_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
+  double normphasesq=0.0;	
+  for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
+  double projection=0.0;	
+  for (comp = 0; comp < dim; ++comp) projection  = projection  - u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
+  projection=projection/(normphasesq + _globalepsilon);	
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? -projection * u_x[uOff_x[FIELD_PHASE]+2]: beta[2]  };
+
   //PetscPrintf(PETSC_COMM_WORLD, "%f ",conduction );
-  for (d = 0; d < dim; ++d) {
-    g3[d*dim+d] = constants[PARAM_ALPHA];
+  for (comp = 0; comp < dim; ++comp) {
+    g3[comp*dim+comp] = constants[PARAM_ALPHA];
   }
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
-    g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_ARTIFICIALDIFFUSION] * beta[iii] * beta[jjj];
+    g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_ARTIFICIALDIFFUSION] * betaproj[iii] * betaproj[jjj];
   }
 }
 
@@ -934,6 +962,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   // First In Vivo Test of Thermoembolization: Turning Tissue Against Itself Using Transcatheter Chemistry in a Porcine Model -  Erik N. K. Cressman  • Chunxiao Guo
   double     heatofreaction          = 93.e3;   // [J/mole]
 
+  // boundary threshold
+  options->parameters[PARAM_PHASETHRESH]  = 0.2;
 
   ierr = PetscOptionsBegin(comm, "", "Thermoembolization model parameter options", "DMPLEX");CHKERRQ(ierr);
   PetscBool      flg;
