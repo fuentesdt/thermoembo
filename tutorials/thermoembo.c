@@ -450,7 +450,7 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   for (comp = 0; comp < dim; ++comp) normphasesq = normphasesq + u_x[uOff_x[FIELD_PHASE]+comp]*u_x[uOff_x[FIELD_PHASE]+comp]  ;	
   double projection=0.0;	
   for (comp = 0; comp < dim; ++comp) projection  = projection  + u_x[uOff_x[FIELD_PHASE]+comp]*beta[comp]  ;	
-  projection=projection/normphasesq;	
+  projection=projection/(normphasesq + _globalepsilon);	
 
   PetscReal  betaproj[3]   ={u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+0]: beta[comp] ,
                              u[FIELD_PHASE] > .2 ? projection * u_x[uOff_x[FIELD_PHASE]+1]: beta[comp] ,
