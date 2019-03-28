@@ -406,17 +406,50 @@ static void f0_bd_p(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   f0[0] = - constants[PARAM_INJECTIONVELOCITY];
 }
 
-void g0_bd_uu_3d(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+static void f0_bd_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                    const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                    const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                    PetscReal t, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
+{
+  PetscInt   comp;
+  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
+  // buffers
+  PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]*dpds;
+  PetscReal  tmptwo  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* ((1-u[FIELD_SATURATION])*constants[PARAM_MOBILITYBLOOD] + u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]); 
+  PetscReal  beta[3] = {
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
+
+  double advection=0.0;
+  for (comp = 0; comp < dim; ++comp) advection += n[comp] * betaproj[comp];
+  f0[0] = advection * (u[FIELD_TEMPERATURE]  - constants[PARAM_UARTERY]) ;
+}
+
+void g0_bd_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
     PetscReal t, PetscReal u_tShift, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
 {
-  PetscInt d;
-  double radius = 0.0;
-  for (d = 0; d < dim; ++d) radius += x[d]*x[d];
-  radius = sqrt(radius);
-  if ( radius > .02 ) // FIXME - HACK location dependent bc .... not invariant ... assign by vertex set ? 
-    {g0[0] =   constants[2] ;}
+  PetscInt   comp;
+  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
+  // buffers
+  PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]*dpds;
+  PetscReal  tmptwo  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* ((1-u[FIELD_SATURATION])*constants[PARAM_MOBILITYBLOOD] + u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]); 
+  PetscReal  beta[3] = {
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
+
+  double advection=0.0;
+  for (comp = 0; comp < dim; ++comp) advection += n[comp] * betaproj[comp];
+  g0[0] = advection ;
 }
 
 
@@ -958,6 +991,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsReal("-disppressure", "displacement pressure [...]", "ex45.c", options->parameters[PARAM_DISPLACEMENTPRESSURE], &options->parameters[PARAM_DISPLACEMENTPRESSURE], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-permeability", "tissue permeability [...]", "ex45.c", tissue_permeability, &tissue_permeability, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-gamma", "time constanst permeability [...]", "ex45.c", gammaconst, &gammaconst, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-phase", "phase threshold [...]", "ex45.c", options->parameters[PARAM_PHASETHRESH], &options->parameters[PARAM_PHASETHRESH], NULL);CHKERRQ(ierr);
   strcpy(options->imagefile, "./vessel.vtk");
   ierr = PetscOptionsString("-vtk", "vtk material filename to read", "exac.c", options->imagefile, options->imagefile, sizeof(options->imagefile), &flg);CHKERRQ(ierr);
   options->lengthscale = .001; // convert to meters
@@ -1121,8 +1155,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
     ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_temp, g1_temp, NULL, g3_temp);CHKERRQ(ierr);
     ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_PRESSURE   , NULL   , g1_temppres, NULL, g3_temppres);CHKERRQ(ierr);
     ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_SATURATION , g0_tempsat, g1_tempsat, g2_tempsat, g3_tempsat);CHKERRQ(ierr);
-    
-    // //ierr = PetscDSSetBdJacobian(prob, 0, 0, g0_bd_uu_3d, NULL, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdResidual(prob, FIELD_TEMPERATURE, f0_bd_u, NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_bd_uu, NULL, NULL, NULL);CHKERRQ(ierr);
 
     // wetting phase pressure equations
     ierr = PetscDSSetResidual(  prob, FIELD_PRESSURE, f0_p, f1_p);CHKERRQ(ierr);
@@ -1172,6 +1206,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_DAMAGE     ,  0, NULL, (void(*)())tissuedamagefcn   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, (void(*)())bolusinjection    , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "marker", FIELD_SATURATION ,  0, NULL, (void(*)())fieldzero         , 1, &id , ctx);CHKERRQ(ierr);
+  // Cauchy BC
+  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "marker", FIELD_TEMPERATURE   ,  0, NULL, NULL                         , 1, &id      , ctx);CHKERRQ(ierr);
   // Neuman BC
   //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
