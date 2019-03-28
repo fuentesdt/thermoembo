@@ -488,7 +488,9 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   //PetscPrintf(PETSC_COMM_WORLD, "f0: u_t = %12.5e beta = %12.5e %12.5e %12.5e   ",u_t[FIELD_TEMPERATURE],beta[0], beta[1], beta[2] );
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * betaproj[comp];
-  f0[0] = temperaturedot  + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION];
+  double boundaryadvection=0.0;
+  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * betaproj[comp];
+  f0[0] = temperaturedot  + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION] - (u[FIELD_TEMPERATURE] - constants[PARAM_USALT] )* boundaryadvection ;
 
 }
 
@@ -497,7 +499,23 @@ static void g0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
 {
-  g0[0] = u_tShift*1.0 ;
+  PetscInt   comp;
+  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
+  // buffers
+  PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]*dpds;
+  PetscReal  tmptwo  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* ((1-u[FIELD_SATURATION])*constants[PARAM_MOBILITYBLOOD] + u[FIELD_SATURATION]*constants[PARAM_MOBILITYOIL]); 
+  PetscReal  beta[3] = {
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
+    tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
+
+  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
+                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
+  
+  double boundaryadvection=0.0;
+  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * betaproj[comp];
+  g0[0] = u_tShift*1.0  - boundaryadvection ;
 }
 
 
