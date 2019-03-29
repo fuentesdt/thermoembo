@@ -420,12 +420,9 @@ static void f0_bd_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   double advection=0.0;
-  for (comp = 0; comp < dim; ++comp) advection += n[comp] * betaproj[comp];
+  for (comp = 0; comp < dim; ++comp) advection += n[comp] * beta[comp];
   f0[0] = advection * (u[FIELD_TEMPERATURE]  - constants[PARAM_UARTERY]) ;
 }
 
@@ -443,12 +440,9 @@ void g0_bd_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   double advection=0.0;
-  for (comp = 0; comp < dim; ++comp) advection += n[comp] * betaproj[comp];
+  for (comp = 0; comp < dim; ++comp) advection += n[comp] * beta[comp];
   g0[0] = advection ;
 }
 
@@ -479,18 +473,12 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
   
-
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
-
-  PetscReal temperaturedot = u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ?         0.0            : u_t[FIELD_TEMPERATURE];
   //PetscPrintf(PETSC_COMM_WORLD, "f0: u_t = %12.5e beta = %12.5e %12.5e %12.5e   ",u_t[FIELD_TEMPERATURE],beta[0], beta[1], beta[2] );
   double advection=0.0;
-  for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * betaproj[comp];
+  for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * beta[comp];
   double boundaryadvection=0.0;
-  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * betaproj[comp];
-  f0[0] = temperaturedot  + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION] - (u[FIELD_TEMPERATURE] - constants[PARAM_USALT] )* boundaryadvection ;
+  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * beta[comp];
+  f0[0] = u_t[FIELD_TEMPERATURE] + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION] - (u[FIELD_TEMPERATURE] - constants[PARAM_USALT] )* boundaryadvection ;
 
 }
 
@@ -509,12 +497,8 @@ static void g0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
-  
   double boundaryadvection=0.0;
-  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * betaproj[comp];
+  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * beta[comp];
   g0[0] = u_tShift*1.0  - boundaryadvection ;
 }
 
@@ -534,16 +518,13 @@ static void f1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   //PetscPrintf(PETSC_COMM_WORLD, "f1: u_x  %12.5e %12.5e %12.5e \n",u_x[uOff_x[FIELD_TEMPERATURE]+0] ,u_x[uOff_x[FIELD_TEMPERATURE]+1] ,u_x[uOff_x[FIELD_TEMPERATURE]+2] );
   double  innerprod = 0.0;
-  for (comp = 0; comp < dim; ++comp)  innerprod = innerprod + u_x[uOff_x[FIELD_TEMPERATURE]+comp]  * betaproj[comp];
+  for (comp = 0; comp < dim; ++comp)  innerprod = innerprod + u_x[uOff_x[FIELD_TEMPERATURE]+comp]  * beta[comp];
   for (comp = 0; comp < dim; ++comp) {
     f1[comp] = constants[PARAM_ALPHA] * u_x[uOff_x[FIELD_TEMPERATURE]+comp] 
-          + constants[PARAM_ARTIFICIALDIFFUSION] * innerprod * betaproj[comp];
+          + constants[PARAM_ARTIFICIALDIFFUSION] * innerprod * beta[comp];
   }
 }
 
@@ -562,12 +543,8 @@ static void g1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
-
   for (comp = 0; comp < dim; ++comp) {
-    g1[comp] =  betaproj[comp];
+    g1[comp] =  beta[comp];
   }
 }
 
@@ -586,16 +563,13 @@ static void g3_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
     tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
 
-  PetscReal  betaproj[3]   ={u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[0] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[1] ,
-                             u[FIELD_PHASE] > constants[PARAM_PHASETHRESH] ? 0.0: beta[2]  };
 
   //PetscPrintf(PETSC_COMM_WORLD, "%f ",conduction );
   for (comp = 0; comp < dim; ++comp) {
     g3[comp*dim+comp] = constants[PARAM_ALPHA];
   }
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
-    g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_ARTIFICIALDIFFUSION] * betaproj[iii] * betaproj[jjj];
+    g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_ARTIFICIALDIFFUSION] * beta[iii] * beta[jjj];
   }
 }
 
