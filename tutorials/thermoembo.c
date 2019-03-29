@@ -430,7 +430,7 @@ static void f0_bd_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * beta[comp];
-  f0[0] =-advection * (constants[PARAM_UARTERY] - u[FIELD_TEMPERATURE]) ;
+  f0[0] = advection * ( u[FIELD_TEMPERATURE] - constants[PARAM_UARTERY] ) ;
 }
 
 void g0_bd_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -475,7 +475,7 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * beta[comp];
   double boundaryadvection=0.0;
   for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * beta[comp];
-  f0[0] = u_t[FIELD_TEMPERATURE] + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION] + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  )* boundaryadvection ;
+  f0[0] = u_t[FIELD_TEMPERATURE] + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION] - ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  )* boundaryadvection ;
 
 }
 
@@ -491,7 +491,7 @@ static void g0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
   double boundaryadvection=0.0;
   for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * beta[comp];
-  g0[0] = u_tShift*1.0  - boundaryadvection ;
+  g0[0] = u_tShift*1.0  + boundaryadvection ;
 }
 
 
