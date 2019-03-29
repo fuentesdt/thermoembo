@@ -417,6 +417,7 @@ static void computebeta(const PetscInt uOff_x[], const PetscScalar u[], const Pe
   beta[2] = tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2] ;
 }
 
+// PetscFEIntegrateBdResidual_Basic
 static void f0_bd_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
@@ -429,7 +430,7 @@ static void f0_bd_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * beta[comp];
-  f0[0] = advection * (constants[PARAM_UARTERY] - u[FIELD_TEMPERATURE]) ;
+  f0[0] =-advection * (constants[PARAM_UARTERY] - u[FIELD_TEMPERATURE]) ;
 }
 
 void g0_bd_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -444,7 +445,7 @@ void g0_bd_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * beta[comp];
-  g0[0] = -advection ;
+  g0[0] =  advection ;
 }
 
 
