@@ -1,6 +1,6 @@
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-6 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
+// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-6 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 2 -o test
 
-// mpirun -n 4 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-6  -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-6 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test 
+// mpirun -n 4 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -ts_max_steps 40 -ts_dt 1.e-1  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-6 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test 
 
 // PCApply_FieldSplit 
 // PCFieldSplitSetDefaults
@@ -10,7 +10,7 @@
 // SNESKSPSetUseEW
 // SNESComputeJacobian
 
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -artdiff 1e-7 -velocity .11  -ksp_view_mat ascii:mat.m:ascii_matlab   -ksp_view_rhs ascii:rhs.m:ascii_matlab
+// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -ts_type beuler -ts_max_steps 20 -ts_dt 1.e0 -pc_type bjacobi -ksp_monitor -ksp_rtol 1.e-12 -ksp_converged_reason -snes_type ksponly -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary -velocity .11  -ksp_view_mat ascii:mat.m:ascii_matlab   -ksp_view_rhs ascii:rhs.m:ascii_matlab
 
 static char help[] = "Heat Equation in 2d and 3d with finite elements.\n\
 We solve the heat equation with an convection term using implicit explicit time stepping\n\
@@ -64,6 +64,7 @@ typedef enum {PARAM_OMEGA,
               PARAM_PRESSURE_SOURCE, 
               PARAM_TEMPERATURE_SOURCE, 
               PARAM_ADVECTIONTERM, 
+              PARAM_SATURATIONARTIFICIALDIFFUSION,
               PARAM_ARTIFICIALDIFFUSION} ParameterType;
 typedef struct {
   PetscInt          dim;
@@ -410,7 +411,7 @@ static void f0_bd_p(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   f0[0] = - constants[PARAM_INJECTIONVELOCITY];
 }
 
-static void computebeta(const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_x[], const PetscScalar constants[], PetscScalar beta[])
+static void computebetau(const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_x[], const PetscScalar constants[], PetscScalar beta[])
 {
   PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
   // buffers
@@ -430,7 +431,7 @@ static void f0_bd_u(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt   comp;
   // buffers
   PetscReal  beta[3] ; 
-  computebeta(uOff_x, u, u_x,constants,beta);
+  computebetau(uOff_x, u, u_x,constants,beta);
 
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * beta[comp];
@@ -445,7 +446,7 @@ void g0_bd_uu(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt   comp;
   // buffers
   PetscReal  beta[3] ; 
-  computebeta(uOff_x, u, u_x,constants,beta);
+  computebetau(uOff_x, u, u_x,constants,beta);
 
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * beta[comp];
@@ -472,7 +473,7 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt   comp;
   // buffers
   PetscReal  beta[3] ; 
-  computebeta(uOff_x, u, u_x,constants,beta);
+  computebetau(uOff_x, u, u_x,constants,beta);
   
   //PetscPrintf(PETSC_COMM_WORLD, "f0: u_t = %12.5e beta = %12.5e %12.5e %12.5e   ",u_t[FIELD_TEMPERATURE],beta[0], beta[1], beta[2] );
   double advection=0.0;
@@ -491,7 +492,7 @@ static void g0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt   comp;
   // buffers
   PetscReal  beta[3] ; 
-  computebeta(uOff_x, u, u_x,constants,beta);
+  computebetau(uOff_x, u, u_x,constants,beta);
 
   double boundaryadvection=0.0;
   for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * beta[comp];
@@ -507,7 +508,7 @@ static void f1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt comp;
   // buffers
   PetscReal  beta[3] ; 
-  computebeta(uOff_x, u, u_x,constants,beta);
+  computebetau(uOff_x, u, u_x,constants,beta);
 
   //PetscPrintf(PETSC_COMM_WORLD, "f1: u_x  %12.5e %12.5e %12.5e \n",u_x[uOff_x[FIELD_TEMPERATURE]+0] ,u_x[uOff_x[FIELD_TEMPERATURE]+1] ,u_x[uOff_x[FIELD_TEMPERATURE]+2] );
   double  innerprod = 0.0;
@@ -526,7 +527,7 @@ static void g1_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt comp;
   // buffers
   PetscReal  beta[3] ; 
-  computebeta(uOff_x, u, u_x,constants,beta);
+  computebetau(uOff_x, u, u_x,constants,beta);
 
   for (comp = 0; comp < dim; ++comp) {
     g1[comp] =  beta[comp];
@@ -541,13 +542,11 @@ static void g3_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt comp,iii,jjj;
   // buffers
   PetscReal  beta[3] ; 
-  computebeta(uOff_x, u, u_x,constants,beta);
+  computebetau(uOff_x, u, u_x,constants,beta);
 
 
   //PetscPrintf(PETSC_COMM_WORLD, "%f ",conduction );
-  for (comp = 0; comp < dim; ++comp) {
-    g3[comp*dim+comp] = constants[PARAM_ALPHA];
-  }
+  for (comp = 0; comp < dim; ++comp) g3[comp*dim+comp] = constants[PARAM_ALPHA];
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
     g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_ARTIFICIALDIFFUSION] * beta[iii] * beta[jjj];
   }
@@ -696,6 +695,8 @@ static void g3_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   }
 }
 
+
+
 static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
@@ -725,7 +726,13 @@ static void f1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 {
   PetscInt d;
+  PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  double  innerprod = 0.0;
+  for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_SATURATION]+d]  * betas[d];
   for (d = 0; d < dim; ++d) f1[d] = (1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+d]  ;
+                                  + constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * innerprod * betas[d];
 }
 
 static void g2_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -742,9 +749,14 @@ static void g3_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
-  PetscInt d;
+  PetscInt d,iii,jjj;
+  PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
   for (d = 0; d < dim; ++d) g3[d*dim+d] = constants[PARAM_KMURATIOBLOOD] ;
-  
+  for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
+    g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * betas[iii] * betas[jjj];
+  }
 }
 static void f0_damg(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -950,7 +962,9 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   // FINITE ELEMENT METHODS FOR LINEAR HYPERBOLIC PROBLEMS  - Claes JOHNSON
   //    artificial diffusion parameter should be on the order of the mesh size, millimeter or submillimeter
   options->parameters[PARAM_ADVECTIONTERM       ] = 1.0;        // [units]
-  options->parameters[PARAM_ARTIFICIALDIFFUSION ] = 1.e-7;        // [units]
+  options->parameters[PARAM_ARTIFICIALDIFFUSION ] = 1.e0;        // [units]
+  options->parameters[PARAM_SATURATIONARTIFICIALDIFFUSION] = 1.e0;        // [units]
+              
   // https://en.wikipedia.org/wiki/Dichloroacetyl_chloride
   double     molecularmass           = .147;    // [kg/mole]
   // First In Vivo Test of Thermoembolization: Turning Tissue Against Itself Using Transcatheter Chemistry in a Porcine Model -  Erik N. K. Cressman  • Chunxiao Guo
@@ -1027,40 +1041,42 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->parameters[PARAM_KMURATIOOIL        ] = tissue_permeability/oil_viscosity  *atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_KMURATIOBLOOD      ] = tissue_permeability/water_viscosity*atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_ALPHA              ] = conduction/ options->parameters[PARAM_RHOBLOOD] / options->parameters[PARAM_SPECIFICHEATBLOOD] ;    // [W/m/K / (kg/m^3) / (J/kg/K)] =      m^s /s
+  options->parameters[PARAM_ARTIFICIALDIFFUSION ] = 1.2*options->parameters[PARAM_ALPHA ] ;        // [units]
   // convenience
   options->parameters[PARAM_SATURATION_SOURCE  ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]/options->parameters[PARAM_RHOBLOOD];
   options->parameters[PARAM_PRESSURE_SOURCE    ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*(1./options->parameters[PARAM_RHOBLOOD] - 1./options->parameters[PARAM_RHOOIL]);
   options->parameters[PARAM_TEMPERATURE_SOURCE ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*options->parameters[PARAM_POROSITY]/options->parameters[PARAM_RHOBLOOD] /options->parameters[PARAM_SPECIFICHEATBLOOD] /molecularmass * heatofreaction/ options->temperaturescaling ; // [(1/s) / (kg/mole) / (J/kg/K) * (J/mole)  (1hK/100K) ] = [hK/s]
 
   // echo parameters
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "MESH FILE                       = %s\n"    ,options->imagefile                              );CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "OUTPUT FILE                     = %s\n"    ,options->filenosuffix                          );CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "GAMMA                   [1/s]   = %12.5e\n",gammaconst                                     );CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "temperaturescaling              = %12.5e\n",options->temperaturescaling                    );CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_OMEGA                     = %12.5e\n",options->parameters[PARAM_OMEGA               ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_RHOBLOOD                  = %12.5e\n",options->parameters[PARAM_RHOBLOOD            ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_RHOOIL                    = %12.5e\n",options->parameters[PARAM_RHOOIL              ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_RHODCACL                  = %12.5e\n",options->parameters[PARAM_RHODCACL            ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ALPHA             [m^2/s] = %12.5e\n",options->parameters[PARAM_ALPHA               ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SPECIFICHEATBLOOD         = %12.5e\n",options->parameters[PARAM_SPECIFICHEATBLOOD   ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SPECIFICHEATTISSUE        = %12.5e\n",options->parameters[PARAM_SPECIFICHEATTISSUE  ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_USALT               [hC]  = %12.5e\n",options->parameters[PARAM_USALT               ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_UARTERY             [hC]  = %12.5e\n",options->parameters[PARAM_UARTERY             ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_POROSITY                  = %12.5e\n",options->parameters[PARAM_POROSITY            ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_KMURATIOOIL   [m^2/atm/s] = %12.5e\n",options->parameters[PARAM_KMURATIOOIL         ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_KMURATIOBLOOD [m^2/atm/s] = %12.5e\n",options->parameters[PARAM_KMURATIOBLOOD       ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_INJECTIONVELOCITY         = %12.5e\n",options->parameters[PARAM_INJECTIONVELOCITY   ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_DISPLACEMENTPRESSURE[atm] = %12.5e\n",options->parameters[PARAM_DISPLACEMENTPRESSURE]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_BASELINEPRESSURE    [atm] = %12.5e\n",options->parameters[PARAM_BASELINEPRESSURE    ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_BOUNDARYPRESSURE    [atm] = %12.5e\n",options->parameters[PARAM_BOUNDARYPRESSURE    ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_EPSILON                   = %12.5e\n",options->parameters[PARAM_EPSILON             ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PHASEEPSILON              = %12.5e\n",options->parameters[PARAM_PHASEEPSILON        ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PHASETHRESH               = %12.5e\n",options->parameters[PARAM_PHASETHRESH         ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SATURATION_SOURCE         = %12.5e\n",options->parameters[PARAM_SATURATION_SOURCE   ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PRESSURE_SOURCE           = %12.5e\n",options->parameters[PARAM_PRESSURE_SOURCE     ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_TEMPERATURE_SOURCE [hK/s] = %12.5e\n",options->parameters[PARAM_TEMPERATURE_SOURCE  ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ADVECTIONTERM             = %12.5e\n",options->parameters[PARAM_ADVECTIONTERM       ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ARTIFICIALDIFFUSION       = %12.5e\n",options->parameters[PARAM_ARTIFICIALDIFFUSION ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "MESH FILE                          = %s\n"    ,options->imagefile                                       );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "OUTPUT FILE                        = %s\n"    ,options->filenosuffix                                   );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "GAMMA                   [1/s]      = %12.5e\n",gammaconst                                              );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "temperaturescaling                 = %12.5e\n",options->temperaturescaling                             );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_OMEGA                        = %12.5e\n",options->parameters[PARAM_OMEGA                        ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_RHOBLOOD                     = %12.5e\n",options->parameters[PARAM_RHOBLOOD                     ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_RHOOIL                       = %12.5e\n",options->parameters[PARAM_RHOOIL                       ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_RHODCACL                     = %12.5e\n",options->parameters[PARAM_RHODCACL                     ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ALPHA             [m^2/s]    = %12.5e\n",options->parameters[PARAM_ALPHA                        ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SPECIFICHEATBLOOD            = %12.5e\n",options->parameters[PARAM_SPECIFICHEATBLOOD            ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SPECIFICHEATTISSUE           = %12.5e\n",options->parameters[PARAM_SPECIFICHEATTISSUE           ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_USALT               [hC]     = %12.5e\n",options->parameters[PARAM_USALT                        ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_UARTERY             [hC]     = %12.5e\n",options->parameters[PARAM_UARTERY                      ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_POROSITY                     = %12.5e\n",options->parameters[PARAM_POROSITY                     ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_KMURATIOOIL   [m^2/atm/s]    = %12.5e\n",options->parameters[PARAM_KMURATIOOIL                  ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_KMURATIOBLOOD [m^2/atm/s]    = %12.5e\n",options->parameters[PARAM_KMURATIOBLOOD                ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_INJECTIONVELOCITY            = %12.5e\n",options->parameters[PARAM_INJECTIONVELOCITY            ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_DISPLACEMENTPRESSURE[atm]    = %12.5e\n",options->parameters[PARAM_DISPLACEMENTPRESSURE         ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_BASELINEPRESSURE    [atm]    = %12.5e\n",options->parameters[PARAM_BASELINEPRESSURE             ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_BOUNDARYPRESSURE    [atm]    = %12.5e\n",options->parameters[PARAM_BOUNDARYPRESSURE             ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_EPSILON                      = %12.5e\n",options->parameters[PARAM_EPSILON                      ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PHASEEPSILON                 = %12.5e\n",options->parameters[PARAM_PHASEEPSILON                 ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PHASETHRESH                  = %12.5e\n",options->parameters[PARAM_PHASETHRESH                  ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SATURATION_SOURCE            = %12.5e\n",options->parameters[PARAM_SATURATION_SOURCE            ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_PRESSURE_SOURCE              = %12.5e\n",options->parameters[PARAM_PRESSURE_SOURCE              ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_TEMPERATURE_SOURCE [hK/s]    = %12.5e\n",options->parameters[PARAM_TEMPERATURE_SOURCE           ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ADVECTIONTERM                = %12.5e\n",options->parameters[PARAM_ADVECTIONTERM                ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ARTIFICIALDIFFUSION          = %12.5e\n",options->parameters[PARAM_ARTIFICIALDIFFUSION          ]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SATURATIONARTIFICIALDIFFUSION= %12.5e\n",options->parameters[PARAM_SATURATIONARTIFICIALDIFFUSION]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
