@@ -701,7 +701,7 @@ static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 {
-  f0[0] = - constants[PARAM_POROSITY]*u_t[FIELD_SATURATION]
+  f0[0] = - u_t[FIELD_SATURATION]
           - constants[PARAM_SATURATION_SOURCE]*u[FIELD_SATURATION];
 }
 static void f0_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -716,7 +716,7 @@ static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
 {
-  g0[0] = - u_tShift*1.0 * constants[PARAM_POROSITY]   - constants[PARAM_SATURATION_SOURCE];
+  g0[0] = - u_tShift*1.0 - constants[PARAM_SATURATION_SOURCE];
 }
 
 static void f1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -725,7 +725,16 @@ static void f1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 {
   PetscInt d;
-  for (d = 0; d < dim; ++d) f1[d] = constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+d]  ;
+  for (d = 0; d < dim; ++d) f1[d] = (1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+d]  ;
+}
+
+static void g2_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                  PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g2[])
+{ // break PetscFEIntegrateJacobian_Basic
+  PetscInt   d;
+  for (d = 0; d < dim; ++d) g2[d] = -constants[PARAM_KMURATIOBLOOD]*u_x[uOff_x[FIELD_PRESSURE]+d] ;
 }
 
 static void g3_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -930,7 +939,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
 
   // https://www.ahajournals.org/doi/10.1161/01.CIR.40.5.603
   // verage peak and mean blood velocities were 66 and 11 cm/sec in the ascending aorta, 57 and 10 cm/sec in the pulmonary artery, 28 and 12 cm/sec in the superior vena cava, and 26 and 13 cm/sec in the inferior vena cava.
-  options->parameters[PARAM_INJECTIONVELOCITY   ] = .11;     // [m/s]
+  options->parameters[PARAM_INJECTIONVELOCITY   ] = 0.0;     // [m/s]
   // Peaceman - capillary pressure at wetting phase saturation = 0 is ~25 inches of water
   // 30 inches of water =  7465.2 Pa
   // solver in terms of atm for scaling
@@ -1019,8 +1028,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->parameters[PARAM_KMURATIOBLOOD      ] = tissue_permeability/water_viscosity*atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_ALPHA              ] = conduction/ options->parameters[PARAM_RHOBLOOD] / options->parameters[PARAM_SPECIFICHEATBLOOD] ;    // [W/m/K / (kg/m^3) / (J/kg/K)] =      m^s /s
   // convenience
-  options->parameters[PARAM_SATURATION_SOURCE  ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*options->parameters[PARAM_POROSITY]/options->parameters[PARAM_RHOBLOOD];
-  options->parameters[PARAM_PRESSURE_SOURCE    ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*options->parameters[PARAM_POROSITY]*(1./options->parameters[PARAM_RHOBLOOD] - 1./options->parameters[PARAM_RHOOIL]);
+  options->parameters[PARAM_SATURATION_SOURCE  ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]/options->parameters[PARAM_RHOBLOOD];
+  options->parameters[PARAM_PRESSURE_SOURCE    ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*(1./options->parameters[PARAM_RHOBLOOD] - 1./options->parameters[PARAM_RHOOIL]);
   options->parameters[PARAM_TEMPERATURE_SOURCE ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*options->parameters[PARAM_POROSITY]/options->parameters[PARAM_RHOBLOOD] /options->parameters[PARAM_SPECIFICHEATBLOOD] /molecularmass * heatofreaction/ options->temperaturescaling ; // [(1/s) / (kg/mole) / (J/kg/K) * (J/mole)  (1hK/100K) ] = [hK/s]
 
   // echo parameters
@@ -1141,8 +1150,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
 
     // nonwetting phase saturation equations
     ierr = PetscDSSetResidual(  prob, FIELD_SATURATION, f0_conc, f1_conc);CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_PRESSURE  ,    NULL, NULL, NULL, g3_conc);CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_SATURATION, g0_conc, NULL, NULL,   NULL );CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_PRESSURE  ,    NULL, NULL,g2_conc, g3_conc);CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_SATURATION, g0_conc, NULL,   NULL,   NULL );CHKERRQ(ierr);
     // debug
     // ierr = PetscDSSetResidual(  prob, FIELD_SATURATION, f0_conc, NULL);CHKERRQ(ierr);
     // ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_SATURATION, g0_conc, NULL, NULL,   NULL );CHKERRQ(ierr);
