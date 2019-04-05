@@ -743,6 +743,14 @@ void g0_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * betas[comp];
   g0[0] =  advection ;
 }
+void g1_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+    const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+    const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+    PetscReal t, PetscReal u_tShift, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
+{
+  PetscInt   comp;
+  for (comp = 0; comp < dim; ++comp) g1[comp] =   u[FIELD_SATURATION] * constants[PARAM_KMURATIOBLOOD] * n[comp] ;
+}
 static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
@@ -1242,6 +1250,7 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
     ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_SATURATION, g0_conc,g1_conc,  NULL, g3_conc);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob, FIELD_SATURATION, f0_bd_conc, NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdJacobian(prob, FIELD_SATURATION, FIELD_SATURATION, g0_bd_conc, NULL, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdJacobian(prob, FIELD_SATURATION, FIELD_PRESSURE  ,       NULL, g1_bd_conc, NULL, NULL);CHKERRQ(ierr);
     // debug
     // ierr = PetscDSSetResidual(  prob, FIELD_SATURATION, f0_conc, NULL);CHKERRQ(ierr);
     // ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_SATURATION, g0_conc, NULL, NULL,   NULL );CHKERRQ(ierr);
