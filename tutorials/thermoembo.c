@@ -1,8 +1,9 @@
 // mpirun -n 4 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls -snes_linesearch_type basic  -snes_rtol 1.e-3  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-6 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-6 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-6 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_monitor_short -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test -disppressure 0.0 -artdiff 1.e-8  -snes_linesearch_alpha 1.e-3 -permeability 5.e-12 > refine4.log`date +%s` 
 
+  
 
 // fd jacobian, no field split
-// ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type bjacobi  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type ksponly -snes_linesearch_type bt  -snes_rtol 7.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ./fdtest.vtk  -log_summary  -dm_refine 1 -o test -disppressure 0.0 -artdiff 1.e1 -snes_compare_explicit > fd.log
+// ./thermoembo -help -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type bjacobi  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type ksponly -snes_linesearch_type bt  -snes_rtol 7.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ./fdtest.vtk  -log_summary  -dm_refine 1 -o test -disppressure 0.0 -artdiff 1.e1 -snes_compare_explicit -baselinepressure .789 > fd.log`date +%s` 
 
 // PCApply_FieldSplit 
 // PCFieldSplitSetDefaults
@@ -742,7 +743,7 @@ static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   double  innerprod = 0.0;
   for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_PRESSURE]+d]  * u_x[uOff_x[FIELD_PHASE]+d] ;
   g0[0] = - u_tShift*1.0 - constants[PARAM_SATURATION_SOURCE] 
-          - constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  constants[PARAM_KMURATIOBLOOD]*innerprod ;
+          + constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  constants[PARAM_KMURATIOBLOOD]*innerprod ;
 }
 
 static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -761,7 +762,7 @@ static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   f0[0] = - u_t[FIELD_SATURATION]
           - constants[PARAM_SATURATION_SOURCE]*u[FIELD_SATURATION]
           + advection
-          + constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * (1.-u[FIELD_SATURATION]) *innerprod ;
+          + constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * (u[FIELD_SATURATION]-1.) *innerprod ;
 }
 static void f1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -809,7 +810,7 @@ static void g1_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                   PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
 { // break PetscFEIntegrateJacobian_Basic
   PetscInt   d;
-  for (d = 0; d < dim; ++d) g1[d] = constants[PARAM_KMURATIOBLOOD] * (constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  (1.-u[FIELD_SATURATION]) * u_x[uOff_x[FIELD_PHASE]+d] + u_x[uOff_x[FIELD_SATURATION]+d]);
+  for (d = 0; d < dim; ++d) g1[d] = constants[PARAM_KMURATIOBLOOD] * (constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  (u[FIELD_SATURATION]-1.) * u_x[uOff_x[FIELD_PHASE]+d] + u_x[uOff_x[FIELD_SATURATION]+d]);
 }
 
 static void g3_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -831,7 +832,7 @@ static void g3_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     g3[d*dim+d] = g3[d*dim+d] + innerprod;
   }
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
-    g3[iii*dim+jjj] = g3[iii*dim+jjj] * constants[PARAM_KMURATIOBLOOD] * constants[PARAM_SATURATIONARTIFICIALDIFFUSION] ;
+    g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_KMURATIOBLOOD] * constants[PARAM_SATURATIONARTIFICIALDIFFUSION] ;
   }
 
 }
@@ -1061,6 +1062,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsReal("-velocity", "applicator injection velocity [...]", "ex45.c", options->parameters[PARAM_INJECTIONVELOCITY], &options->parameters[PARAM_INJECTIONVELOCITY], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-salttemp", "salt temperature [...]", "ex45.c", options->parameters[PARAM_USALT], &options->parameters[PARAM_USALT], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-disppressure", "displacement pressure [...]", "ex45.c", options->parameters[PARAM_DISPLACEMENTPRESSURE], &options->parameters[PARAM_DISPLACEMENTPRESSURE], NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-baselinepressure", "pressure BC [...]", "ex45.c", options->parameters[PARAM_BASELINEPRESSURE], &options->parameters[PARAM_BASELINEPRESSURE], NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsReal("-boundarypressure", "pressure BC [...]", "ex45.c", options->parameters[PARAM_BOUNDARYPRESSURE], &options->parameters[PARAM_BOUNDARYPRESSURE], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-permeability", "tissue permeability [...]", "ex45.c", tissue_permeability, &tissue_permeability, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-gamma", "time constanst permeability [...]", "ex45.c", gammaconst, &gammaconst, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-phase", "phase threshold [...]", "ex45.c", options->parameters[PARAM_PHASETHRESH], &options->parameters[PARAM_PHASETHRESH], NULL);CHKERRQ(ierr);
