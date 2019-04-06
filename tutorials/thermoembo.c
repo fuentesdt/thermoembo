@@ -711,7 +711,7 @@ static void f0_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * betas[comp];
-  f0[0] = constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * advection *  u[FIELD_SATURATION] ;
+  f0[0] = advection *  u[FIELD_SATURATION] ;
 }
 void g0_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -724,7 +724,7 @@ void g0_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += n[comp] * betas[comp];
-  g0[0] = constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  advection ;
+  g0[0] = advection ;
 }
 void g1_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -732,7 +732,7 @@ void g1_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     PetscReal t, PetscReal u_tShift, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
 {
   PetscInt   comp;
-  for (comp = 0; comp < dim; ++comp) g1[comp] = constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *   u[FIELD_SATURATION] * constants[PARAM_KMURATIOBLOOD] * n[comp] ;
+  for (comp = 0; comp < dim; ++comp) g1[comp] = u[FIELD_SATURATION] * constants[PARAM_KMURATIOBLOOD] * n[comp] ;
 }
 static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -743,7 +743,7 @@ static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   double  innerprod = 0.0;
   for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_PRESSURE]+d]  * u_x[uOff_x[FIELD_PHASE]+d] ;
   g0[0] = - u_tShift*1.0 - constants[PARAM_SATURATION_SOURCE] 
-          + constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  constants[PARAM_KMURATIOBLOOD]*innerprod ;
+          + constants[PARAM_KMURATIOBLOOD]*innerprod ;
 }
 
 static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -762,7 +762,7 @@ static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   f0[0] = - u_t[FIELD_SATURATION]
           - constants[PARAM_SATURATION_SOURCE]*u[FIELD_SATURATION]
           + advection
-          + constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * (u[FIELD_SATURATION]-1.) *innerprod ;
+          + (u[FIELD_SATURATION]-1.) *innerprod ;
 }
 static void f1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -810,7 +810,7 @@ static void g1_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                   PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
 { // break PetscFEIntegrateJacobian_Basic
   PetscInt   d;
-  for (d = 0; d < dim; ++d) g1[d] = constants[PARAM_KMURATIOBLOOD] * (constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  (u[FIELD_SATURATION]-1.) * u_x[uOff_x[FIELD_PHASE]+d] + u_x[uOff_x[FIELD_SATURATION]+d]);
+  for (d = 0; d < dim; ++d) g1[d] = constants[PARAM_KMURATIOBLOOD] * ((u[FIELD_SATURATION]-1.) * u_x[uOff_x[FIELD_PHASE]+d] + u_x[uOff_x[FIELD_SATURATION]+d]);
 }
 
 static void g3_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -832,7 +832,7 @@ static void g3_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     g3[d*dim+d] = g3[d*dim+d] + innerprod;
   }
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
-    g3[iii*dim+jjj] = g3[iii*dim+jjj] + constants[PARAM_KMURATIOBLOOD] * constants[PARAM_SATURATIONARTIFICIALDIFFUSION] ;
+    g3[iii*dim+jjj] = g3[iii*dim+jjj] * constants[PARAM_KMURATIOBLOOD] * constants[PARAM_SATURATIONARTIFICIALDIFFUSION] ;
   }
 
 }
