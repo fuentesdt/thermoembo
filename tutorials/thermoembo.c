@@ -1550,6 +1550,14 @@ int main(int argc, char **argv)
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
 
+     //PetscBool  debugfd = PETSC_TRUE;
+     PetscBool  debugfd = PETSC_FALSE;
+     if ( debugfd ) 
+       {
+         ierr = VecSetValue(u,32,1.2345e6,INSERT_VALUES); CHKERRQ(ierr);
+         ierr = VecSetValue(u,578,1.2345e6,INSERT_VALUES); CHKERRQ(ierr);
+       }
+
      // // setup initial conditions outside dirichlet boundary
      // ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      // ierr = VecGetSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
