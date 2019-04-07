@@ -1,0 +1,43 @@
+## Cubit 
+## play "fdtest.jou"
+reset
+set developer on
+## c3d fdtest.vtk -info -centroid
+## Image #1: dim = [110, 165, 5];  bb = {[49.217 10.5465 0], [126.558 126.558 25]};  vox = [0.7031, 0.7031, 5];  range = [0, 1];  orient = RAI
+## 
+## CENTROID_VOX [54.5675, 95.0916, 2.71226]
+## CENTROID_MM [-87.5834, -77.4054, 13.5613]
+## python
+## Python 2.7.12 (default, Nov 20 2017, 18:23:56)
+## [GCC 5.4.0 20160609] on linux2
+## Type "help", "copyright", "credits" or "license" for more information.
+## >>> import math
+## >>> bb = [[49.217,10.5465,0], [126.558,126.558,25]]
+## >>> radius = math.sqrt( (bb[1][0]-bb[0][0])* (bb[1][0]-bb[0][0]) + (bb[1][1]-bb[0][1])* (bb[1][1]-bb[0][1]) + (bb[1][2]-bb[0][2])* (bb[1][2]-bb[0][2]))
+## >>> print radius
+## 141.65203286
+## >>> centroid = [ (bb[1][0]+bb[0][0])/2., (bb[1][1]+bb[0][1])/2., (bb[1][2]+bb[0][2])/2.]
+## >>> print centroid
+## [87.8875, 68.55225, 12.5]
+create sphere radius 65.
+volume 1 move 87.8875 68.55225 12.5
+
+##  mesh
+volume  1 scheme tetmesh
+volume  1 size 35.0
+mesh volume  1 
+
+## BC
+skin volume 1 make sideset 2 
+sideset 2 name "marker" 
+
+nodeset 1 node in tri in surface 1
+nodeset 1 name "marker" 
+
+## 
+## 
+## 
+volume 1 scale z .4
+volume all scale 0.001
+export mesh "fdtest.e" overwrite 
+## 

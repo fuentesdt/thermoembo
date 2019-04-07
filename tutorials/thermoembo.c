@@ -3,7 +3,7 @@
   
 
 // fd jacobian, no field split
-// ./thermoembo -help -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type bjacobi  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type ksponly -snes_linesearch_type bt  -snes_rtol 7.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ./fdtest.vtk  -log_summary  -dm_refine 1 -o test -disppressure 0.0 -artdiff 1.e1 -snes_compare_explicit -baselinepressure .789 > fd.log`date +%s` 
+// ./thermoembo -help -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type bjacobi  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type ksponly -snes_linesearch_type bt  -snes_rtol 7.e-1 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ./fdtest.vtk  -log_summary  -dm_refine 0 -o test -disppressure 0.0 -artdiff 1.e1 -baselinepressure .789 -snes_compare_explicit > fd.log`date +%s` 
 
 // PCApply_FieldSplit 
 // PCFieldSplitSetDefaults
@@ -77,6 +77,7 @@ typedef struct {
   PetscReal         lengthscale; /* image usually in mm, convert image to meters*/
   PetscBool         simplex;
   PetscBool         solvesystem; /* solve phase field first then solve full system */
+  PetscBool         debugfd; /* debugging jacobian... */
   PetscBool      fieldBC;
   char              imagefile[2048];   /* The vtk Image file */
   char              filenosuffix[2048] ;
@@ -977,6 +978,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->variableCoefficient = COEFF_NONE;
   options->fieldBC             = PETSC_FALSE;
   options->solvesystem         = PETSC_FALSE;
+  options->debugfd             = PETSC_FALSE;
 
   // set initial parameters
   // FIXME - need units for all parameters
@@ -1057,6 +1059,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsInt("-dim", "The topological mesh dimension", "ex45.c", options->dim, &options->dim, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsInt("-dm_refine", "The number of uniform refinements", "DMCreate", options->refine, &options->refine, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsBool("-simplex", "Simplicial (true) or tensor (false) mesh", "ex45.c", options->simplex, &options->simplex, NULL);CHKERRQ(ierr);
+  ierr = PetscOptionsBool("-snes_compare_explicit", "setup debuggin", "ex45.c", options->debugfd, &options->debugfd, NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-artdiff", "artificial diffusion [...]", "ex45.c", options->parameters[PARAM_SATURATIONARTIFICIALDIFFUSION], &options->parameters[PARAM_SATURATIONARTIFICIALDIFFUSION], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-advection", "scale temperature advection term[...]", "ex45.c", options->parameters[PARAM_ADVECTIONTERM], &options->parameters[PARAM_ADVECTIONTERM], NULL);CHKERRQ(ierr);
   ierr = PetscOptionsReal("-velocity", "applicator injection velocity [...]", "ex45.c", options->parameters[PARAM_INJECTIONVELOCITY], &options->parameters[PARAM_INJECTIONVELOCITY], NULL);CHKERRQ(ierr);
@@ -1128,8 +1131,9 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->parameters[PARAM_TEMPERATURE_SOURCE ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*options->parameters[PARAM_POROSITY]/options->parameters[PARAM_RHOBLOOD] /options->parameters[PARAM_SPECIFICHEATBLOOD] /molecularmass * heatofreaction/ options->temperaturescaling ; // [(1/s) / (kg/mole) / (J/kg/K) * (J/mole)  (1hK/100K) ] = [hK/s]
 
   // echo parameters
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "MESH FILE                          = %s\n"    ,options->imagefile                                       );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "MESH FILE                          = %s\n"    ,options->imagefile                                      );CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "OUTPUT FILE                        = %s\n"    ,options->filenosuffix                                   );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "DEBUGFD                            = %d\n"    ,options->debugfd                                        );CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "GAMMA                   [1/s]      = %12.5e\n",gammaconst                                              );CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "temperaturescaling                 = %12.5e\n",options->temperaturescaling                             );CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_OMEGA                        = %12.5e\n",options->parameters[PARAM_OMEGA                        ]);CHKERRQ(ierr);
@@ -1185,7 +1189,15 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
 
   PetscFunctionBeginUser;
   ierr = PetscPrintf(PETSC_COMM_WORLD, "lower = (%14.7e,%14.7e,%14.7e), upper = (%14.7e,%14.7e,%14.7e) \n",lower[0],lower[1],lower[2], upper[0],upper[1],upper[2]);CHKERRQ(ierr);
-  ierr = DMPlexCreateBoxMesh(comm, dim, ctx->simplex, NULL, lower, upper, NULL, PETSC_TRUE, dm);CHKERRQ(ierr);
+  if (ctx->debugfd)
+   {
+     PetscBool      interpolate       = PETSC_TRUE;
+     ierr = DMPlexCreateExodusFromFile(comm, "fdtest.e", interpolate, dm);CHKERRQ(ierr);
+   }
+  else
+   {
+     ierr = DMPlexCreateBoxMesh(comm, dim, ctx->simplex, NULL, lower, upper, NULL, PETSC_TRUE, dm);CHKERRQ(ierr);
+   }
   ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
   /* If no boundary marker exists, mark the whole boundary */
   ierr = DMHasLabel(*dm, "marker", &hasLabel);CHKERRQ(ierr);
@@ -1534,6 +1546,20 @@ int main(int argc, char **argv)
      ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssetup%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
      ierr = TSMonitorSolutionVTK(ts,0,1.e9,                 u,vtkfilenametemplate);CHKERRQ(ierr);
      ierr = TSMonitorSolutionVTK(ts,1,1.e9,ctx.solvedirection,vtkfilenametemplate);CHKERRQ(ierr);
+     if ( ctx.debugfd ) 
+       {
+         Vec        debugids;
+         ierr = VecDuplicate(u, &debugids);CHKERRQ(ierr);
+         int iii,nlocal;
+         PetscReal    *array;
+         ierr = VecGetLocalSize(debugids,&nlocal);
+         ierr = VecGetArray(debugids,&array);
+         for (iii=0; iii<nlocal; iii++) array[iii] = iii;
+         ierr = VecRestoreArray(debugids,&array);
+         ierr = TSMonitorSolutionVTK(ts,2,1.e9,debugids,vtkfilenametemplate);CHKERRQ(ierr);
+         ierr = VecDestroy(&debugids);CHKERRQ(ierr);
+       }
+
 
      // setup initial conditions inside dirichlet boundary
      Vec        temperaturevector,   pressurevector ;
@@ -1549,14 +1575,6 @@ int main(int argc, char **argv)
      // ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-
-     //PetscBool  debugfd = PETSC_TRUE;
-     PetscBool  debugfd = PETSC_FALSE;
-     if ( debugfd ) 
-       {
-         ierr = VecSetValue(u,32,1.2345e6,INSERT_VALUES); CHKERRQ(ierr);
-         ierr = VecSetValue(u,578,1.2345e6,INSERT_VALUES); CHKERRQ(ierr);
-       }
 
      // // setup initial conditions outside dirichlet boundary
      // ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
