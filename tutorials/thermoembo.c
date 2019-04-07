@@ -476,6 +476,20 @@ void g1_bd_up(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
   for (comp = 0; comp < dim; ++comp) g1[comp] = ( u[FIELD_TEMPERATURE] - constants[PARAM_UARTERY] )  * dbetadgradp  * n[comp] ;
 }
+void g0_bd_us(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+    const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+    const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+    PetscReal t, PetscReal u_tShift, const PetscReal x[], const PetscReal n[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
+{
+  PetscInt   comp;
+  // buffers
+  PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
+  computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
+
+  double advectionderiv=0.0;
+  for (comp = 0; comp < dim; ++comp) advectionderiv += n[comp] * dbetads[comp];
+  g0[0] =  advectionderiv * ( u[FIELD_TEMPERATURE] - constants[PARAM_UARTERY] ) ;
+}
 void g1_bd_us(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
@@ -594,11 +608,10 @@ static void g1_temppres(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 {
   PetscInt d;
   // buffers
-  PetscReal  tmptwo  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* ((1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD] + u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]); 
+  PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
+  computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
 
-  for (d = 0; d < dim; ++d) {
-    g1[d] = tmptwo *  u_x[uOff_x[FIELD_TEMPERATURE]+d];
-  }
+  for (d = 0; d < dim; ++d) g1[d] = dbetadgradp * (u_x[uOff_x[FIELD_TEMPERATURE]+d] + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  ) * u_x[uOff_x[FIELD_PHASE]+ d]    );
 
 }
 
@@ -608,14 +621,9 @@ static void g3_temppres(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt d,iii,jjj;
-  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
   // buffers
-  PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]*dpds;
-  PetscReal  tmptwo  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* ((1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD] + u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]); 
-  PetscReal  beta[3] = {
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
+  computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
 
   //PetscPrintf(PETSC_COMM_WORLD, "%f ",conduction );
   double  innerprod = 0.0;
@@ -628,7 +636,7 @@ static void g3_temppres(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     g3[d*dim+d] = g3[d*dim+d] + innerprod;
   }
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
-    g3[iii*dim+jjj] = g3[iii*dim+jjj] * tmptwo * constants[PARAM_ARTIFICIALDIFFUSION] ;
+    g3[iii*dim+jjj] = g3[iii*dim+jjj] * dbetadgradp * constants[PARAM_ARTIFICIALDIFFUSION] ;
   }
 }
 static void g0_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -637,17 +645,15 @@ static void g0_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
 {
   PetscInt d;
-  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
-  PetscReal  dp2ds2  = -constants[PARAM_DISPLACEMENTPRESSURE]/4.0/(sqrt(1.- PetscMin(1., u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) /(sqrt(1.- PetscMin(1., u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) / sqrt(1.- PetscMin(1., u[FIELD_SATURATION])+_globalepsilon)*  ( (u[FIELD_SATURATION]<1.) ?  1. : 0.);;
-  PetscReal  dbtmpone=-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* (dpds + u[FIELD_SATURATION] * dp2ds2  ) *constants[PARAM_KMURATIOOIL];
-  PetscReal  dbtmptwo=-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* (constants[PARAM_KMURATIOOIL]  - constants[PARAM_KMURATIOBLOOD]);
-  PetscReal  dbetads[3] = {
-      dbtmpone*u_x[uOff_x[FIELD_SATURATION]+0] + dbtmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
-      dbtmpone*u_x[uOff_x[FIELD_SATURATION]+1] + dbtmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
-      dbtmpone*u_x[uOff_x[FIELD_SATURATION]+2] + dbtmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  // buffers
+  PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
+  computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
+
   double  innerprod = 0.0;
   for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_TEMPERATURE]+d]  * dbetads[d];
-  g0[0] = -  constants[PARAM_TEMPERATURE_SOURCE] + innerprod ;
+  double  derivboundary = 0.0;
+  for (d = 0; d < dim; ++d)  derivboundary = derivboundary + u_x[uOff_x[FIELD_PHASE]+d]  * dbetads[d];
+  g0[0] = -  constants[PARAM_TEMPERATURE_SOURCE] + innerprod  + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  ) * derivboundary  ;
 }
 
 static void g1_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -656,11 +662,12 @@ static void g1_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
 {
   PetscInt d;
-  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
-  PetscReal  tmpthree=-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]*u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]*dpds;
+  // buffers
+  PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
+  computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
 
   for (d = 0; d < dim; ++d) {
-    g1[d] =  tmpthree * u_x[uOff_x[FIELD_TEMPERATURE]+d];
+    g1[d] =  dbetadgrads * (u_x[uOff_x[FIELD_TEMPERATURE]+d] + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  ) * u_x[uOff_x[FIELD_PHASE]+ d]    );
   }
 }
 
@@ -671,22 +678,10 @@ static void g2_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 {
   PetscInt d,iii,jjj;
 
-
-  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
-  PetscReal  dp2ds2  = -constants[PARAM_DISPLACEMENTPRESSURE]/4.0/(sqrt(1.- PetscMin(1., u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) /(sqrt(1.- PetscMin(1., u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) / sqrt(1.- PetscMin(1., u[FIELD_SATURATION])+_globalepsilon)*  ( (u[FIELD_SATURATION]<1.) ?  1. : 0.);;
   // buffers
-  PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]*dpds;
-  PetscReal  tmptwo  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* ((1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD] + u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]); 
-  PetscReal  beta[3] = {
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
-  PetscReal  dbtmpone=-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* (dpds + u[FIELD_SATURATION] * dp2ds2  ) *constants[PARAM_KMURATIOOIL];
-  PetscReal  dbtmptwo=-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* (constants[PARAM_KMURATIOOIL]  - constants[PARAM_KMURATIOBLOOD]);
-  PetscReal  dbetads[3] = {
-      dbtmpone*u_x[uOff_x[FIELD_SATURATION]+0] + dbtmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
-      dbtmpone*u_x[uOff_x[FIELD_SATURATION]+1] + dbtmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
-      dbtmpone*u_x[uOff_x[FIELD_SATURATION]+2] + dbtmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
+  computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
+
   double  innerprod = 0.0;
   for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_TEMPERATURE]+d]  * beta[d];
 
@@ -704,15 +699,9 @@ static void g3_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
   PetscInt d,iii,jjj;
-  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
   // buffers
-  PetscReal  tmpone  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]*dpds;
-  PetscReal  tmptwo  =-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]* ((1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD] + u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]); 
-  PetscReal  tmpthree=-constants[PARAM_ADVECTIONTERM]*constants[PARAM_POROSITY]*u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]*dpds;
-  PetscReal  beta[3] = {
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+0] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+0] ,
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+1] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+1] ,
-    tmpone*u_x[uOff_x[FIELD_SATURATION]+2] + tmptwo*u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
+  computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
 
   //PetscPrintf(PETSC_COMM_WORLD, "%f ",conduction );
   double  innerprod = 0.0;
@@ -725,7 +714,7 @@ static void g3_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
     g3[d*dim+d] = g3[d*dim+d] + innerprod;
   }
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
-    g3[iii*dim+jjj] = g3[iii*dim+jjj] * tmpthree  * constants[PARAM_ARTIFICIALDIFFUSION] ;
+    g3[iii*dim+jjj] = g3[iii*dim+jjj] * dbetadgrads * constants[PARAM_ARTIFICIALDIFFUSION] ;
   }
 }
 
@@ -1271,13 +1260,13 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
     // nonlinear equations for temperature, pressure, and saturation including change in advection velocity wrt (p,s)
 
     ierr = PetscDSSetResidual(prob, FIELD_TEMPERATURE, f0_temp, f1_temp);CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_temp, g1_temp, NULL, g3_temp);CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_PRESSURE   , NULL   , g1_temppres, NULL, g3_temppres);CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_temp   , g1_temp, NULL, g3_temp);CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_PRESSURE   , NULL      , g1_temppres, NULL, g3_temppres);CHKERRQ(ierr);
     ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_SATURATION , g0_tempsat, g1_tempsat, g2_tempsat, g3_tempsat);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob, FIELD_TEMPERATURE, f0_bd_u, NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_bd_uu, NULL, NULL, NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdJacobian(prob, FIELD_TEMPERATURE, FIELD_PRESSURE   , NULL, g1_bd_up, NULL, NULL);CHKERRQ(ierr);
-    ierr = PetscDSSetBdJacobian(prob, FIELD_TEMPERATURE, FIELD_SATURATION , NULL, g1_bd_us, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_bd_uu,     NULL, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdJacobian(prob, FIELD_TEMPERATURE, FIELD_PRESSURE   , NULL    , g1_bd_up, NULL, NULL);CHKERRQ(ierr);
+    ierr = PetscDSSetBdJacobian(prob, FIELD_TEMPERATURE, FIELD_SATURATION , g0_bd_us, g1_bd_us, NULL, NULL);CHKERRQ(ierr);
 
     // wetting phase pressure equations
     ierr = PetscDSSetResidual(  prob, FIELD_PRESSURE, f0_p, f1_p);CHKERRQ(ierr);
