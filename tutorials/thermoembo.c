@@ -1,6 +1,6 @@
-// mpirun -n 8 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_converged_reason -snes_type newtonls -snes_linesearch_type basic  -snes_rtol 1.e-3  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-6 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-6 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-6 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_monitor_short -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 5 -o test -disppressure 0.0 -artdiff 1.e-8  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13 > refine5.log`date +%s` 
+// mpirun -n 8 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_rtol 1.e-6 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type basic  -snes_rtol 7.e-1  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_monitor_short -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 5 -o test -disppressure 0.0 -artdiff 1.e-8  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13 > refine5.log`date +%s` 
 
-// mpirun -n 4 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_rtol 1.e-6 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type basic  -snes_rtol 7.e-1  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_monitor_short -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test -disppressure 0.0 -artdiff 1.e-8  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13 > refine4.log`date +%s` 
+// mpirun -n 4 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_max_it 1000 -ksp_rtol 1.e-4 -ksp_converged_reason -snes_type ksponly -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13 > refine4.log`date +%s` 
 
 // fd jacobian, no field split
 // SNESTestJacobian  SNESComputeJacobian
@@ -127,19 +127,19 @@ PetscErrorCode TSUpdateArrhenius(TS ts, PetscReal stagetime, PetscInt stageindex
   ierr = VecExp(work);CHKERRQ(ierr);
   ierr = VecAXPY(damage,deltaT * frequencyfactor,work);CHKERRQ(ierr);
 
-  // post process saturations - bound between 0 and 1
-  ierr = VecGetSubVector(*Y, ctx->fields[FIELD_SATURATION], &saturation);CHKERRQ(ierr);
-  int iii,nlocal;
-  PetscReal    *array;
-  ierr = VecGetLocalSize(saturation,&nlocal);
-  ierr = VecGetArray(saturation,&array);
-  for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
-  ierr = VecRestoreArray(saturation,&array);
+  // // post process saturations - bound between 0 and 1
+  // ierr = VecGetSubVector(*Y, ctx->fields[FIELD_SATURATION], &saturation);CHKERRQ(ierr);
+  // int iii,nlocal;
+  // PetscReal    *array;
+  // ierr = VecGetLocalSize(saturation,&nlocal);
+  // ierr = VecGetArray(saturation,&array);
+  // for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
+  // ierr = VecRestoreArray(saturation,&array);
 
   // cleanup
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_TEMPERATURE], &temperature);CHKERRQ(ierr);
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_DAMAGE]     , &damage     );CHKERRQ(ierr);
-  ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_SATURATION] , &saturation );CHKERRQ(ierr);
+  // ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_SATURATION] , &saturation );CHKERRQ(ierr);
   ierr = VecDestroy( &work);CHKERRQ(ierr);
 
   return 0;
@@ -1426,6 +1426,26 @@ PetscErrorCode KSPPostSolve_ZeroSearch(KSP ksp, Vec b, Vec x, void *ctx)
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode TSMonitorResidualVTK(TS ts,PetscInt step,PetscReal ptime,Vec u,void *filenametemplate)
+{
+  PetscErrorCode ierr;
+  char           filename[PETSC_MAX_PATH_LEN];
+  PetscViewer    viewer;
+  SNES snes;
+
+  PetscFunctionBegin;
+  if (step < 0) PetscFunctionReturn(0); /* -1 indicates interpolated solution */
+  ierr = PetscSNPrintf(filename,sizeof(filename),(const char*)filenametemplate,step);CHKERRQ(ierr);
+  ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)ts),filename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
+  Vec               f;
+  //ierr = SNESComputeFunction(snes,u,f);CHKERRQ(ierr);
+  ierr = TSGetSNES(ts,&snes);
+  ierr = SNESGetFunction(snes,&f,NULL,NULL);CHKERRQ(ierr);
+  ierr = VecView(f,viewer);CHKERRQ(ierr);
+  ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   AppCtx         ctx;
@@ -1614,6 +1634,9 @@ int main(int argc, char **argv)
      // write vtk file at every time point
      ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssolution%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
      ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
+     char              resvtkfilenametemplate[PETSC_MAX_PATH_LEN];
+     ierr = PetscSNPrintf(resvtkfilenametemplate,sizeof(resvtkfilenametemplate),"%sres%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
+     ierr = TSMonitorSet(ts,TSMonitorResidualVTK,&resvtkfilenametemplate,NULL);CHKERRQ(ierr);
      ierr = TSSetPostStage(ts,TSUpdateArrhenius);CHKERRQ(ierr);
 
      // update options
