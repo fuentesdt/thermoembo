@@ -1,6 +1,6 @@
 // mpirun -n 8 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_rtol 1.e-6 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type basic  -snes_rtol 7.e-1  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_monitor_short -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_monitor_short -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_monitor_short -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 5 -o test -disppressure 0.0 -artdiff 1.e-8  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13 > refine5.log`date +%s` 
 
-// mpirun -n 4 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type preonly -ksp_max_it 1000 -ksp_rtol 1.e-4 -ksp_converged_reason -snes_type ksponly -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13 > refine4.log`date +%s` 
+// mpirun -n 4 ./thermoembo -dim 3 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_max_it 1000 -ksp_rtol 1.e-4 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short -snes_lag_jacobian 1  -snes_converged_reason -ts_monitor -log_summary  -ts_max_steps 40 -ts_dt 1.e0  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 20 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ../temperaturedata/Kidney1Left_04202017_Exp42/vesselregion.vtk  -log_summary  -dm_refine 4 -o test -disppressure 0.0 -artdiff 1.e-9  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13 > refine4.log`date +%s`
 
 // fd jacobian, no field split
 // SNESTestJacobian  SNESComputeJacobian
@@ -93,7 +93,7 @@ typedef struct {
   char  **fieldNames;
   IS         *fields;
   IS         *subfields;
-  Vec        solvedirection;
+  Vec        solvedirection, locDirection;
   IS   isnotstate;
   CoeffType      variableCoefficient;
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
@@ -127,20 +127,52 @@ PetscErrorCode TSUpdateArrhenius(TS ts, PetscReal stagetime, PetscInt stageindex
   ierr = VecExp(work);CHKERRQ(ierr);
   ierr = VecAXPY(damage,deltaT * frequencyfactor,work);CHKERRQ(ierr);
 
-  // // post process saturations - bound between 0 and 1
-  // ierr = VecGetSubVector(*Y, ctx->fields[FIELD_SATURATION], &saturation);CHKERRQ(ierr);
-  // int iii,nlocal;
-  // PetscReal    *array;
-  // ierr = VecGetLocalSize(saturation,&nlocal);
-  // ierr = VecGetArray(saturation,&array);
-  // for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
-  // ierr = VecRestoreArray(saturation,&array);
+  // post process saturations - bound between 0 and 1
+  ierr = VecGetSubVector(*Y, ctx->fields[FIELD_SATURATION], &saturation);CHKERRQ(ierr);
+  int iii,nlocal;
+  PetscReal    *array;
+  ierr = VecGetLocalSize(saturation,&nlocal);
+  ierr = VecGetArray(saturation,&array);
+  for (iii=0; iii<nlocal; iii++) array[iii] = PetscMax(PetscMin(1, array[iii]),0);
+  ierr = VecRestoreArray(saturation,&array);
 
   // cleanup
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_TEMPERATURE], &temperature);CHKERRQ(ierr);
   ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_DAMAGE]     , &damage     );CHKERRQ(ierr);
-  // ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_SATURATION] , &saturation );CHKERRQ(ierr);
+  ierr = VecRestoreSubVector(*Y, ctx->fields[FIELD_SATURATION] , &saturation );CHKERRQ(ierr);
   ierr = VecDestroy( &work);CHKERRQ(ierr);
+
+  return 0;
+}
+PetscErrorCode SolnBounds(SNES snes, Vec Xl, Vec Xu) {
+  DM             dm;
+  AppCtx         *ctx;
+  PetscErrorCode ierr;
+
+  ierr = SNESGetDM(snes,&dm);CHKERRQ(ierr);
+  ierr = DMGetApplicationContext(dm, &ctx);CHKERRQ(ierr);
+  ierr = VecSet(Xl,PETSC_NINFINITY);CHKERRQ(ierr);
+  ierr = VecSet(Xu,PETSC_INFINITY);CHKERRQ(ierr);
+
+  // saturations - bound between 0 and 1
+  Vec saturationXl, saturationXu;
+  ierr = VecGetSubVector(Xl, ctx->fields[FIELD_SATURATION], &saturationXl);CHKERRQ(ierr);
+  ierr = VecGetSubVector(Xu, ctx->fields[FIELD_SATURATION], &saturationXu);CHKERRQ(ierr);
+
+  int iii,nlocal;
+  PetscReal    *arrayXl, *arrayXu;
+  ierr = VecGetLocalSize(saturationXl,&nlocal);
+  ierr = VecGetArray(saturationXl,&arrayXl);
+  ierr = VecGetArray(saturationXu,&arrayXu);
+  for (iii=0; iii<nlocal; iii++)
+   {
+     arrayXl[iii] = 0.;
+     arrayXu[iii] = 1.;
+   }
+  ierr = VecRestoreArray(saturationXl,&arrayXl);
+  ierr = VecRestoreArray(saturationXu,&arrayXu);
+  ierr = VecRestoreSubVector(Xl, ctx->fields[FIELD_SATURATION] , &Xl );CHKERRQ(ierr);
+  ierr = VecRestoreSubVector(Xu, ctx->fields[FIELD_SATURATION] , &Xu );CHKERRQ(ierr);
 
   return 0;
 }
@@ -1465,12 +1497,33 @@ PetscErrorCode TSMonitorResidualVTK(TS ts,PetscInt step,PetscReal ptime,Vec u,vo
   PetscFunctionReturn(0);
 }
 
+PetscErrorCode subspaceDMPlexTSComputeIFunctionFEM(DM dm, PetscReal time, Vec locX, Vec locX_t, Vec locF, void *user)
+{
+  PetscErrorCode ierr;
+  AppCtx *ctx = (AppCtx *)user;
+  ierr = DMPlexTSComputeIFunctionFEM(dm, time, locX, locX_t, locF, user);CHKERRQ(ierr);
+  ierr = VecPointwiseMult(locF,locF,ctx->locDirection);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec locX, Vec locX_t, PetscReal X_tShift, Mat Jac, Mat JacP, void *user)
+{
+  PetscErrorCode ierr;
+  AppCtx *ctx = (AppCtx *)user;
+  ierr = DMPlexTSComputeIJacobianFEM(dm, time, locX, locX_t, X_tShift, Jac, JacP, user);CHKERRQ(ierr);
+
+  ierr = MatSetOption( Jac ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
+  ierr = MatZeroRowsIS(Jac ,ctx->isnotstate,1.0,NULL,NULL);CHKERRQ(ierr);
+  //ierr = MatZeroRowsIS(JacP,ctx->isnotstate,1.0,NULL,NULL);CHKERRQ(ierr);
+
+  PetscFunctionReturn(0);
+}
+
 int main(int argc, char **argv)
 {
   AppCtx         ctx;
   DM             dm;
   TS             ts;
-  Vec            u, r;
+  Vec            u; 
   PetscReal      t       = 0.0;
   PetscReal      L2error = 0.0;
   PetscErrorCode ierr;
@@ -1486,12 +1539,11 @@ int main(int argc, char **argv)
 
   ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u, "solution");CHKERRQ(ierr);
-  ierr = VecDuplicate(u, &r);CHKERRQ(ierr);
 
   // time stepper for phase field
   ierr = TSCreate(PETSC_COMM_WORLD, &ts);CHKERRQ(ierr);
   ierr = TSSetDM(ts, dm);CHKERRQ(ierr);
-  ierr = DMTSSetBoundaryLocal(dm, DMPlexTSComputeBoundary, &ctx);CHKERRQ(ierr);
+  ierr = DMTSSetBoundaryLocal( dm, DMPlexTSComputeBoundary, &ctx);CHKERRQ(ierr);
   ierr = DMTSSetIFunctionLocal(dm, DMPlexTSComputeIFunctionFEM, &ctx);CHKERRQ(ierr);
   ierr = DMTSSetIJacobianLocal(dm, DMPlexTSComputeIJacobianFEM, &ctx);CHKERRQ(ierr);
   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_STEPOVER);CHKERRQ(ierr);
@@ -1558,13 +1610,14 @@ int main(int argc, char **argv)
      ierr = PetscPrintf(PETSC_COMM_WORLD,"phase solution saved to binary vector %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
     } 
   else
-    {/* Read in previously computed solution in binary format */
+    {
+
+     /* Read in previously computed solution in binary format */
      PetscViewer    viewer;
      ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
      ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,ctx.phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
      ierr = VecLoad(u,viewer); CHKERRQ(ierr);
      ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-
 
      // solve outside the phase field
      ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
@@ -1606,6 +1659,10 @@ int main(int argc, char **argv)
      ierr = VecShift(ctx.solvedirection,-1.0);CHKERRQ(ierr);
      ierr = VecAbs(ctx.solvedirection);CHKERRQ(ierr);
 
+     ierr = DMCreateLocalVector( dm,&ctx.locDirection);CHKERRQ(ierr);
+     ierr = DMGlobalToLocalBegin(dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
+     ierr = DMGlobalToLocalEnd(  dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
+
      // view solve direction
      char              vtkfilenametemplate[PETSC_MAX_PATH_LEN];
      ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssetup%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
@@ -1625,9 +1682,8 @@ int main(int argc, char **argv)
          ierr = VecDestroy(&debugids);CHKERRQ(ierr);
        }
 
-
      // setup initial conditions inside dirichlet boundary
-     Vec        temperaturevector,   pressurevector ;
+     Vec        temperaturevector,   pressurevector, pressurework ;
      ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecGetSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
      // smooth BC
@@ -1676,6 +1732,36 @@ int main(int argc, char **argv)
      ierr = PCFieldSplitSetIS(mypc,"u",ctx.subfields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
      ierr = KSPSetPostSolve(myksp,KSPPostSolve_ZeroSearch,&ctx);CHKERRQ(ierr);
 
+     // get initial pressure for saturation solve
+     // following SNESSolve_KSPONLY
+     Vec          uinit,rinit,sinit;
+     ierr = VecDuplicate(u, &uinit);CHKERRQ(ierr);
+     ierr = VecCopy(u, uinit);CHKERRQ(ierr);
+     ierr = VecDuplicate(u, &sinit);CHKERRQ(ierr);
+     ierr = VecDuplicate(u, &rinit);CHKERRQ(ierr);
+     // initialize
+     ierr = TSSetSolution(ts,u);CHKERRQ(ierr);
+     ierr = TSSetUp(ts);CHKERRQ(ierr);
+     ierr = SNESSetUp(mysnes);CHKERRQ(ierr);
+     // ierr = TSStep(ts);CHKERRQ(ierr);
+     ierr = SNESComputeFunction(mysnes,uinit,rinit);CHKERRQ(ierr);
+     Mat myjmat, mypmat;
+     ierr = SNESGetJacobian(mysnes,&myjmat,&mypmat,NULL,NULL);CHKERRQ(ierr);
+     ierr = SNESComputeJacobian(mysnes,uinit,myjmat,mypmat);CHKERRQ(ierr);
+     ierr = KSPSetOperators(myksp,myjmat,mypmat);CHKERRQ(ierr);
+     ierr = KSPSolve(myksp,rinit,sinit);CHKERRQ(ierr);
+     // ierr = VecAXPY(X,-1.0,Y);CHKERRQ(ierr);
+
+     // update pressure 
+     ierr = VecGetSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecGetSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
+     ierr = VecAXPY(pressurevector,-1.0,pressurework);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
+     ierr = VecDestroy(&uinit);CHKERRQ(ierr);
+     ierr = VecDestroy(&rinit);CHKERRQ(ierr);
+     ierr = VecDestroy(&sinit);CHKERRQ(ierr);
+
      // solve full problem 
      ierr = TSSetTime(ts, 0.0);CHKERRQ(ierr);
      ierr = TSSetStepNumber(ts,0);CHKERRQ(ierr);
@@ -1688,6 +1774,23 @@ int main(int argc, char **argv)
       ierr = PetscViewerDestroy(&optionviewer);CHKERRQ(ierr);
      }
      ierr = PetscOptionsLeft(NULL);CHKERRQ(ierr);
+     // following SNESSolve_VINEWTONRSLS SNESSolve_VINEWTONSSLS
+     SNESType mysnestype;
+     ierr = SNESGetType(mysnes,&mysnestype);CHKERRQ(ierr); 
+     ierr = PetscPrintf(PETSC_COMM_WORLD,"SNES Type %s\n",mysnestype); CHKERRQ(ierr); 
+     PetscBool strflgrsls,strflgssls;
+     PetscStrcmp(SNESVINEWTONRSLS,mysnestype,&strflgrsls);
+     PetscStrcmp(SNESVINEWTONSSLS,mysnestype,&strflgssls);
+     if(strflgrsls || strflgssls)
+       {
+        ierr = SNESVISetComputeVariableBounds(mysnes,&SolnBounds);CHKERRQ(ierr); 
+       }
+     // FIXME: reset the residual jacobian functions to solve on subspace... 
+     // FIXME: NOTE This is called AFTER the first jacobian assembly to honor:
+     // FIXME: MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE) 
+     ierr = DMTSSetIFunctionLocal(dm, subspaceDMPlexTSComputeIFunctionFEM, &ctx);CHKERRQ(ierr);
+     ierr = DMTSSetIJacobianLocal(dm, subspaceDMPlexTSComputeIJacobianFEM, &ctx);CHKERRQ(ierr);
+     // solve on subspace
      ierr = TSSolve(ts, u);CHKERRQ(ierr);
      ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
 
@@ -1696,6 +1799,7 @@ int main(int argc, char **argv)
      ierr = ISDestroy(&fullsystem);CHKERRQ(ierr);
      ierr = ISDestroy(&ctx.isnotstate);CHKERRQ(ierr);
      ierr = VecDestroy(&ctx.solvedirection);CHKERRQ(ierr);
+     ierr = VecDestroy(&ctx.locDirection);CHKERRQ(ierr);
 
      for(PetscInt iii = 0 ; iii < ctx.numFields; iii++) 
           ierr = ISDestroy(&ctx.subfields[iii]);CHKERRQ(ierr);
@@ -1704,7 +1808,6 @@ int main(int argc, char **argv)
   // clean up
   ierr = VecViewFromOptions(u, NULL, "-sol_vec_view");CHKERRQ(ierr);
   ierr = VecDestroy(&u);CHKERRQ(ierr);
-  ierr = VecDestroy(&r);CHKERRQ(ierr);
   ierr = TSDestroy(&ts);CHKERRQ(ierr);
 
   for(PetscInt iii = 0 ; iii < ctx.numFields; iii++)
