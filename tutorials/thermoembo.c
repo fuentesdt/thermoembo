@@ -1792,6 +1792,16 @@ int main(int argc, char **argv)
      // FIXME: MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE) 
      ierr = DMTSSetIFunctionLocal(dm, subspaceDMPlexTSComputeIFunctionFEM, &ctx);CHKERRQ(ierr);
      ierr = DMTSSetIJacobianLocal(dm, subspaceDMPlexTSComputeIJacobianFEM, &ctx);CHKERRQ(ierr);
+
+     int numsplit;
+     KSP *ksplist;
+     ierr = PCFieldSplitGetSubKSP(mypc,&numsplit ,&ksplist);
+     for(PetscInt iiksp = 0 ; iiksp < numsplit ; iiksp++) 
+        {
+         ierr = KSPSetType(ksplist[iiksp],KSPPREONLY);CHKERRQ(ierr);
+         ierr = KSPMonitorCancel(ksplist[iiksp]);CHKERRQ(ierr);
+        }
+
      // solve on subspace
      ierr = TSSolve(ts, u);CHKERRQ(ierr);
      ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
