@@ -1485,7 +1485,7 @@ int main(int argc, char **argv)
   ierr = TSGetSNES(ts,&mysnes);
   ierr = SNESGetKSP(mysnes,&myksp);CHKERRQ(ierr);
   ierr = SNESGetLineSearch(mysnes,&mylinesearch);CHKERRQ(ierr);
-  //ierr = SNESSetObjective(mysnes,subspaceobjective,&ctx); CHKERRQ(ierr);
+  ierr = SNESSetObjective(mysnes,subspaceobjective,&ctx); CHKERRQ(ierr);
   //ierr = SNESLineSearchSetPreCheck(mylinesearch,myprecheck,&ctx); CHKERRQ(ierr);
   ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
 
