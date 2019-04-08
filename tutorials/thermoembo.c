@@ -42,7 +42,7 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 
 typedef enum {COEFF_NONE, COEFF_ANALYTIC, COEFF_FIELD, COEFF_NONLINEAR} CoeffType;
 // use enum to identify fields and field deriviatives
-typedef enum {FIELD_PRESSURE, FIELD_SATURATION, FIELD_PHASE, FIELD_TEMPERATURE, FIELD_DAMAGE} FieldEnumType;
+typedef enum {FIELD_PRESSURE, FIELD_SATURATION, FIELD_TEMPERATURE, FIELD_PHASE, FIELD_DAMAGE} FieldEnumType;
 const     int NUMPARAMETERS=25;
 const     double _globalepsilon = 1.e-12;
 // list of parameters
@@ -94,7 +94,7 @@ typedef struct {
   IS         *fields;
   IS         *subfields;
   Vec        solvedirection;
-  IS   isnotpressuresaturation;
+  IS   isnotstate;
   CoeffType      variableCoefficient;
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
 } AppCtx;
@@ -937,9 +937,9 @@ PetscErrorCode subspaceobjective(SNES snes,Vec X,PetscReal *f,void *voidctx)
   ierr = SNESComputeFunction(snes,X,work);CHKERRQ(ierr);
 
   // evaluate objective function only on pressure and saturation equations
-  ierr = VecGetSubVector(work, ctx->isnotpressuresaturation, &complementresidual);CHKERRQ(ierr);
+  ierr = VecGetSubVector(work, ctx->isnotstate, &complementresidual);CHKERRQ(ierr);
   ierr = VecSet(complementresidual,0.0);CHKERRQ(ierr);
-  ierr = VecRestoreSubVector(work, ctx->isnotpressuresaturation, &complementresidual);CHKERRQ(ierr);
+  ierr = VecRestoreSubVector(work, ctx->isnotstate, &complementresidual);CHKERRQ(ierr);
   ierr = VecNormBegin(work, NORM_2, f);CHKERRQ(ierr);
   ierr = VecNormEnd(  work, NORM_2, f);CHKERRQ(ierr);
 
@@ -1646,12 +1646,12 @@ int main(int argc, char **argv)
      // setup field split
      // PCApply_FieldSplit
      // PCFieldSplitSetDefaults
-     IS   ispressuresaturation, fullsystem;
-     ierr = ISConcatenate(PETSC_COMM_WORLD,2,&ctx.subfields[FIELD_PRESSURE],&ispressuresaturation); CHKERRQ(ierr);
-     ierr = ISSort(ispressuresaturation);CHKERRQ(ierr);
+     IS   isstate, fullsystem;
+     ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.subfields[FIELD_PRESSURE],&isstate); CHKERRQ(ierr);
+     ierr = ISSort(isstate);CHKERRQ(ierr);
      ierr = ISConcatenate(PETSC_COMM_WORLD,5,&ctx.fields[FIELD_PRESSURE],&fullsystem); CHKERRQ(ierr);
-     ierr = ISDifference(fullsystem,ispressuresaturation,&ctx.isnotpressuresaturation); CHKERRQ(ierr);
-     //ierr = PCFieldSplitSetIS(mypc,"s",ispressuresaturation);CHKERRQ(ierr);
+     ierr = ISDifference(fullsystem,isstate,&ctx.isnotstate); CHKERRQ(ierr);
+     //ierr = PCFieldSplitSetIS(mypc,"s",isstate);CHKERRQ(ierr);
      ierr = PCFieldSplitSetIS(mypc,"p",ctx.subfields[FIELD_PRESSURE]);CHKERRQ(ierr);
      ierr = PCFieldSplitSetIS(mypc,"s",ctx.subfields[FIELD_SATURATION]);CHKERRQ(ierr);
      ierr = PCFieldSplitSetIS(mypc,"u",ctx.subfields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
@@ -1673,9 +1673,9 @@ int main(int argc, char **argv)
      ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
 
      // clean up
-     ierr = ISDestroy(&ispressuresaturation);CHKERRQ(ierr);
+     ierr = ISDestroy(&isstate);CHKERRQ(ierr);
      ierr = ISDestroy(&fullsystem);CHKERRQ(ierr);
-     ierr = ISDestroy(&ctx.isnotpressuresaturation);CHKERRQ(ierr);
+     ierr = ISDestroy(&ctx.isnotstate);CHKERRQ(ierr);
      ierr = VecDestroy(&ctx.solvedirection);CHKERRQ(ierr);
 
      for(PetscInt iii = 0 ; iii < ctx.numFields; iii++) 
