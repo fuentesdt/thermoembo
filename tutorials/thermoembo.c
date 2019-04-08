@@ -758,18 +758,6 @@ void g1_bd_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt   comp;
   for (comp = 0; comp < dim; ++comp) g1[comp] = u[FIELD_SATURATION] * constants[PARAM_KMURATIOBLOOD] * n[comp] ;
 }
-static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
-                    const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
-                    const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
-                    PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
-{
-  PetscInt d;
-  double  innerprod = 0.0;
-  for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_PRESSURE]+d]  * u_x[uOff_x[FIELD_PHASE]+d] ;
-  g0[0] = - u_tShift*1.0 - constants[PARAM_SATURATION_SOURCE] 
-          + constants[PARAM_KMURATIOBLOOD]*innerprod ;
-}
-
 static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
@@ -797,10 +785,26 @@ static void f1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
-  double  innerprod = 0.0;
-  for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_SATURATION]+d]  * betas[d];
-  for (d = 0; d < dim; ++d) f1[d] = constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * innerprod * betas[d];
+  double  advection = 0.0;
+  for (d = 0; d < dim; ++d)  advection = advection + u_x[uOff_x[FIELD_SATURATION]+d]  * betas[d];
+  for (d = 0; d < dim; ++d) f1[d] = (  - u_t[FIELD_SATURATION]
+                                       - constants[PARAM_SATURATION_SOURCE]*u[FIELD_SATURATION]
+                                       + advection
+                                     ) * constants[PARAM_SATURATIONARTIFICIALDIFFUSION] *  betas[d];
 }
+
+static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                    const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                    const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                    PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
+{
+  PetscInt d;
+  double  innerprod = 0.0;
+  for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_PRESSURE]+d]  * u_x[uOff_x[FIELD_PHASE]+d] ;
+  g0[0] = - u_tShift*1.0 - constants[PARAM_SATURATION_SOURCE] 
+          + constants[PARAM_KMURATIOBLOOD]*innerprod ;
+}
+
 
 static void g1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                   const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -813,6 +817,19 @@ static void g1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
   for (d = 0; d < dim; ++d) g1[d] = betas[d];
 }
+
+static void g2_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
+                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
+                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
+                  PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g2[])
+{ // break PetscFEIntegrateJacobian_Basic
+  PetscInt   d;
+  PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  for (d = 0; d < dim; ++d) g2[d] = ( - u_tShift*1.0 - constants[PARAM_SATURATION_SOURCE] )  * constants[PARAM_SATURATIONARTIFICIALDIFFUSION] * betas[d];
+}
+
 
 static void g3_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -846,14 +863,16 @@ static void g3_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
-  double  innerprod = 0.0;
-  for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_SATURATION]+d]  * betas[d];
+  double  advection = 0.0;
+  for (d = 0; d < dim; ++d)  advection = advection + u_x[uOff_x[FIELD_SATURATION]+d]  * betas[d];
 
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
     g3[iii*dim+jjj] = u_x[uOff_x[FIELD_SATURATION]+iii] * betas[jjj];
   }
   for (d = 0; d < dim; ++d) {
-    g3[d*dim+d] = g3[d*dim+d] + innerprod;
+    g3[d*dim+d] = g3[d*dim+d] + advection 
+                              - u_t[FIELD_SATURATION]
+                              - constants[PARAM_SATURATION_SOURCE]*u[FIELD_SATURATION];
   }
   for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
     g3[iii*dim+jjj] = g3[iii*dim+jjj] * constants[PARAM_KMURATIOBLOOD] * constants[PARAM_SATURATIONARTIFICIALDIFFUSION] ;
@@ -1284,8 +1303,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
 
     // nonwetting phase saturation equations
     ierr = PetscDSSetResidual(  prob, FIELD_SATURATION, f0_conc, f1_conc);CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_PRESSURE  ,    NULL,g1_sp  ,  NULL, g3_sp  );CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_SATURATION, g0_conc,g1_conc,  NULL, g3_conc);CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_PRESSURE  ,    NULL,g1_sp  ,   NULL, g3_sp  );CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(  prob, FIELD_SATURATION, FIELD_SATURATION, g0_conc,g1_conc,g2_conc, g3_conc);CHKERRQ(ierr);
     ierr = PetscDSSetBdResidual(prob, FIELD_SATURATION, f0_bd_conc, NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdJacobian(prob, FIELD_SATURATION, FIELD_SATURATION, g0_bd_conc, NULL, NULL, NULL);CHKERRQ(ierr);
     ierr = PetscDSSetBdJacobian(prob, FIELD_SATURATION, FIELD_PRESSURE  ,       NULL, g1_bd_conc, NULL, NULL);CHKERRQ(ierr);
