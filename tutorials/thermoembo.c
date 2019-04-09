@@ -1498,7 +1498,8 @@ PetscErrorCode TSMonitorModuloVTK(TS ts,PetscInt step,PetscReal ptime,Vec u,void
 
   if (step < 0) PetscFunctionReturn(0); /* -1 indicates interpolated solution */
   if (step % ctx->modulowrite ) PetscFunctionReturn(0); /* -1 indicates interpolated solution */
-  ierr = PetscSNPrintf(filename,sizeof(filename),(const char*)filenametemplate,step);CHKERRQ(ierr);
+  PetscInt idout = step/ ctx->modulowrite ;
+  ierr = PetscSNPrintf(filename,sizeof(filename),(const char*)filenametemplate,idout);CHKERRQ(ierr);
   ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)ts),filename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   ierr = VecView(u,viewer);CHKERRQ(ierr);
   ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
@@ -1521,7 +1522,8 @@ PetscErrorCode TSMonitorResidualVTK(TS ts,PetscInt step,PetscReal ptime,Vec u,vo
 
   if (step < 0) PetscFunctionReturn(0); /* -1 indicates interpolated solution */
   if (step % ctx->modulowrite ) PetscFunctionReturn(0); /* -1 indicates interpolated solution */
-  ierr = PetscSNPrintf(filename,sizeof(filename),(const char*)filenametemplate,step);CHKERRQ(ierr);
+  PetscInt idout = step/ ctx->modulowrite ;
+  ierr = PetscSNPrintf(filename,sizeof(filename),(const char*)filenametemplate,idout);CHKERRQ(ierr);
   ierr = PetscViewerVTKOpen(PetscObjectComm((PetscObject)ts),filename,FILE_MODE_WRITE,&viewer);CHKERRQ(ierr);
   Vec               f;
   //ierr = SNESComputeFunction(snes,u,f);CHKERRQ(ierr);
