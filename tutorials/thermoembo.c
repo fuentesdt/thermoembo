@@ -809,7 +809,8 @@ static void f0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   f0[0] = - u_t[FIELD_SATURATION]
           - constants[PARAM_SATURATION_SOURCE]*u[FIELD_SATURATION]
           + advection
-          + (u[FIELD_SATURATION]-1.) *innerprod ;
+          + advection * innerprod ;
+          //+ (u[FIELD_SATURATION]-1.) *innerprod ;
 }
 static void f1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -836,8 +837,8 @@ static void g0_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscInt d;
   double  innerprod = 0.0;
   for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_PRESSURE]+d]  * u_x[uOff_x[FIELD_PHASE]+d] ;
-  g0[0] = - u_tShift*1.0 - constants[PARAM_SATURATION_SOURCE] 
-          + constants[PARAM_KMURATIOBLOOD]*innerprod ;
+ // g0[0] = -u_tShift*1.0 -constants[PARAM_SATURATION_SOURCE] +constants[PARAM_KMURATIOBLOOD]*innerprod;
+  g0[0] = -u_tShift*1.0 -constants[PARAM_SATURATION_SOURCE];
 }
 
 
@@ -850,7 +851,10 @@ static void g1_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
-  for (d = 0; d < dim; ++d) g1[d] = betas[d];
+  double  innerprod = 0.0;
+  for (d = 0; d < dim; ++d)  innerprod = innerprod + betas[d]  * u_x[uOff_x[FIELD_PHASE]+d] ;
+  //for (d = 0; d < dim; ++d) g1[d] = betas[d]; 
+  for (d = 0; d < dim; ++d) g1[d] = betas[d]*( 1+ innerprod ); 
 }
 
 static void g2_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -885,8 +889,19 @@ static void g1_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                   const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                   PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g1[])
 { // break PetscFEIntegrateJacobian_Basic
-  PetscInt   d;
-  for (d = 0; d < dim; ++d) g1[d] = constants[PARAM_KMURATIOBLOOD] * ((u[FIELD_SATURATION]-1.) * u_x[uOff_x[FIELD_PHASE]+d] + u_x[uOff_x[FIELD_SATURATION]+d]);
+  PetscInt d,iii,jjj;
+  PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
+                         constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
+  double  advection = 0.0;
+  for (d = 0; d < dim; ++d)  advection = advection + betas[d]  * u_x[uOff_x[FIELD_SATURATION]+d] ;
+  //for (d = 0; d < dim; ++d) g1[d] = constants[PARAM_KMURATIOBLOOD] * ((u[FIELD_SATURATION]-1.) * u_x[uOff_x[FIELD_PHASE]+d] + u_x[uOff_x[FIELD_SATURATION]+d]);
+  for (d = 0; d < dim; ++d) g1[d] = constants[PARAM_KMURATIOBLOOD] *
+       (advection * u_x[uOff_x[FIELD_PHASE]+d] + u_x[uOff_x[FIELD_SATURATION]+d]);
+  for (iii = 0; iii < dim; ++iii) for (jjj = 0; jjj < dim; ++jjj) {
+      g1[iii] = g1[iii] + constants[PARAM_KMURATIOBLOOD]
+                        * u_x[uOff_x[FIELD_SATURATION]+iii] * betas[jjj];
+  }
 }
 
 static void g3_sp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
