@@ -2,44 +2,19 @@
 ## play "livervessels.jou"
 reset
 set developer on
-import stl "vessel.stl" feature_angle 0 make_elements
-#delete surface 2
-brick x 100 y 100 z 20 bounding box volume 1 
-
-
-## import stl "decimate00004.stl" feature_angle 0 make_elements
-## #pause
-imprint mesh body 1 2
-merge body 1 2
-volume  2 scheme tetmesh
-volume  2 tetmesh respect tri all
-volume  2 size 5.0
-mesh volume  2 
+## import stl "kidney.stl" feature_angle 0 make_elements
+## import stl "kidney.stl" feature_angle 0 make_elements
+cylinder z 30 radius 5
+brick x 120 y 120 z 30 bounding box volume 1 
+webcut volume 2 tool volume 1 
 delete volume 1
 
-#group 7 add tri in surface 1
-## BC
-skin volume 2 make group 9
-group 9  remove tri in surface 3 4 5 6 7 8
-nodeset 4 node in tri in group 9
+imprint mesh body 2 3
+merge body 2 3
+volume 2 3 scheme tetmesh
+volume 2   size 5.0
+volume   3 size 1.0
+mesh volume  2 3  
 
-## SideSet 2 Surface 1 Patch Center 130 135 2.1  Outer_radius 60 Inner_radius 40
-## sideset 2 tri with ((x_coord-130)*(x_coord-130)+(y_coord-135)*(y_coord-135)+(z_coord-2.1)*(z_coord-2.1))>  40*40 in group 9
-
-sideset 2 tri with y_coord > 180 or y_coord < 94 or x_coord < 108 or x_coord > 148  in group 9
-nodeset 4 node in tri in sideset 2 remove
-
-
-## 
-## # output mesh
-## block 1 volume 2 
-## block 1 name "tissue" 
-## 
-## group 7 name "appface"
-## nodeset 3 node in tri in group 7
-## ## nodeset 3 node in surface 2 3 4 5 6 7 remove
-## ## nodeset 2 surface 2 3 4 5 6 7 
-## ## 
-## ## #volume all scale 0.001
+volume all scale 0.001
 export mesh "vessel.e" overwrite 
-## ## 
