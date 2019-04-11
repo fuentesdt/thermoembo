@@ -1202,7 +1202,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   // FIXME error handle time steps. max time  should be  < epsilon^{-1}
   // FIXME epsilon^{-1} ~ 1/2 * voxel width
   // FIXME epsilon units of m/s ? 
-  options->parameters[PARAM_PHASEEPSILON] = options->spacing[0]/2.0; 
+  options->parameters[PARAM_PHASEEPSILON] = options->spacing[0]; 
   PetscReal         max_time;               /* phase field max time allowed */
   max_time = options->lengthscale/options->parameters[PARAM_PHASEEPSILON];
   ierr = PetscOptionsInt("-phasepresolve_ts_max_steps","Maximum number of time steps","TSSetMaxSteps",options->max_steps,&options->max_steps,NULL);CHKERRQ(ierr);
@@ -1739,21 +1739,27 @@ int main(int argc, char **argv)
        }
 
      // setup initial conditions inside dirichlet boundary
-     Vec        temperaturevector,   pressurevector, pressurework ;
+     Vec        temperaturevector,   pressurevector, pressurework, saturationvector ;
      ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecGetSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecGetSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
      // smooth BC
      ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
      ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
      ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
      ierr = VecShift(pressurevector,                                         ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     ierr = VecSet(saturationvector , 1.0        );CHKERRQ(ierr);
      // strong boundary
      // ierr = VecSet(temperaturevector,ctx.parameters[PARAM_USALT]           );CHKERRQ(ierr);
      // ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
 
      // // setup initial conditions outside dirichlet boundary
+     ierr = VecGetSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     ierr = VecShift(saturationvector ,-1.0        );CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
      // ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      // ierr = VecGetSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
      // ierr = VecSet(temperaturevector,ctx.parameters[PARAM_UARTERY]         );CHKERRQ(ierr);
