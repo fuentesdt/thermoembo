@@ -48,11 +48,13 @@ for iii, node in enumerate(nodes):
   f.write("%d %f %f %f\n" % (iii, node[0],node[1],node[2]))
 f.close()
 
-f = open("mytest.mrt", "w")
+f = open("mytest.1.mtr", "w")
 f.write("%d 1 \n" % len(nodes))
 for iii, node in enumerate(nodes):
   f.write("%f\n" % (node[3]))
 f.close()
 
 os.system("tetgen -k mytest.node")
+os.system("tetgen -rRmk mytest.1")
+
 
