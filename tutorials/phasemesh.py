@@ -15,7 +15,7 @@ parser.add_option( "--output",
                   help="converting/this/file to mesh", metavar = "FILE")
 (options, args) = parser.parse_args()
 if (options.file_name):
-  c3dcmd = "c3d -verbose %s  -o %simage.vtk  -sdt -as A -cmp -push A -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
+  c3dcmd = "c3d -verbose %s -o %simage.vtk  -sdt -as A -cmv -push A -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
   print c3dcmd 
   os.system( c3dcmd )
   
@@ -30,15 +30,15 @@ if (options.file_name):
   dim = numpyimage.shape
 
   mmconversion = 1.e-3
-  pixelsize =mmconversion* zooms[0] 
+  pixelsize = (mmconversion* zooms[0] ,mmconversion* zooms[1] ,mmconversion* zooms[2] )
   
   nodes=[]
   for iii in range(dim[0]):
     for jjj in range(dim[1]):
        for kkk in range(dim[2]):
-           newnode = (mmconversion * numpyimage[iii,jjj,kkk,0,0],
-                      mmconversion * numpyimage[iii,jjj,kkk,0,1],
-                      mmconversion * numpyimage[iii,jjj,kkk,0,2],
+           newnode = (pixelsize[0] * numpyimage[iii,jjj,kkk,0,0],
+                      pixelsize[1] * numpyimage[iii,jjj,kkk,0,1],
+                      pixelsize[2] * numpyimage[iii,jjj,kkk,0,2],
                                      numpyimage[iii,jjj,kkk,0,3])
            nodes.append(newnode)
   
@@ -46,9 +46,9 @@ if (options.file_name):
   for iii in range(0,dim[0],10):
     for jjj in range(0,dim[1],10):
        for kkk in range(0,dim[2],2):
-           newnode = (mmconversion * numpyimage[iii,jjj,kkk,0,0],
-                      mmconversion * numpyimage[iii,jjj,kkk,0,1],
-                      mmconversion * numpyimage[iii,jjj,kkk,0,2],
+           newnode = (pixelsize[0] * numpyimage[iii,jjj,kkk,0,0],
+                      pixelsize[1] * numpyimage[iii,jjj,kkk,0,1],
+                      pixelsize[2] * numpyimage[iii,jjj,kkk,0,2],
                                      numpyimage[iii,jjj,kkk,0,3])
            coarsenode.append(newnode)
   
@@ -72,7 +72,7 @@ if (options.file_name):
   f = open("%s.1.b.mtr" % options.output, "w")
   f.write("%d 1 \n" % len(nodes))
   for iii, node in enumerate(nodes):
-    f.write("%f\n" % ( max(pixelsize,node[3]/distancemax * 25.0 * pixelsize ) ) )
+    f.write("%f\n" % ( max(pixelsize[0],node[3]/distancemax * 25.0 * pixelsize[0] ) ) )
     #f.write("1.0\n"                                                    )
   f.close()
   
