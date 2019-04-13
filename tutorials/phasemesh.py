@@ -28,25 +28,27 @@ if (options.file_name):
   
   #image data
   dim = numpyimage.shape
+
+  mmconversion = 1.e-3
   
   nodes=[]
   for iii in range(dim[0]):
     for jjj in range(dim[1]):
        for kkk in range(dim[2]):
-           newnode = (numpyimage[iii,jjj,kkk,0,0],
-                      numpyimage[iii,jjj,kkk,0,1],
-                      numpyimage[iii,jjj,kkk,0,2],
-                      numpyimage[iii,jjj,kkk,0,3])
+           newnode = (mmconversion * numpyimage[iii,jjj,kkk,0,0],
+                      mmconversion * numpyimage[iii,jjj,kkk,0,1],
+                      mmconversion * numpyimage[iii,jjj,kkk,0,2],
+                                     numpyimage[iii,jjj,kkk,0,3])
            nodes.append(newnode)
   
   coarsenode=[]
   for iii in range(0,dim[0],10):
     for jjj in range(0,dim[1],10):
        for kkk in range(0,dim[2],2):
-           newnode = (numpyimage[iii,jjj,kkk,0,0],
-                      numpyimage[iii,jjj,kkk,0,1],
-                      numpyimage[iii,jjj,kkk,0,2],
-                      numpyimage[iii,jjj,kkk,0,3])
+           newnode = (mmconversion * numpyimage[iii,jjj,kkk,0,0],
+                      mmconversion * numpyimage[iii,jjj,kkk,0,1],
+                      mmconversion * numpyimage[iii,jjj,kkk,0,2],
+                                     numpyimage[iii,jjj,kkk,0,3])
            coarsenode.append(newnode)
   
   distance = numpyimage[:,:,:,:,3]
@@ -80,23 +82,31 @@ if (options.file_name):
   print backgroundmeshcmd 
   print initializecoarsemeshcmd 
   print adaptivemeshcmd 
-  #os.system(backgroundmeshcmd )
-  #os.system(initializecoarsemeshcmd )
-  #os.system(adaptivemeshcmd )
+  os.system(backgroundmeshcmd )
+  os.system(initializecoarsemeshcmd )
+  os.system(adaptivemeshcmd )
 
   # load vtk data
   vtkReader = vtk.vtkUnstructuredGridReader()
   vtkReader.SetFileName( "%s.2.vtk" % options.output )
   vtkReader.Update()
-  xxx = vtkReader.GetOutput() 
-  yyy = vtkReader.GetOutputPort() 
+
+
+  ## vtkNew<vtkDummyController> controller;
+  ## controller->Initialize(&argc, &argv, 1);
+  ## vtkMultiProcessController::SetGlobalController(controller.Get());
+  ## HACK for parallel write
+  ## https://www.paraview.org/Bug/view.php?id=15813
+  controller =vtk.vtkDummyController()
+  vtk.vtkMultiProcessController.SetGlobalController(controller)
 
   # convert to exodus 
   vtkExodusIIWriter = vtk.vtkExodusIIWriter()
-  vtkExodusIIWriter.SetFileName("%s.2.e" % options.output)
-  vtkExodusIIWriter.SetInputConnection( vtkReader.GetOutputPort()  )
-  vtkExodusIIWriter.WriteAllTimeStepsOn()
-  vtkExodusIIWriter.Write()
+  #vtkExodusIIWriter.DebugOn()
+  vtkExodusIIWriter.SetFileName("%s.2.exo" % options.output)
+  vtkExodusIIWriter.SetInputData( vtkReader.GetOutput() )
+  print vtkExodusIIWriter
+  vtkExodusIIWriter.Update()
 
 else:
   parser.print_help()
