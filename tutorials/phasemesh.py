@@ -75,12 +75,14 @@ if (options.file_name):
   
   # run adaptive mesh generation
   backgroundmeshcmd = "tetgen -k %sbg.node;cp %sbg.1.node  %s.1.b.node ; cp %sbg.1.ele   %s.1.b.ele " % (options.output, options.output,options.output, options.output,options.output)
-  print backgroundmeshcmd 
-  os.system(backgroundmeshcmd )
   initializecoarsemeshcmd = "tetgen -k %s.node"       % options.output
-  os.system(initializecoarsemeshcmd )
   adaptivemeshcmd = "tetgen -Vrmqk %s.1.node" % options.output
-  os.system(adaptivemeshcmd )
+  print backgroundmeshcmd 
+  print initializecoarsemeshcmd 
+  print adaptivemeshcmd 
+  #os.system(backgroundmeshcmd )
+  #os.system(initializecoarsemeshcmd )
+  #os.system(adaptivemeshcmd )
 
   # load vtk data
   vtkReader = vtk.vtkUnstructuredGridReader()
@@ -93,6 +95,7 @@ if (options.file_name):
   vtkExodusIIWriter = vtk.vtkExodusIIWriter()
   vtkExodusIIWriter.SetFileName("%s.2.e" % options.output)
   vtkExodusIIWriter.SetInputConnection( vtkReader.GetOutputPort()  )
+  vtkExodusIIWriter.WriteAllTimeStepsOn()
   vtkExodusIIWriter.Write()
 
 else:
