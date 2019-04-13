@@ -30,6 +30,7 @@ if (options.file_name):
   dim = numpyimage.shape
 
   mmconversion = 1.e-3
+  pixelsize =mmconversion* zooms[0] 
   
   nodes=[]
   for iii in range(dim[0]):
@@ -71,7 +72,7 @@ if (options.file_name):
   f = open("%s.1.b.mtr" % options.output, "w")
   f.write("%d 1 \n" % len(nodes))
   for iii, node in enumerate(nodes):
-    f.write("%f\n" % ( max(zooms[0],node[3]/distancemax * 25.0 * zooms[0]) ) )
+    f.write("%f\n" % ( max(pixelsize,node[3]/distancemax * 25.0 * pixelsize ) ) )
     #f.write("1.0\n"                                                    )
   f.close()
   
