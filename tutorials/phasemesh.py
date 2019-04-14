@@ -15,7 +15,7 @@ parser.add_option( "--output",
                   help="converting/this/file to mesh", metavar = "FILE")
 (options, args) = parser.parse_args()
 if (options.file_name):
-  c3dcmd = "c3d -verbose %s -as B -dilate 1 1x1x0vox -push B  -scale -1 -add -o %simage.vtk  -sdt -as A -cmv -push A -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
+  c3dcmd = "c3d -verbose %s -o %simage.vtk -as B -dilate 1 1x1x0vox -push B  -scale -1 -add  -sdt -as A -cmv -push A -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
   print c3dcmd 
   os.system( c3dcmd )
   
