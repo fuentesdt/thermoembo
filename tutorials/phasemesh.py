@@ -15,7 +15,7 @@ parser.add_option( "--output",
                   help="converting/this/file to mesh", metavar = "FILE")
 (options, args) = parser.parse_args()
 if (options.file_name):
-  c3dcmd = "c3d -verbose %s -o %simage.vtk  -sdt -as A -cmv -push A -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
+  c3dcmd = "c3d -verbose %s -as B -dilate 1 1x1x0vox -push B  -scale -1 -add -o %simage.vtk  -sdt -as A -cmv -push A -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
   print c3dcmd 
   os.system( c3dcmd )
   
@@ -72,14 +72,29 @@ if (options.file_name):
   f = open("%s.1.b.mtr" % options.output, "w")
   f.write("%d 1 \n" % len(nodes))
   for iii, node in enumerate(nodes):
+    f.write("%f\n" % ( max(2.*pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
+    #f.write("1.0\n"                                                    )
+  f.close()
+  
+  f = open("%s.2.b.mtr" % options.output, "w")
+  f.write("%d 1 \n" % len(nodes))
+  for iii, node in enumerate(nodes):
     f.write("%f\n" % ( max(pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
     #f.write("1.0\n"                                                    )
   f.close()
   
+  f = open("%s.3.b.mtr" % options.output, "w")
+  f.write("%d 1 \n" % len(nodes))
+  for iii, node in enumerate(nodes):
+    f.write("%f\n" % ( max(0.5*pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
+    #f.write("1.0\n"                                                    )
+  f.close()
+  
   # run adaptive mesh generation
-  backgroundmeshcmd = "tetgen -k %sbg.node;cp %sbg.1.node  %s.1.b.node ; cp %sbg.1.ele   %s.1.b.ele " % (options.output, options.output,options.output, options.output,options.output)
+  backgroundmeshcmd = "tetgen -k %sbg.node;ln -sf %sbg.1.node  %s.1.b.node ; ln -sf %sbg.1.ele   %s.1.b.ele ;ln -sf %sbg.1.node  %s.2.b.node ; ln -sf %sbg.1.ele   %s.2.b.ele ;ln -sf %sbg.1.node  %s.3.b.node ; ln -sf %sbg.1.ele   %s.3.b.ele " % (options.output, options.output,options.output, options.output,options.output, options.output,options.output, options.output,options.output, options.output,options.output, options.output,options.output)
   initializecoarsemeshcmd = "tetgen -k %s.node"       % options.output
-  adaptivemeshcmd = "tetgen -rmqk %s.1.node" % options.output
+  adaptivemeshcmd = "tetgen -rmqk %s.1.node;tetgen -rmqk %s.2.node; tetgen -rmqk %s.3.node" % (options.output, options.output, options.output)
+                    
   print backgroundmeshcmd 
   print initializecoarsemeshcmd 
   print adaptivemeshcmd 
@@ -87,27 +102,29 @@ if (options.file_name):
   os.system(initializecoarsemeshcmd )
   os.system(adaptivemeshcmd )
 
+  
   # load vtk data
-  vtkReader = vtk.vtkUnstructuredGridReader()
-  vtkReader.SetFileName( "%s.2.vtk" % options.output )
-  vtkReader.Update()
+  for iii in [2,3,4]:
+     vtkReader = vtk.vtkUnstructuredGridReader()
+     vtkReader.SetFileName( "%s.%d.vtk" % (options.output,iii) )
+     vtkReader.Update()
 
 
-  ## vtkNew<vtkDummyController> controller;
-  ## controller->Initialize(&argc, &argv, 1);
-  ## vtkMultiProcessController::SetGlobalController(controller.Get());
-  ## HACK for parallel write
-  ## https://www.paraview.org/Bug/view.php?id=15813
-  controller =vtk.vtkDummyController()
-  vtk.vtkMultiProcessController.SetGlobalController(controller)
+     ## vtkNew<vtkDummyController> controller;
+     ## controller->Initialize(&argc, &argv, 1);
+     ## vtkMultiProcessController::SetGlobalController(controller.Get());
+     ## HACK for parallel write
+     ## https://www.paraview.org/Bug/view.php?id=15813
+     controller =vtk.vtkDummyController()
+     vtk.vtkMultiProcessController.SetGlobalController(controller)
 
-  # convert to exodus 
-  vtkExodusIIWriter = vtk.vtkExodusIIWriter()
-  #vtkExodusIIWriter.DebugOn()
-  vtkExodusIIWriter.SetFileName("%s.2.exo" % options.output)
-  vtkExodusIIWriter.SetInputData( vtkReader.GetOutput() )
-  print vtkExodusIIWriter
-  vtkExodusIIWriter.Update()
+     # convert to exodus 
+     vtkExodusIIWriter = vtk.vtkExodusIIWriter()
+     #vtkExodusIIWriter.DebugOn()
+     vtkExodusIIWriter.SetFileName("%s.%d.exo" % (options.output,iii))
+     vtkExodusIIWriter.SetInputData( vtkReader.GetOutput() )
+     print vtkExodusIIWriter
+     vtkExodusIIWriter.Update()
 
 else:
   parser.print_help()
