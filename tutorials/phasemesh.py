@@ -43,8 +43,8 @@ if (options.file_name):
            nodes.append(newnode)
   
   coarsenode=[]
-  for iii in range(0,dim[0],10):
-    for jjj in range(0,dim[1],10):
+  for iii in range(0,dim[0],32):
+    for jjj in range(0,dim[1],32):
        for kkk in range(0,dim[2],2):
            newnode = (pixelsize[0] * numpyimage[iii,jjj,kkk,0,0],
                       pixelsize[1] * numpyimage[iii,jjj,kkk,0,1],
@@ -72,14 +72,14 @@ if (options.file_name):
   f = open("%s.1.b.mtr" % options.output, "w")
   f.write("%d 1 \n" % len(nodes))
   for iii, node in enumerate(nodes):
-    f.write("%f\n" % ( max(pixelsize[0],node[3]/distancemax * 25.0 * pixelsize[0] ) ) )
+    f.write("%f\n" % ( max(pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
     #f.write("1.0\n"                                                    )
   f.close()
   
   # run adaptive mesh generation
   backgroundmeshcmd = "tetgen -k %sbg.node;cp %sbg.1.node  %s.1.b.node ; cp %sbg.1.ele   %s.1.b.ele " % (options.output, options.output,options.output, options.output,options.output)
   initializecoarsemeshcmd = "tetgen -k %s.node"       % options.output
-  adaptivemeshcmd = "tetgen -Vrmqk %s.1.node" % options.output
+  adaptivemeshcmd = "tetgen -rmqk %s.1.node" % options.output
   print backgroundmeshcmd 
   print initializecoarsemeshcmd 
   print adaptivemeshcmd 
