@@ -15,7 +15,7 @@ parser.add_option( "--output",
                   help="converting/this/file to mesh", metavar = "FILE")
 (options, args) = parser.parse_args()
 if (options.file_name):
-  c3dcmd = "c3d -verbose %s -o %simage.vtk -as B -dilate 1 1x1x0vox -push B  -scale -1 -add  -sdt -as A -cmv -push A -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
+  c3dcmd = "c3d -verbose %s -o %simage.vtk -as B -dilate 1 1x1x0vox -push B  -scale -1 -add -as C -sdt -as A -cmv -push A -push C -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
   print c3dcmd 
   os.system( c3dcmd )
   
@@ -39,7 +39,8 @@ if (options.file_name):
            newnode = (pixelsize[0] * numpyimage[iii,jjj,kkk,0,0],
                       pixelsize[1] * numpyimage[iii,jjj,kkk,0,1],
                       pixelsize[2] * numpyimage[iii,jjj,kkk,0,2],
-                                     numpyimage[iii,jjj,kkk,0,3])
+                                     numpyimage[iii,jjj,kkk,0,3],
+                                     numpyimage[iii,jjj,kkk,0,4])
            nodes.append(newnode)
   
   coarsenode=[]
@@ -53,6 +54,7 @@ if (options.file_name):
            coarsenode.append(newnode)
   
   distance = numpyimage[:,:,:,:,3]
+  boundaryid = numpyimage[:,:,:,:,4]
   distancemax = np.max(distance[:])
   distancemin = max(np.min(distance[:]),0)
   
@@ -72,23 +74,22 @@ if (options.file_name):
   f = open("%s.1.b.mtr" % options.output, "w")
   f.write("%d 1 \n" % len(nodes))
   for iii, node in enumerate(nodes):
-    f.write("%f\n" % ( max(2.*pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
-    #f.write("1.0\n"                                                    )
+    #f.write("%12.5e\n" % ( 0.5*pixelsize[0]*node[4] ) )
+    f.write("%12.5e\n" % ( max(pixelsize[0],(1. - np.exp(-5*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
   f.close()
   
   f = open("%s.2.b.mtr" % options.output, "w")
   f.write("%d 1 \n" % len(nodes))
   for iii, node in enumerate(nodes):
-    f.write("%f\n" % ( max(pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
-    #f.write("1.0\n"                                                    )
+    f.write("%12.5e\n" % ( max(0.5*pixelsize[0],(1. - np.exp(-4*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
   f.close()
   
   f = open("%s.3.b.mtr" % options.output, "w")
   f.write("%d 1 \n" % len(nodes))
   for iii, node in enumerate(nodes):
-    f.write("%f\n" % ( max(0.5*pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
-    #f.write("1.0\n"                                                    )
+    f.write("%12.5e\n" % ( max(0.5*pixelsize[0],(1. - np.exp(-3*node[3]/distancemax)) * 32.0 * pixelsize[0] ) ) )
   f.close()
+  
   
   # run adaptive mesh generation
   backgroundmeshcmd = "tetgen -k %sbg.node;ln -sf %sbg.1.node  %s.1.b.node ; ln -sf %sbg.1.ele   %s.1.b.ele ;ln -sf %sbg.1.node  %s.2.b.node ; ln -sf %sbg.1.ele   %s.2.b.ele ;ln -sf %sbg.1.node  %s.3.b.node ; ln -sf %sbg.1.ele   %s.3.b.ele " % (options.output, options.output,options.output, options.output,options.output, options.output,options.output, options.output,options.output, options.output,options.output, options.output,options.output)
