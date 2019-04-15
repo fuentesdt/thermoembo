@@ -1762,20 +1762,20 @@ int main(int argc, char **argv)
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
 
-     // // setup initial conditions outside dirichlet boundary
-     // Vec        saturationvector ;
-     // ierr = VecGetSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     // ierr = VecSet(saturationvector , 1.0        );CHKERRQ(ierr);
-     // ierr = VecRestoreSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     // ierr = VecGetSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     // ierr = VecShift(saturationvector ,-1.0        );CHKERRQ(ierr);
-     // ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     // ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
-     // ierr = VecGetSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     // ierr = VecSet(temperaturevector,ctx.parameters[PARAM_UARTERY]         );CHKERRQ(ierr);
-     // ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
-     // ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
-     // ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     // setup initial conditions outside dirichlet boundary
+     Vec        saturationvector ;
+     ierr = VecGetSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     ierr = VecSet(saturationvector , 1.0        );CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     ierr = VecGetSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     ierr = VecShift(saturationvector ,-1.0        );CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     ierr = VecGetSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecSet(temperaturevector,ctx.parameters[PARAM_UARTERY]         );CHKERRQ(ierr);
+     ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
 
      //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
      // write vtk file at every time point
