@@ -23,6 +23,25 @@ if (options.file_name):
   zooms = imagedata.header.get_zooms()
   numpyimage= imagedata.get_data()
   
+  binaryReader = vtk.vtkDataSetReader()
+  binaryReader.SetFileName( "%simage.vtk" % options.output )
+  binaryReader.Update()
+
+  #surfExtractor = vtk.vtkMarchingCubes()
+  surfExtractor = vtk.vtkContourFilter()
+  surfExtractor.SetInputData(binaryReader.GetOutput())
+  surfExtractor.SetValue(0,.7)
+  surfExtractor.Update()
+  surface = surfExtractor.GetOutput() 
+
+  stlwriter = vtk.vtkSTLWriter()
+  stlwriter.SetInputData( surface )
+  stlwriter.SetFileName( "%simage.stl" % options.output )
+  stlwriter.SetFileTypeToASCII()
+  #stlwriter.SetFileTypeToBinary()
+  stlwriter.Write()
+
+
   ## for iii in  range(numnodes):
   ##    nodes.append( (float(lines[iii+1][1]),float(lines[iii+1][2]),float(lines[iii+1][3]), .1) )
   
@@ -49,9 +68,17 @@ if (options.file_name):
        for kkk in range(0,dim[2],2):
            newnode = (pixelsize[0] * numpyimage[iii,jjj,kkk,0,0],
                       pixelsize[1] * numpyimage[iii,jjj,kkk,0,1],
-                      pixelsize[2] * numpyimage[iii,jjj,kkk,0,2],
-                                     numpyimage[iii,jjj,kkk,0,3])
+                      pixelsize[2] * numpyimage[iii,jjj,kkk,0,2])
            coarsenode.append(newnode)
+
+  # add surfacepoints
+  for ipoint in range( surface.GetPoints().GetNumberOfPoints() ):
+      CurrentPoint = surface.GetPoint(ipoint)
+      newnode = (mmconversion * CurrentPoint[0] ,
+                 mmconversion * CurrentPoint[1] ,
+                 mmconversion * CurrentPoint[2] )
+      coarsenode.append(newnode)
+
   
   distance = numpyimage[:,:,:,:,3]
   boundaryid = numpyimage[:,:,:,:,4]

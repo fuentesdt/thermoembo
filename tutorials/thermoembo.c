@@ -1204,7 +1204,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   // FIXME error handle time steps. max time  should be  < epsilon^{-1}
   // FIXME epsilon^{-1} ~ 1/2 * voxel width
   // FIXME epsilon units of m/s ? 
-  options->parameters[PARAM_PHASEEPSILON] = options->spacing[0]/2.0; 
+  options->parameters[PARAM_PHASEEPSILON] = options->spacing[0]; 
   PetscReal         max_time;               /* phase field max time allowed */
   max_time = options->lengthscale/options->parameters[PARAM_PHASEEPSILON];
   ierr = PetscOptionsInt("-phasepresolve_ts_max_steps","Maximum number of time steps","TSSetMaxSteps",options->max_steps,&options->max_steps,NULL);CHKERRQ(ierr);
