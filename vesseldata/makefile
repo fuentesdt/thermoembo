@@ -18,9 +18,11 @@ left.roi.nii.gz:
 %.hess.nii.gz:  %.roi.nii.gz
 	c3d -verbose $<  -hessobj 1  .5 2   -o  $@
 
-%.gmm.nii.gz:   %.mask.nii.gz %.roi.nii.gz %.hess.nii.gz
-	$(ATROPOSCMD) -m [0.1,1x1x1] -i kmeans[3] -x $< -a $(word 2,$^) -a $(word 3,$^) -o [$@,gmm$*POSTERIORS%d.nii.gz] 
+%.gmm.nii.gz:   %.mask.nii.gz %.roi.nii.gz 
+	$(ATROPOSCMD) -m [0.1,1x1x1] -i kmeans[3] -x $< -a $(word 2,$^) -o [$@,gmm$*POSTERIORS%d.nii.gz] 
 	echo vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g $(word 2,$^) -s $@ -o  $(word 3,$^)
 
 %.vessel.nii.gz: %.gmm.nii.gz
-	c3d $< -thresh 1 1 1 0 -o $@
+	c3d $< -thresh 1 1 1 0 $@
+	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g $*.roi.nii.gz -s $@ 
+	echo vglrun /opt/apps/amira560/bin/start -tclcmd "load $*.roi.nii.gz; load $*.vessel.nii.gz;  create HxCastField; CastField data connect $*.vessel.nii.gz; CastField outputType setIndex 0 6; CastField create setLabel; Truth.nii.Labelfield ImageData connect $*.roi.nii.gz; "
