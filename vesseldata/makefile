@@ -26,3 +26,9 @@ left.roi.nii.gz:
 	c3d $< -thresh 1 1 1 0 $@
 	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g $*.roi.nii.gz -s $@ 
 	echo vglrun /opt/apps/amira560/bin/start -tclcmd "load $*.roi.nii.gz; load $*.vessel.nii.gz;  create HxCastField; CastField data connect $*.vessel.nii.gz; CastField outputType setIndex 0 6; CastField create setLabel; Truth.nii.Labelfield ImageData connect $*.roi.nii.gz; "
+
+landmarks:
+	-c3d left.roi.nii.gz -scale 0 -type uchar left.lm.nii.gz
+	-c3d ../temperaturedata/Kidney1Left_04202017_Exp42/temperature.0050.vtk -scale 0 -type uchar left.mrtilm.nii.gz
+	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g left.roi.nii.gz  -s left.lm.nii.gz
+	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g ../temperaturedata/Kidney1Left_04202017_Exp42/temperature.0050.vtk -s left.mrtilm.nii.gz
