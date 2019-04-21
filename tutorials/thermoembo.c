@@ -186,7 +186,6 @@ PetscErrorCode TSUpdatePhase(TS ts, PetscReal stagetime, PetscInt stageindex, Ve
   AppCtx         *ctx;
   DM dm;
   Vec            notdamage;
-  PetscReal deltaT; 
   PetscInt       currenttimestep; 
   PetscErrorCode ierr;
 
@@ -243,28 +242,23 @@ static PetscErrorCode nu_2d(PetscInt dim, PetscReal time, const PetscReal x[], P
 
 static PetscErrorCode analytic_temp(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
-  PetscInt d;
-
   AppCtx *options = (AppCtx *)ctx;
   *u = options->parameters[PARAM_UARTERY];
   //*u = dim*time;
-  //for (d = 0; d < dim; ++d) *u += x[d]*x[d];
+  //for (PetscInt d = 0; d < dim; ++d) *u += x[d]*x[d];
   return 0;
 }
 
 static PetscErrorCode analytic_conc(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
-  PetscInt d;
-
   *u = 0.0  ;
   //*u = dim*time;
-  //for (d = 0; d < dim; ++d) *u += x[d]*x[d];
+  //for (PetscInt d = 0; d < dim; ++d) *u += x[d]*x[d];
   return 0;
 }
 
 static PetscErrorCode analytic_phas(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
-  PetscInt d; 
   PetscReal imagevalue;
   AppCtx *user = (AppCtx *)ctx;
 
@@ -284,7 +278,6 @@ static PetscErrorCode analytic_phas(PetscInt dim, PetscReal time, const PetscRea
 
 static PetscErrorCode analytic_pres(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
-  PetscInt d;
 
   AppCtx *options = (AppCtx *)ctx;
   *u = options->parameters[PARAM_BASELINEPRESSURE];
@@ -301,11 +294,10 @@ static PetscErrorCode analytic_pres(PetscInt dim, PetscReal time, const PetscRea
 
 static PetscErrorCode analytic_damg(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx)
 {
-  PetscInt d;
 
   *u = 0.0 ;
   //*u = dim*time;
-  //for (d = 0; d < dim; ++d) *u += x[d]*x[d];
+  //for (PetscInt d = 0; d < dim; ++d) *u += x[d]*x[d];
   return 0;
 }
 
@@ -424,7 +416,6 @@ static void g3_ps(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
 static PetscErrorCode bd_applicator_pres(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
-  AppCtx *options = (AppCtx *)ctx;
   *u = 1.e10 * PetscAbs(sin(3.141592653589793 * time/10.)); // 
   return 0;
 }
@@ -876,7 +867,7 @@ static void g3_conc(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                     const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                     PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 {
-  PetscInt d,iii,jjj;
+  PetscInt iii,jjj;
   PetscReal  betas[3] = {constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+0] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+1] ,
                          constants[PARAM_KMURATIOBLOOD] * u_x[uOff_x[FIELD_PRESSURE]+2]  };
@@ -1056,7 +1047,7 @@ PetscErrorCode myprecheck(SNESLineSearch linesearch,Vec xcurrent,Vec y, PetscBoo
 // PCApply_None copies the vector... need shell to do nothing
 PetscErrorCode DoNothingShellPCApply(PC pc,Vec x,Vec y)
 {
-  PetscErrorCode ierr;
+  //PetscErrorCode ierr;
 
   return 0;
 }
@@ -1287,7 +1278,7 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
   const PetscReal lower[3]= {ctx->bounds[0],ctx->bounds[2],ctx->bounds[4]};
   const PetscReal upper[3]= {ctx->bounds[1],ctx->bounds[3],ctx->bounds[5]};
   PetscBool       hasLabel;
-  DM              refinedm = NULL;
+  //DM              refinedm = NULL;
   PetscErrorCode  ierr;
 
   PetscFunctionBeginUser;
