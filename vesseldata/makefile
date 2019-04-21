@@ -30,5 +30,14 @@ left.roi.nii.gz:
 landmarks:
 	-c3d left.roi.nii.gz -scale 0 -type uchar left.lm.nii.gz
 	-c3d ../temperaturedata/Kidney1Left_04202017_Exp42/temperature.0050.vtk -scale 0 -type uchar left.mrtilm.nii.gz
-	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g left.roi.nii.gz  -s left.lm.nii.gz
-	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g ../temperaturedata/Kidney1Left_04202017_Exp42/temperature.0050.vtk -s left.mrtilm.nii.gz
+	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g left.roi.nii.gz  -s left.lm.nii.gz & vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g ../temperaturedata/Kidney1Left_04202017_Exp42/temperature.0050.vtk -s left.mrtilm.nii.gz
+
+
+%.rigid.mat:
+	c3d -verbose $*.lm.nii.gz $*.mrtilm.nii.gz -alm 6 $@
+
+left.mrti.nii.gz: left.rigid.mat
+	c3d -verbose left.roi.nii.gz ../temperaturedata/Kidney1Left_04202017_Exp42/temperature.0050.vtk -reslice-matrix left.rigid.mat -o $@
+
+viewreg:
+	vglrun /opt/apps/itksnap/itksnap-3.2.0-20141023-Linux-x86_64/bin/itksnap -g left.roi.nii.gz  -o left.mrti.nii.gz
