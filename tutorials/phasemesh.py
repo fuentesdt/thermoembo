@@ -4,6 +4,9 @@ import nibabel as nib
 import vtk
 
 
+# c3d temperature.0050.vtk -replace NaN 0 maxtemp.vtk
+
+
 # setup command line parser to control execution
 from optparse import OptionParser
 parser = OptionParser()
