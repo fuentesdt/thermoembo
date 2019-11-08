@@ -1,4 +1,6 @@
 
+% works with matlab 2018 
+
     %% Load paths.
     if ~isdeployed
 %      addpath('./common');
@@ -14,9 +16,9 @@
 
 outputPathList = {'/FUS4/data2/sfholtz/Cressman/Mar2018Pub/EXP38_kidney1_03022017/MGE_obj_ARMA90_Model1.mat','/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1Left_04202017_Exp42/MGE_obj_ARMA90_Model1.mat', '/FUS4/data2/sfholtz/Cressman/Mar2018Pub/EXP38_kidney2_03022017/MGE_obj_ARMA90_Model1.mat','/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney2_01242017_Exp31/MGE_obj_ARMA90_Model1.mat', '/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1_01242017_Exp31/MGE_obj_ARMA90_Model1.mat','/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney2Right_04202017_Exp42/MGE_obj_ARMA90_Model1.mat'}
 
-
 outputPathList = {'/mnt/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1Left_04202017_Exp42/newDeltaT.mat', '/mnt/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney2Right_04202017_Exp42/newDeltaT.mat' , '/mnt/FUS4/data2/sfholtz/Cressman/Mar2018Pub/EXP38_kidney2_03022017/newDeltaT.mat' }
 
+outputPathList = {'/mnt/FUS4/data2/sfholtz/Cressman/Mar2018Pub/Kidney1Left_04202017_Exp42/newDeltaT.mat'}
 
 for jjj = 1 : length(outputPathList )
     outputPath = outputPathList{jjj}
@@ -27,8 +29,8 @@ for jjj = 1 : length(outputPathList )
     fulldata = load(outputPath);
     %temperaturedata = fulldata.img.newdeltaT;
     temperaturedata = fulldata.newDeltaT;
-    
-    
+    magnitudedata   = fulldata.datMag;
+
     header.PixelSpacing   = fulldata.img.hdrEx.PixelSpacing;
     header.SliceThickness = fulldata.img.sliceThickness ;
     
@@ -37,6 +39,12 @@ for jjj = 1 : length(outputPathList )
     for iii = 1:nsteps
         fileout = sprintf('%s/temperature.%04d.vtk',outputdir ,iii)
         saveVTKFile(fileout ,'temperature', temperaturedata(:,:,:,iii), header)
+    end
+
+    nsteps = size(magnitudedata,4);
+    for iii = 1:nsteps
+        fileout = sprintf('%s/magnitude.%04d.vtk',outputdir ,iii)
+        saveVTKFile(fileout ,'magnitude', magnitudedata(:,:,:,iii), header)
     end
 
 end
