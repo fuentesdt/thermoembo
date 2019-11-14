@@ -26,6 +26,8 @@ echotime = 1.5e-3; % s
 field    = 3.; % T
 alpha    = .01; % ppm/degC
 gamma    = 42.58; % MHz/T
+echospacing=.604; %ms
+numberecho = 15; 
 % c3d Kidney1Left_04202017_Exp42/magnitude.0001.vtk -replace NaN 0 -o  Kidney1Left_04202017_Exp42/magnitude.vtk -scale 0 -type char -o  Kidney1Left_04202017_Exp42/roi.vtk
 % $ c3d Kidney1Left_04202017_Exp42/magnitude.0001.vtk Kidney1Left_04202017_Exp42/roi.vtk -lstat
 % LabelID        Mean        StdD         Max         Min       Count     Vol(mm^3)        Extent(Vox)
@@ -54,6 +56,8 @@ for jjj = 1 : length(outputPathList )
     %temperaturedata = fulldata.img.newdeltaT;
     temperaturedata = fulldata.newDeltaT;
     magnitudedata   = fulldata.datMag;
+    r2data          = fulldata.datR2s;
+
 
     header.PixelSpacing   = fulldata.img.hdrEx.PixelSpacing;
     header.SliceThickness = fulldata.img.sliceThickness ;
