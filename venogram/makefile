@@ -28,29 +28,22 @@ mask.nii.gz:  image.nii.gz table.nii.gz
 	echo vglrun itksnap -g $< -s $@
 gmm.nii.gz: image.nii.gz mask.nii.gz 
 	$(ATROPOSCMD) -m [0,0x0x0] -i -i kmeans[3] -x $(word 2,$^)  -a $< -o [$@,$(@D)/gmmPOSTERIORS%d.nii.gz] 
+	echo vglrun itksnap -g $< -s $@ -o gmmPOSTERIORS3.nii.gz
 vesselness.%.nii.gz: gmmPOSTERIORS3.nii.gz 
-	c3d -verbose $< -hessobj 1 % % -o $@
+	c3d -verbose $< -hessobj 1 $* $* -o $@
+vesselness.5.nii.gz: gmmPOSTERIORS3.nii.gz 
+	c3d -verbose $< -hessobj 1 .5 .5 -o $@
+otsu.%.nii.gz: vesselness.%.nii.gz 
+	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
+vessel.nii.gz:  otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.4.nii.gz otsu.5.nii.gz 
+	c3d -verbose $^ -accum -add -endaccum -binarize -comp -thresh 1 30 1 0 -dilate 1 3x3x1vox -erode 1 3x3x1vox -comp -o vessel.comp.nii.gz -thresh 1 1 1 0 -o $@
+	echo vglrun itksnap -g image.nii.gz -s $@ 
 
 Processed/i%/sigmoid.nii.gz: Processed/i%/image.nii.gz 
 	c3d -verbose $< -dup -thresh -inf 500 1 0 -multiply -scale -1 -shift 120.0 -scale 1 -exp -shift 1. -reciprocal -type uchar -o $@
 
 Processed/i%/mask.nii.gz: Processed/i%/otsusheet.5.nii.gz Processed/i%/otsusheet.6.nii.gz Processed/i%/otsusheet.7.nii.gz Processed/i%/bet_mask.nii.gz
 	c3d -verbose  $< $(word 2,$^) -add $(word 3,$^) -add -binarize -replace 1 0 0 1 $(word 4,$^) -multiply -o $@
-Processed/i%/otsu.1.nii.gz: Processed/i%/vesselness.1.nii.gz 
-	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-	c3d -verbose $@ -comp -o $@
-Processed/i%/otsu.2.nii.gz: Processed/i%/vesselness.2.nii.gz 
-	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-Processed/i%/otsu.3.nii.gz: Processed/i%/vesselness.3.nii.gz 
-	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-Processed/i%/otsu.4.nii.gz: Processed/i%/vesselness.4.nii.gz 
-	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-Processed/i%/otsu.5.nii.gz: Processed/i%/vesselness.5.nii.gz 
-	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-Processed/i%/otsu.6.nii.gz: Processed/i%/vesselness.6.nii.gz 
-	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-Processed/i%/otsu.7.nii.gz: Processed/i%/vesselness.7.nii.gz 
-	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
 
 Processed/i%/sheet.1.nii.gz: Processed/i%/image.nii.gz 
 	c3d -verbose $<  -hessobj 2 1 1  -o $@
@@ -102,8 +95,6 @@ arclength.json: sigmoid.nii.gz arclengthfiducials.nii.gz
 vessel.hess.nii.gz: 
 	c3d -verbose  vesselness.1.nii.gz  -thresh 30 inf 1 0 -o $@
 
-vessel.nii.gz:  otsu.2.nii.gz otsu.3.nii.gz  otsu.4.nii.gz  
-	c3d -verbose $^ -accum -add -endaccum -binarize  -o $@
 thin.nii.gz: vessel.nii.gz
 	/rsrch3/ip/dtfuentes/github/ctperfusion/ThinImage $< $@ 
 centerline.nii.gz: vessel.nii.gz thin.nii.gz 
