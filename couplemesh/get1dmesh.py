@@ -4,10 +4,18 @@ import vtk
 print("using vtk version", vtk.vtkVersion.GetVTKVersion())
 import os
 
+# load data
 vtkReader = vtk.vtkPolyDataReader()
 vtkReader.SetFileName( "CenterlineComputationModel.vtk" )
-vtkReader.Update()
-DataVTK = vtkReader.GetOutput()
+
+# merge duplicates data
+cleaner = vtk.vtkCleanPolyData()
+cleaner.SetInputConnection(vtkReader.GetOutputPort())
+cleaner.Update()
+
+
+
+DataVTK = cleaner.GetOutput()
 points =DataVTK.GetPoints()
 npoints =DataVTK.GetNumberOfPoints()
 print(points.GetNumberOfPoints())
@@ -26,8 +34,8 @@ for iii in range(cellNum ):
   # https://public.kitware.com/pipermail/vtkusers/2013-January/078002.html
   cellLocation += 1 + numnode ;
   print("numnode", numnode )
-  for jjj in range(numnode ):
-    print(idList.GetId(jjj))
+  #for jjj in range(numnode ):
+  #  print(idList.GetId(jjj))
 
 
 
