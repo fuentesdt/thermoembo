@@ -1,4 +1,3 @@
-
 import vtk
 # echo vtk version info
 print("using vtk version", vtk.vtkVersion.GetVTKVersion())
@@ -13,8 +12,7 @@ cleaner = vtk.vtkCleanPolyData()
 cleaner.SetInputConnection(vtkReader.GetOutputPort())
 cleaner.Update()
 
-
-
+# get data structures
 DataVTK = cleaner.GetOutput()
 points =DataVTK.GetPoints()
 npoints =DataVTK.GetNumberOfPoints()
@@ -25,7 +23,9 @@ inLines = DataVTK.GetLines()
 inPolys = DataVTK.GetPolys()
 inStrips = DataVTK.GetStrips()
 
+# convert from polydata to line elements
 idList = vtk.vtkIdList()
+lineElements= vtk.vtkCellArray()
 cellNum = inLines.GetNumberOfCells()
 cellLocation = 0
 for iii in range(cellNum ):
@@ -34,9 +34,24 @@ for iii in range(cellNum ):
   # https://public.kitware.com/pipermail/vtkusers/2013-January/078002.html
   cellLocation += 1 + numnode ;
   print("numnode", numnode )
-  #for jjj in range(numnode ):
-  #  print(idList.GetId(jjj))
+  for jjj in range(numnode-1):
+    vertices.InsertNextCell( 2 ); vertices.InsertCellPoint( [idList.GetId(jjj),idList.GetId(jjj+1)] )
+    #print(idList.GetId(jjj))
 
+# set polydata
+polydata = vtk.vtkPolyData()
+polydata.SetPoints(points)
+polydata.SetVerts( lineE.ements )
 
+# merge duplicate lines 
+linecleaner = vtk.vtkCleanPolyData()
+linecleaner.SetInputConnection(polydata)
+
+OutputFileName="testline.vtk"
+# write to file
+polydatawriter = vtk.vtkDataSetWriter()
+polydatawriter.SetFileName(OutputFileName)
+polydatawriter.SetInputData(linecleaner.GetOutput())
+polydatawriter.Update()
 
  
