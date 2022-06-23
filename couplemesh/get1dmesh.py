@@ -35,17 +35,21 @@ for iii in range(cellNum ):
   cellLocation += 1 + numnode ;
   print("numnode", numnode )
   for jjj in range(numnode-1):
-    vertices.InsertNextCell( 2 ); vertices.InsertCellPoint( [idList.GetId(jjj),idList.GetId(jjj+1)] )
+    myLineElement = vtk.vtkIdList()
+    myLineElement.InsertNextId(idList.GetId(jjj))
+    myLineElement.InsertNextId(idList.GetId(jjj+1))
+    lineElements.InsertNextCell(myLineElement )
     #print(idList.GetId(jjj))
 
 # set polydata
 polydata = vtk.vtkPolyData()
 polydata.SetPoints(points)
-polydata.SetVerts( lineE.ements )
+polydata.SetVerts( lineElements )
 
 # merge duplicate lines 
 linecleaner = vtk.vtkCleanPolyData()
-linecleaner.SetInputConnection(polydata)
+linecleaner.SetInputData(polydata)
+linecleaner.Update()
 
 OutputFileName="testline.vtk"
 # write to file
