@@ -19,6 +19,7 @@ npoints =DataVTK.GetNumberOfPoints()
 print(points.GetNumberOfPoints())
 
 inVerts = DataVTK.GetVerts()
+inField = DataVTK.GetPointData()
 inLines = DataVTK.GetLines()
 inPolys = DataVTK.GetPolys()
 inStrips = DataVTK.GetStrips()
@@ -43,7 +44,7 @@ for iii in range(cellNum ):
 lineElements= vtk.vtkCellArray()
 for idline in cellSet:
     myLineElement = vtk.vtkIdList()
-    print(idline)
+    #print(idline)
     myLineElement.InsertNextId(idline[0])
     myLineElement.InsertNextId(idline[1])
     lineElements.InsertNextCell(myLineElement )
@@ -51,6 +52,7 @@ for idline in cellSet:
 # set polydata
 polydata = vtk.vtkPolyData()
 polydata.SetPoints(points)
+polydata.GetPointData().AddArray(inField.GetArray(0))
 polydata.SetVerts( lineElements )
 
 OutputFileName="testline.vtk"
