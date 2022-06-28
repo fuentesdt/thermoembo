@@ -3,6 +3,15 @@ import numpy as np
 import nibabel as nib  
 import vtk
 
+import ctypes 
+
+
+# create a 3-int array
+pynodelist = [1,2,3,4,5]
+cnodelist = (ctypes.c_int*5)(*pynodelist )
+
+cnodesetid =ctypes.c_int(4)
+cnodesetsize =ctypes.c_int(5)
 
 # c3d temperature.0050.vtk -replace NaN 0 maxtemp.vtk
 
@@ -11,14 +20,14 @@ import vtk
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option( "--file_name",
-                  action="store", dest="file_name", default="../temperaturedata/Kidney1Left_04202017_Exp42/vessel.nii.gz",
+                  action="store", dest="file_name", default="thinvessel.nii.gz",
                   help="converting/this/file to mesh", metavar = "FILE")
 parser.add_option( "--output",
                   action="store", dest="output", default="mytetmesh",
                   help="converting/this/file to mesh", metavar = "FILE")
 (options, args) = parser.parse_args()
 if (options.file_name):
-  c3dcmd = "c3d -verbose %s -o %simage.vtk -as B -dilate 1 1x1x0vox -push B  -scale -1 -add -as C -sdt -as A -cmv -push A -push C -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
+  c3dcmd = "c3d -verbose %s -o %simage.vtk  -sdt -as A -cmv -push A  -omc %ssetup.nii.gz" % (options.file_name,options.output,options.output)
   print c3dcmd 
   os.system( c3dcmd )
   
@@ -26,23 +35,29 @@ if (options.file_name):
   zooms = imagedata.header.get_zooms()
   numpyimage= imagedata.get_data()
   
-  binaryReader = vtk.vtkDataSetReader()
-  binaryReader.SetFileName( "%simage.vtk" % options.output )
-  binaryReader.Update()
+  ## load vessel
+  vesselreader = vtk.vtkDataSetReader();
+  vesselreader.SetFileName("testline.vtk");
+  vesselreader.Update();
+  VesselData = vesselreader.GetOutput();
 
-  #surfExtractor = vtk.vtkMarchingCubes()
-  surfExtractor = vtk.vtkContourFilter()
-  surfExtractor.SetInputData(binaryReader.GetOutput())
-  surfExtractor.SetValue(0,.7)
-  surfExtractor.Update()
-  surface = surfExtractor.GetOutput() 
+  ## binaryReader = vtk.vtkDataSetReader()
+  ## binaryReader.SetFileName( "%simage.vtk" % options.output )
+  ## binaryReader.Update()
 
-  stlwriter = vtk.vtkSTLWriter()
-  stlwriter.SetInputData( surface )
-  stlwriter.SetFileName( "%simage.stl" % options.output )
-  stlwriter.SetFileTypeToASCII()
-  #stlwriter.SetFileTypeToBinary()
-  stlwriter.Write()
+  ## #surfExtractor = vtk.vtkMarchingCubes()
+  ## surfExtractor = vtk.vtkContourFilter()
+  ## surfExtractor.SetInputData(binaryReader.GetOutput())
+  ## surfExtractor.SetValue(0,.7)
+  ## surfExtractor.Update()
+  ## surface = surfExtractor.GetOutput() 
+
+  ## stlwriter = vtk.vtkSTLWriter()
+  ## stlwriter.SetInputData( surface )
+  ## stlwriter.SetFileName( "%simage.stl" % options.output )
+  ## stlwriter.SetFileTypeToASCII()
+  ## #stlwriter.SetFileTypeToBinary()
+  ## stlwriter.Write()
 
 
   ## for iii in  range(numnodes):
@@ -61,8 +76,7 @@ if (options.file_name):
            newnode = (pixelsize[0] * numpyimage[iii,jjj,kkk,0,0],
                       pixelsize[1] * numpyimage[iii,jjj,kkk,0,1],
                       pixelsize[2] * numpyimage[iii,jjj,kkk,0,2],
-                                     numpyimage[iii,jjj,kkk,0,3],
-                                     numpyimage[iii,jjj,kkk,0,4])
+                                     numpyimage[iii,jjj,kkk,0,3])
            nodes.append(newnode)
   
   coarsenode=[]
@@ -75,16 +89,15 @@ if (options.file_name):
            coarsenode.append(newnode)
 
   # add surfacepoints
-  for ipoint in range( surface.GetPoints().GetNumberOfPoints() ):
-      CurrentPoint = surface.GetPoint(ipoint)
-      newnode = (mmconversion * CurrentPoint[0] ,
-                 mmconversion * CurrentPoint[1] ,
-                 mmconversion * CurrentPoint[2] )
+  for ipoint in range( VesselData.GetPoints().GetNumberOfPoints() ):
+      CurrentPoint = VesselData.GetPoint(ipoint)
+      newnode = (CurrentPoint[0] ,
+                 CurrentPoint[1] ,
+                 CurrentPoint[2] )
       coarsenode.append(newnode)
 
   
   distance = numpyimage[:,:,:,:,3]
-  boundaryid = numpyimage[:,:,:,:,4]
   distancemax = np.max(distance[:])
   distancemin = max(np.min(distance[:]),0)
   
@@ -135,11 +148,13 @@ if (options.file_name):
 
   
   # load vtk data
-  for iii in [2,3,4]:
+  #for iii in [1,2,3,4]:
+  for iii in [2,3]:
      vtkReader = vtk.vtkUnstructuredGridReader()
      vtkReader.SetFileName( "%s.%d.vtk" % (options.output,iii) )
      vtkReader.Update()
-
+     vtkMesh  = vtkReader.GetOutput()
+     print 'setup metadata' ,iii
 
      ## vtkNew<vtkDummyController> controller;
      ## controller->Initialize(&argc, &argv, 1);
@@ -149,13 +164,28 @@ if (options.file_name):
      controller =vtk.vtkDummyController()
      vtk.vtkMultiProcessController.SetGlobalController(controller)
 
+     print 'convert to exodus' ,iii
      # convert to exodus 
-     vtkExodusIIWriter = vtk.vtkExodusIIWriter()
-     #vtkExodusIIWriter.DebugOn()
-     vtkExodusIIWriter.SetFileName("%s.%d.exo" % (options.output,iii))
-     vtkExodusIIWriter.SetInputData( vtkReader.GetOutput() )
-     print vtkExodusIIWriter
-     vtkExodusIIWriter.Update()
+     myexowriter = vtk.vtkExodusIIWriter()
+     myexowriter.DebugOn()
+     myexowriter.SetFileName("%s.%d.exo" % (options.output,iii))
+     myexowriter.SetInputData( vtkMesh )
+     myexowriter.Update()
+     print 'writing 1' ,"%s.%d.exo" % (options.output,iii)
+     testem = myexowriter.GetModelMetadata();
+     testem.SetTitle("dftest")
+     testem.SetNumberOfNodeSets(1)
+     print testem.GetDimension();
+     print testem.GetNumberOfNodeSets();
+     testem.SetNodeSetSize(ctypes.byref(cnodesetsize))
+     testem.SetNodeSetIds(ctypes.pointer(cnodesetid))
+     testem.SetNodeSetNodeIdList(cnodelist )
+     print  myexowriter
+     print 'writing 1' ,"%s.%d.exo" % (options.output,iii)
+     myexowriter.Update()
+
+
+
 
 else:
   parser.print_help()
