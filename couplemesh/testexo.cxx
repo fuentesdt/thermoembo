@@ -39,13 +39,17 @@ int main(int argc, char **argv)
    std::cout << testem->GetDimension() << std::endl;
    std::cout << testem->GetNumberOfNodeSets() << std::endl;
    int cnodesetsize = 5;
+   float cnodesetdist = 0;
    int cnodesetid = 4;
+   int foo [5] = { 16, 2, 77, 40, 12 };
    testem->SetNodeSetSize(&cnodesetsize );
    testem->SetNodeSetIds( &cnodesetid  );
-   //  testem.SetNodeSetNodeIdList(cnodelist )
+   testem->SetNodeSetNodeIdList(foo );
+   testem->SetNodeSetDistributionFactors(&cnodesetdist );
    //  print  myexowriter
    myexowriter->PrintSelf(std::cout,vtkIndent());
    //  print 'writing 1' ,"%s.%d.exo" % (options.output,iii)
-     myexowriter->Update();
+   myexowriter->Update();
+   std::cout << "wrotegain" << std::endl;
   return 0;
 }

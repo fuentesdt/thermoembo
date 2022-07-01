@@ -2,16 +2,8 @@ import os
 import numpy as np
 import nibabel as nib  
 import vtk
-
 import ctypes 
 
-
-# create a 3-int array
-pynodelist = [1,2,3,4,5]
-cnodelist = (ctypes.c_int*5)(*pynodelist )
-
-cnodesetid =ctypes.c_int(4)
-cnodesetsize =ctypes.c_int(5)
 
 # c3d temperature.0050.vtk -replace NaN 0 maxtemp.vtk
 
@@ -170,19 +162,27 @@ if (options.file_name):
      myexowriter.DebugOn()
      myexowriter.SetFileName("%s.%d.exo" % (options.output,iii))
      myexowriter.SetInputData( vtkMesh )
-     myexowriter.Update()
-     print 'writing 1' ,"%s.%d.exo" % (options.output,iii)
-     testem = myexowriter.GetModelMetadata();
-     testem.SetTitle("dftest")
-     testem.SetNumberOfNodeSets(1)
-     print testem.GetDimension();
-     print testem.GetNumberOfNodeSets();
-     testem.SetNodeSetSize(ctypes.byref(cnodesetsize))
-     testem.SetNodeSetIds(ctypes.pointer(cnodesetid))
-     testem.SetNodeSetNodeIdList(cnodelist )
-     print  myexowriter
      print 'writing 1' ,"%s.%d.exo" % (options.output,iii)
      myexowriter.Update()
+     ## FIXME - need to setup node sets
+     ## ## # create a 3-int array
+     ## ## pynodelist = [1,2,3,4,5]
+     ## ## cnodelist = (ctypes.c_int*5)(*pynodelist )
+     ## ## 
+     ## ## cnodesetid =ctypes.c_int(4)
+     ## ## cnodesetsize =ctypes.c_int(5)
+
+     ## testem = myexowriter.GetModelMetadata();
+     ## testem.SetTitle("dftest")
+     ## testem.SetNumberOfNodeSets(1)
+     ## print testem.GetDimension();
+     ## print testem.GetNumberOfNodeSets();
+     ## testem.SetNodeSetSize(ctypes.byref(cnodesetsize))
+     ## testem.SetNodeSetIds(ctypes.pointer(cnodesetid))
+     ## testem.SetNodeSetNodeIdList(cnodelist )
+     ## print  myexowriter
+     ## print 'writing 1' ,"%s.%d.exo" % (options.output,iii)
+     ## myexowriter.Update()
 
 
 

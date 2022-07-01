@@ -16,13 +16,18 @@ cleaner.Update()
 DataVTK = cleaner.GetOutput()
 points =DataVTK.GetPoints()
 npoints =DataVTK.GetNumberOfPoints()
-print(points.GetNumberOfPoints())
 
 inVerts = DataVTK.GetVerts()
 inField = DataVTK.GetPointData()
 inLines = DataVTK.GetLines()
 inPolys = DataVTK.GetPolys()
 inStrips = DataVTK.GetStrips()
+
+meterpoints = vtk.vtkPoints()
+for iii in range(points.GetNumberOfPoints()):
+    xyz = points.GetPoint(iii) 
+    meterpoints.InsertNextPoint( (xyz[0]*.001,xyz[1]*.001,xyz[2]*.001) )
+
 
 # convert from polydata to line elements
 cellNum = inLines.GetNumberOfCells()
@@ -51,7 +56,7 @@ for idline in cellSet:
 
 # set polydata
 polydata = vtk.vtkPolyData()
-polydata.SetPoints(points)
+polydata.SetPoints(meterpoints)
 polydata.GetPointData().AddArray(inField.GetArray(0))
 polydata.SetVerts( lineElements )
 
