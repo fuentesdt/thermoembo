@@ -1,0 +1,16 @@
+## Cubit 
+## play "sphere.jou"
+reset
+set developer on
+
+sphere radius 10 Xpositive Ypositive Zpositive
+body 1 copy reflect X
+body 1 2 copy reflect Y
+body 1 2 3 4 copy reflect Z
+merge volume all
+volume  all  scheme tetmesh
+mesh volume all
+nodeset 3 node in curve 2 
+sideset 2 surface 4 8 12 16 20 24 28 32
+
+export mesh "meshSphere.e" overwrite

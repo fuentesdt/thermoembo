@@ -3,18 +3,18 @@
 reset
 set developer on
 ## import stl "kidney.stl" feature_angle 0 make_elements
-## import stl "kidney.stl" feature_angle 0 make_elements
-cylinder z 30 radius 5
-brick x 120 y 120 z 30 bounding box volume 1 
-webcut volume 2 tool volume 1 
-delete volume 1
-
-imprint mesh body 2 3
-merge body 2 3
-volume 2 3 scheme tetmesh
-volume 2   size 5.0
-volume   3 size 1.0
-mesh volume  2 3  
-
-volume all scale 0.001
-export mesh "vessel.e" overwrite 
+import stl "vessel.stl" feature_angle 0 make_elements
+## cylinder z 30 radius 5
+## brick x 120 y 120 z 30 bounding box volume 1 
+## webcut volume 2 tool volume 1 
+## delete volume 1
+## 
+## imprint mesh body 2 3
+## merge body 2 3
+## volume 2 3 scheme tetmesh
+## volume 2   size 5.0
+## volume   3 size 1.0
+## mesh volume  2 3  
+## 
+## volume all scale 0.001
+## export mesh "vessel.e" overwrite 
