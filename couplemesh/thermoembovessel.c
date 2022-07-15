@@ -1,5 +1,5 @@
 // 22.3*50/.1 = 11150.0
-// mpirun -n 12 ./thermoembo-arch-xenial-gcc-5.4.0-dbg -dim 3  -ts_max_steps 11150 -ts_dt 1.e-1 -modulowrite 223 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_max_it 1000 -ksp_rtol 1.e-3 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short  -snes_converged_reason -ts_monitor -log_summary  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 0 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ./mytetmeshimage.vtk  -mesh ./mytetmesh.2.exo -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13  -snes_max_linear_solve_fail 10 -snes_max_fail 10                  > log`date +%s`   2>&1
+// mpirun -n 12 ./thermoembo-arch-xenial-gcc-5.4.0-dbg -dim 3  -ts_max_steps 11150 -ts_dt 1.e-1 -modulowrite 223 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_max_it 1000 -ksp_rtol 1.e-3 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short  -snes_converged_reason -ts_monitor -log_summary  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 0 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ./mytetmeshimage.vtk  -mesh ./meshSphere.exo -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13  -snes_max_linear_solve_fail 10 -snes_max_fail 10                  > log`date +%s`   2>&1
 
 
 
@@ -1585,7 +1585,7 @@ PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec lo
 int main(int argc, char **argv)
 {
   AppCtx         ctx;
-  DM             dm;
+  DM             dm,cdm;
   TS             ts;
   Vec            u; 
   PetscReal      t       = 0.0;
@@ -1600,6 +1600,28 @@ int main(int argc, char **argv)
 
   // get index subsets
   ierr = DMCreateFieldIS(dm, &ctx.numFields, &ctx.fieldNames, &ctx.fields);CHKERRQ(ierr);
+
+  // get coord
+  Vec coordinates;
+  PetscSection cs;
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+  ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
+  PetscInt ddd,ppp, pStart, pEnd;
+  ierr = PetscSectionGetChart(cs, &pStart, &pEnd);CHKERRQ(ierr);
+  const PetscScalar *coords;
+  ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
+  for (ppp = pStart; ppp < pEnd; ++ppp) {
+    PetscInt dof, off;
+  
+    PetscSectionGetDof(cs, ppp, &dof);CHKERRQ(ierr);
+    PetscSectionGetOffset(cs, ppp, &off);CHKERRQ(ierr);
+    for (ddd = 0; ddd < dof; ++ddd) 
+        ierr = PetscPrintf(PETSC_COMM_WORLD,"coord %f...\n",coords[off+ddd]); CHKERRQ(ierr);
+  }
+  ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
+
+
 
   ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u, "solution");CHKERRQ(ierr);
@@ -1721,35 +1743,67 @@ int main(int argc, char **argv)
        }
       
 
+  PetscInt        num_vs, num_fs, skipCells = 0;
+  ierr = DMGetLabelSize(dm, "Vertex Sets", &num_vs);CHKERRQ(ierr);
+  ierr = DMGetLabelSize(dm, "Face Sets", &num_fs);CHKERRQ(ierr);
+  PetscBool       hasLabel;
+  DMHasLabel(dm, "Vertex Sets", &hasLabel);
+  if (hasLabel) {
+    PetscInt        i, vs, vsSize;
+    const PetscInt *vsIdx, *vertices;
+    PetscInt       *nodeList;
+    IS              vsIS, stratumIS;
+    DMLabel         vsLabel;
+    ierr = DMGetLabel(dm, "Vertex Sets", &vsLabel);CHKERRQ(ierr);
+    ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
+    ierr = ISView(vsIS,0);
+    ierr = ISGetIndices(vsIS, &vsIdx);CHKERRQ(ierr);
+    for (vs=0; vs<num_vs; ++vs) {
+      ierr = DMLabelGetStratumIS(vsLabel, vsIdx[vs], &stratumIS);CHKERRQ(ierr);
+      ierr = ISGetIndices(stratumIS, &vertices);CHKERRQ(ierr);
+      ierr = ISGetSize(stratumIS, &vsSize);CHKERRQ(ierr);
+      ierr = PetscMalloc1(vsSize, &nodeList);
+      for (i=0; i<vsSize; ++i) {
+        nodeList[i] = vertices[i] - skipCells + 1;
+      }
+      //PetscStackCallStandard(ex_put_set_param,(exoid, EX_NODE_SET, vsIdx[vs], vsSize, 0));
+      //PetscStackCallStandard(ex_put_set,(exoid, EX_NODE_SET, vsIdx[vs], nodeList, NULL));
+      ierr = ISRestoreIndices(stratumIS, &vertices);CHKERRQ(ierr);
+      ierr = ISDestroy(&stratumIS);CHKERRQ(ierr);
+      ierr = PetscFree(nodeList);CHKERRQ(ierr);
+    }
+    ierr = ISRestoreIndices(vsIS, &vsIdx);CHKERRQ(ierr);
+    ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
+  }
      // precompute green function at vessel element
-     for (PetscInt iii = 0 ; iii < vesselElements.size(); iii++ )
-      {
-          PetscScalar segrad    = 0.5 * (nodeBrad + nodeArad);
-          PetscScalar seglength = sqrt( (nodeB[0] - nodeA[0])+(nodeB[0] - nodeA[0])
-                                       +(nodeB[1] - nodeA[1])+(nodeB[1] - nodeA[1])
-                                       +(nodeB[2] - nodeA[2])+(nodeB[2] - nodeA[2]));
-          greensVesselBoundary[Ii]  =  2* PETSC_PI * log( ( sqrt(.5*seglength*seglength+ segrad * segrad ) + 1.5*seglength )/ ( sqrt(.5*seglength*seglength+ segrad * segrad )  + .5*seglength   ))
-      }
-     PetscScalar rowValue;
-     if(this->vesselNodes.size())
-      {
-       for (PetscInt Jj = 0 ; Jj < dirichletNodes.size(); Jj++ )
-        {
-         for (PetscInt Ii = 0 ; Ii < vesselNodes.size(); Ii++ )
-         {
-            Petscscalar bcValue = ctx.parameters[PARAM_BOUNDARYPRESSURE];
-            bcValue = bcValue -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * greensVesselBoundary[Ii] )* greensVesselBoundary[Ii];
-            rowValue[Ii] =  beta1d  /(lambda + beta1d * greensVesselBoundary[Ii] )* greensVesselBoundary[Ii];
-         }
-         ierr = VecSetValues (myRHS, 1, &vesselNodes[Jj], &bcValue, INSERT_VALUES);
-         ierr = MatSetValues(myJac, 1, &vesselNodes[Jj], vesselNodes.size(),&vesselNodes[0],rowValue);
-        }
-       ierr = VecAssemblyBegin(myRHS);
-       ierr = VecAssemblyEnd(myRHS);
-       ierr = MatAssemblyBegin(myJac,MAT_FINAL_ASSEMBLY);
-       ierr = MatAssemblyEnd(myJac,MAT_FINAL_ASSEMBLY);
+     // for (PetscInt iii = 0 ; iii < vesselElements.size(); iii++ )
+     //  {
+     //      PetscScalar segrad    = 0.5 * (nodeBrad + nodeArad);
+     //      PetscScalar seglength = sqrt( (nodeB[0] - nodeA[0])+(nodeB[0] - nodeA[0])
+     //                                   +(nodeB[1] - nodeA[1])+(nodeB[1] - nodeA[1])
+     //                                   +(nodeB[2] - nodeA[2])+(nodeB[2] - nodeA[2]));
+     //      greensVesselBoundary[Ii]  =  2* PETSC_PI * log( ( sqrt(.5*seglength*seglength+ segrad * segrad ) + 1.5*seglength )/ ( sqrt(.5*seglength*seglength+ segrad * segrad )  + .5*seglength   ))
+     //  }
+     // PetscScalar rowValue;
+     // if(this->vesselNodes.size())
+     //  {
+     //   for (PetscInt Jj = 0 ; Jj < dirichletNodes.size(); Jj++ )
+     //    {
+     //     for (PetscInt Ii = 0 ; Ii < vesselNodes.size(); Ii++ )
+     //     {
+     //        Petscscalar bcValue = ctx.parameters[PARAM_BOUNDARYPRESSURE];
+     //        bcValue = bcValue -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * greensVesselBoundary[Ii] )* greensVesselBoundary[Ii];
+     //        rowValue[Ii] =  beta1d  /(lambda + beta1d * greensVesselBoundary[Ii] )* greensVesselBoundary[Ii];
+     //     }
+     //     ierr = VecSetValues (myRHS, 1, &vesselNodes[Jj], &bcValue, INSERT_VALUES);
+     //     ierr = MatSetValues(myJac, 1, &vesselNodes[Jj], vesselNodes.size(),&vesselNodes[0],rowValue);
+     //    }
+     //   ierr = VecAssemblyBegin(myRHS);
+     //   ierr = VecAssemblyEnd(myRHS);
+     //   ierr = MatAssemblyBegin(myJac,MAT_FINAL_ASSEMBLY);
+     //   ierr = MatAssemblyEnd(myJac,MAT_FINAL_ASSEMBLY);
 
-      }
+     //  }
 
      // solve direction implements dirichlet BC
      ierr = VecDuplicate(u, &ctx.solvedirection);CHKERRQ(ierr);
