@@ -1601,28 +1601,6 @@ int main(int argc, char **argv)
   // get index subsets
   ierr = DMCreateFieldIS(dm, &ctx.numFields, &ctx.fieldNames, &ctx.fields);CHKERRQ(ierr);
 
-  // get coord
-  Vec coordinates;
-  PetscSection cs;
-  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
-  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
-  ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
-  PetscInt ddd,ppp, pStart, pEnd;
-  ierr = PetscSectionGetChart(cs, &pStart, &pEnd);CHKERRQ(ierr);
-  const PetscScalar *coords;
-  ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
-  for (ppp = pStart; ppp < pEnd; ++ppp) {
-    PetscInt dof, off;
-  
-    PetscSectionGetDof(cs, ppp, &dof);CHKERRQ(ierr);
-    PetscSectionGetOffset(cs, ppp, &off);CHKERRQ(ierr);
-    for (ddd = 0; ddd < dof; ++ddd) 
-        ierr = PetscPrintf(PETSC_COMM_WORLD,"coord %f...\n",coords[off+ddd]); CHKERRQ(ierr);
-  }
-  ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
-
-
-
   ierr = DMCreateGlobalVector(dm, &u);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) u, "solution");CHKERRQ(ierr);
 
@@ -1749,31 +1727,59 @@ int main(int argc, char **argv)
   PetscBool       hasLabel;
   DMHasLabel(dm, "Vertex Sets", &hasLabel);
   if (hasLabel) {
-    PetscInt        i, vs, vsSize;
+    PetscInt        i,v, vs, vsSize,nValues;
     const PetscInt *vsIdx, *vertices;
     PetscInt       *nodeList;
-    IS              vsIS, stratumIS;
+    IS              vsIS, vsISSection, stratumIS;
     DMLabel         vsLabel;
+    PetscSection    vsSection;
+    const PetscInt *values;
+    // get coord
+    Vec coordinates;
+    PetscSection cs, csglobal;
+
+    ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+    ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
+    ierr = DMGetGlobalSection(dm, &csglobal);CHKERRQ(ierr);
+
+    //PetscInt  pStartGlobal, pEndGlobal;
+    //ierr = PetscSectionGetChart(csglobal, &pStartGlobal, &pEndGlobal);CHKERRQ(ierr);
+    //PetscInt pStart, pEnd;
+    //ierr = PetscSectionGetChart(cs, &pStart, &pEnd);CHKERRQ(ierr);
+    const PetscScalar *coords;
+    ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
+
     ierr = DMGetLabel(dm, "Vertex Sets", &vsLabel);CHKERRQ(ierr);
+    ierr = DMLabelGetNumValues(vsLabel, &nValues);CHKERRQ(ierr);
     ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
-    ierr = ISView(vsIS,0);
-    ierr = ISGetIndices(vsIS, &vsIdx);CHKERRQ(ierr);
-    for (vs=0; vs<num_vs; ++vs) {
-      ierr = DMLabelGetStratumIS(vsLabel, vsIdx[vs], &stratumIS);CHKERRQ(ierr);
-      ierr = ISGetIndices(stratumIS, &vertices);CHKERRQ(ierr);
-      ierr = ISGetSize(stratumIS, &vsSize);CHKERRQ(ierr);
-      ierr = PetscMalloc1(vsSize, &nodeList);
-      for (i=0; i<vsSize; ++i) {
-        nodeList[i] = vertices[i] - skipCells + 1;
-      }
-      //PetscStackCallStandard(ex_put_set_param,(exoid, EX_NODE_SET, vsIdx[vs], vsSize, 0));
-      //PetscStackCallStandard(ex_put_set,(exoid, EX_NODE_SET, vsIdx[vs], nodeList, NULL));
-      ierr = ISRestoreIndices(stratumIS, &vertices);CHKERRQ(ierr);
-      ierr = ISDestroy(&stratumIS);CHKERRQ(ierr);
-      ierr = PetscFree(nodeList);CHKERRQ(ierr);
+    ierr = ISGetIndices(vsIS, &values);CHKERRQ(ierr);
+    //  DMLabelConvertToSection  DMPlexView_ExodusII_Internal
+    for (v = 0; v < nValues; ++v) {
+      IS              is;
+      const PetscInt *spoints;
+      PetscInt        dofA, offA, dofB, offB, nssize;
+      PetscInt       globdofA,globoffA,globdofB,globoffB;
+
+      ierr = DMLabelGetStratumIS(vsLabel, values[v], &is);CHKERRQ(ierr);
+      ierr = DMLabelGetStratumSize(vsLabel, values[v], &nssize);CHKERRQ(ierr);
+      ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
+      ierr = PetscSectionGetDof(cs, spoints[0], &dofA);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(cs, spoints[0], &offA );CHKERRQ(ierr);
+      ierr = PetscSectionGetDof(cs, spoints[1], &dofB);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(cs, spoints[1], &offB );CHKERRQ(ierr);
+      ierr = PetscSectionGetDof(csglobal, spoints[0], &globdofA);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(csglobal, spoints[0], &globoffA );CHKERRQ(ierr);
+      ierr = PetscSectionGetDof(csglobal, spoints[1], &globdofB);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(csglobal, spoints[1], &globoffB );CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[v],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
+      ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
+      ierr = ISDestroy(&is);CHKERRQ(ierr);
     }
-    ierr = ISRestoreIndices(vsIS, &vsIdx);CHKERRQ(ierr);
+    ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
+    // ierr = ISRestoreIndices(vsIS, &vsIdx);CHKERRQ(ierr);
     ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
+    ierr = ISDestroy(&vsISSection);CHKERRQ(ierr);
   }
      // precompute green function at vessel element
      // for (PetscInt iii = 0 ; iii < vesselElements.size(); iii++ )
