@@ -103,6 +103,7 @@ typedef struct {
   char  **fieldNames;
   IS         *fields;
   IS         vesselIS;
+  IS         dirichletIS;
   Vec        solvedirection, locDirection;
   IS   isnotstate;
   CoeffType      variableCoefficient;
@@ -1413,7 +1414,7 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_TEMPERATURE,  0, NULL, (void(*)())salttemperature   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Vertex Sets", FIELD_TEMPERATURE,  0, NULL, (void(*)())bodytemperature   , 1, &nodeSetNeumannBoundaryValue , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, (void(*)())vessel_pres       , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets", FIELD_PRESSURE   ,  0, NULL, (void(*)())baseline_pres     , 1, &id , ctx);CHKERRQ(ierr);
+  //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets", FIELD_PRESSURE   ,  0, NULL, (void(*)())baseline_pres     , 1, &id , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_DAMAGE     ,  0, NULL, (void(*)())tissuedamagefcn   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, (void(*)())bolusinjection    , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "marker", FIELD_SATURATION ,  0, NULL, (void(*)())fieldzero         , 1, &id , ctx);CHKERRQ(ierr);
@@ -1586,7 +1587,8 @@ PetscErrorCode subspaceDMPlexTSComputeIFunctionFEM(DM dm, PetscReal time, Vec lo
   AppCtx *ctx = (AppCtx *)user;
   ierr = DMPlexTSComputeIFunctionFEM(dm, time, locX, locX_t, locF, user);CHKERRQ(ierr);
   //ierr = VecPointwiseMult(locF,locF,ctx->locDirection);CHKERRQ(ierr);
-  ierr = VecISSet(locX ,ctx->vesselIS,ctx->parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
+  //ierr = VecISSet(locX ,ctx->vesselIS,ctx->parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
+  ierr = VecISSet(locX ,ctx->vesselIS,0.);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec locX, Vec locX_t, PetscReal X_tShift, Mat Jac, Mat JacP, void *user)
@@ -1695,91 +1697,93 @@ int main(int argc, char **argv)
   PetscBool       hasLabel;
   std::vector<int> dirichletNodes;
   DMHasLabel(dm, "Vertex Sets", &hasLabel);
-  if (hasLabel) {
-    PetscInt        vvv, vs, vsSize,nValues,sValues;
-    const PetscInt *vsIdx, *vertices;
-    PetscInt       *nodeList;
-    IS              vsIS, ssIS, vsISSection, stratumIS;
-    DMLabel         vsLabel,ssLabel;
-    PetscSection    vsSection;
-    const PetscInt *values,*salues;
-    // get coord
-    Vec coordinates;
-    PetscSection cs, csglobal;
 
-    ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
-    ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
-    ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
-    ierr = DMGetGlobalSection(dm, &csglobal);CHKERRQ(ierr);
+  PetscInt        vvv, vs, vsSize,nValues,sValues;
+  const PetscInt *vsIdx, *vertices;
+  PetscInt       *nodeList;
+  IS              vsIS, ssIS,  stratumIS;
+  DMLabel         vsLabel,ssLabel;
+  PetscSection    vsSection;
+  const PetscInt *values,*salues;
+  // get coord
+  Vec coordinates;
+  PetscSection cs, csglobal;
 
-    //PetscInt  pStartGlobal, pEndGlobal;
-    //ierr = PetscSectionGetChart(csglobal, &pStartGlobal, &pEndGlobal);CHKERRQ(ierr);
-    //PetscInt pStart, pEnd;
-    //ierr = PetscSectionGetChart(cs, &pStart, &pEnd);CHKERRQ(ierr);
-    const PetscScalar *coords;
-    ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+  ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
+  ierr = DMGetGlobalSection(dm, &csglobal);CHKERRQ(ierr);
 
-    ierr = DMGetLabel(dm, "Face Sets", &ssLabel);CHKERRQ(ierr);
-    ierr = DMLabelGetNumValues(ssLabel, &sValues);CHKERRQ(ierr);
-    ierr = DMLabelGetValueIS(ssLabel, &ssIS);CHKERRQ(ierr);
-    ierr = ISGetIndices(ssIS, &salues);CHKERRQ(ierr);
-    for (vvv = 0; vvv < sValues; ++vvv) {
-      IS              is;
-      const PetscInt *spoints;
-      PetscInt        dof, off, sssize;
-      ierr = DMLabelGetStratumIS(ssLabel, salues[vvv], &is);CHKERRQ(ierr);
-      ierr = DMLabelGetStratumSize(ssLabel, salues[vvv], &sssize);CHKERRQ(ierr);
-      ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
-      for (PetscInt aaa = 0 ; aaa < sssize; aaa++ ){
-        ierr = PetscSectionGetDof(csglobal, spoints[aaa], &dof);CHKERRQ(ierr);
-        ierr = PetscSectionGetOffset(csglobal, spoints[aaa], &off );CHKERRQ(ierr);
-        dirichletNodes.push_back(off);
-       }
+  //PetscInt  pStartGlobal, pEndGlobal;
+  //ierr = PetscSectionGetChart(csglobal, &pStartGlobal, &pEndGlobal);CHKERRQ(ierr);
+  //PetscInt pStart, pEnd;
+  //ierr = PetscSectionGetChart(cs, &pStart, &pEnd);CHKERRQ(ierr);
+  const PetscScalar *coords;
+  ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
 
-      ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
-      ierr = ISDestroy(&is);CHKERRQ(ierr);
-    }
+  ierr = DMGetLabel(dm, "Face Sets", &ssLabel);CHKERRQ(ierr);
+  ierr = DMLabelGetNumValues(ssLabel, &sValues);CHKERRQ(ierr);
+  ierr = DMLabelGetValueIS(ssLabel, &ssIS);CHKERRQ(ierr);
+  ierr = ISGetIndices(ssIS, &salues);CHKERRQ(ierr);
+  for (vvv = 0; vvv < sValues; ++vvv) {
+    IS              is;
+    const PetscInt *spoints;
+    PetscInt        dof, off, sssize;
+    ierr = DMLabelGetStratumIS(ssLabel, salues[vvv], &is);CHKERRQ(ierr);
+    ierr = DMLabelGetStratumSize(ssLabel, salues[vvv], &sssize);CHKERRQ(ierr);
+    ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
+    for (PetscInt aaa = 0 ; aaa < sssize; aaa++ ){
+      ierr = PetscSectionGetDof(csglobal, spoints[aaa], &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(csglobal, spoints[aaa], &off );CHKERRQ(ierr);
+      if(dof > 0) dirichletNodes.push_back(off);
+     }
 
-
-    ierr = DMGetLabel(dm, "Vertex Sets", &vsLabel);CHKERRQ(ierr);
-    ierr = DMLabelGetNumValues(vsLabel, &nValues);CHKERRQ(ierr);
-    ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
-    ierr = ISGetIndices(vsIS, &values);CHKERRQ(ierr);
-    std::vector<int> vesselNodes;
-    //  DMLabelConvertToSection  DMPlexView_ExodusII_Internal
-    for (vvv = 0; vvv < nValues; ++vvv) {
-      IS              is;
-      const PetscInt *spoints;
-      PetscInt        dofA, offA, dofB, offB, nssize;
-      PetscInt       globdofA,globoffA,globdofB,globoffB;
-
-      ierr = DMLabelGetStratumIS(vsLabel, values[vvv], &is);CHKERRQ(ierr);
-      ierr = DMLabelGetStratumSize(vsLabel, values[vvv], &nssize);CHKERRQ(ierr);
-      ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(cs, spoints[0], &dofA);CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(cs, spoints[0], &offA );CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(cs, spoints[1], &dofB);CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(cs, spoints[1], &offB );CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(csglobal, spoints[0], &globdofA);CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(csglobal, spoints[0], &globoffA );CHKERRQ(ierr);
-      ierr = PetscSectionGetDof(csglobal, spoints[1], &globdofB);CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(csglobal, spoints[1], &globoffB );CHKERRQ(ierr);
-      ctx.nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2]});
-      ctx.nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2]});
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
-      vesselNodes.push_back(globoffA);
-      vesselNodes.push_back(globoffB);
-
-      ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
-      ierr = ISDestroy(&is);CHKERRQ(ierr);
-    }
-    ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodes.size(),&vesselNodes[0],PETSC_COPY_VALUES,&ctx.vesselIS);
-    ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
-    // ierr = ISRestoreIndices(vsIS, &vsIdx);CHKERRQ(ierr);
-    ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
-    ierr = ISDestroy(&vsISSection);CHKERRQ(ierr);
+    ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
+    ierr = ISDestroy(&is);CHKERRQ(ierr);
   }
-     // precompute green function at vessel element
+
+
+  ierr = DMGetLabel(dm, "Vertex Sets", &vsLabel);CHKERRQ(ierr);
+  ierr = DMLabelGetNumValues(vsLabel, &nValues);CHKERRQ(ierr);
+  ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
+  ierr = ISGetIndices(vsIS, &values);CHKERRQ(ierr);
+  std::vector<int> vesselNodes;
+  //  DMLabelConvertToSection  DMPlexView_ExodusII_Internal
+  for (vvv = 0; vvv < nValues; ++vvv) {
+    IS              is;
+    const PetscInt *spoints;
+    PetscInt        dofA, offA, dofB, offB, nssize;
+    PetscInt       globdofA,globoffA,globdofB,globoffB;
+
+    ierr = DMLabelGetStratumIS(vsLabel, values[vvv], &is);CHKERRQ(ierr);
+    ierr = DMLabelGetStratumSize(vsLabel, values[vvv], &nssize);CHKERRQ(ierr);
+    ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(cs, spoints[0], &dofA);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(cs, spoints[0], &offA );CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(cs, spoints[1], &dofB);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(cs, spoints[1], &offB );CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(csglobal, spoints[0], &globdofA);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(csglobal, spoints[0], &globoffA );CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(csglobal, spoints[1], &globdofB);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(csglobal, spoints[1], &globoffB );CHKERRQ(ierr);
+    ctx.nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2]});
+    ctx.nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2]});
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
+    vesselNodes.push_back(globoffA);
+    vesselNodes.push_back(globoffB);
+
+    ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
+    ierr = ISDestroy(&is);CHKERRQ(ierr);
+  }
+  ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
+  // ierr = ISRestoreIndices(vsIS, &vsIdx);CHKERRQ(ierr);
+  ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
+  
+  // create IS
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodes.size(),&dirichletNodes[0],PETSC_COPY_VALUES,&ctx.dirichletIS);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodes.size(),&vesselNodes[0],PETSC_COPY_VALUES,&ctx.vesselIS);
+
+  // precompute green function at vessel element
   for (PetscInt iii = 0 ; iii < ctx.nodeB.size(); iii++ )
    {
        // FIXME --- need to read in radius --- PetscScalar segrad    = 0.5 * (nodeBrad + nodeArad);
@@ -1915,9 +1919,14 @@ int main(int argc, char **argv)
      ierr = SNESSetUp(mysnes);CHKERRQ(ierr);
      // ierr = TSStep(ts);CHKERRQ(ierr);
      ierr = SNESComputeFunction(mysnes,uinit,rinit);CHKERRQ(ierr);
+     ierr = VecISSet(rinit ,ctx.vesselIS,0.);CHKERRQ(ierr);
+     ierr = VecISSet(rinit ,ctx.dirichletIS,0.);CHKERRQ(ierr);
      Mat myjmat, mypmat;
      ierr = SNESGetJacobian(mysnes,&myjmat,&mypmat,NULL,NULL);CHKERRQ(ierr);
      ierr = SNESComputeJacobian(mysnes,uinit,myjmat,mypmat);CHKERRQ(ierr);
+     ierr = MatSetOption( myjmat ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
+     ierr = MatZeroRowsIS(myjmat ,ctx.vesselIS,1.0,NULL,NULL);CHKERRQ(ierr);
+     ierr = MatZeroRowsIS(myjmat ,ctx.dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
      ierr = KSPSetOperators(myksp,myjmat,mypmat);CHKERRQ(ierr);
      //ierr = KSPSolve(myksp,rinit,sinit);CHKERRQ(ierr);
      // pc performs a single block solve
@@ -1998,6 +2007,7 @@ int main(int argc, char **argv)
      ierr = ISDestroy(&ctx.fields[iii]);CHKERRQ(ierr);
     }
   ierr = ISDestroy(&ctx.vesselIS);CHKERRQ(ierr);
+  ierr = ISDestroy(&ctx.dirichletIS);CHKERRQ(ierr);
   ierr = PetscFree(ctx.fieldNames);CHKERRQ(ierr);
   ierr = PetscFree(ctx.fields);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
