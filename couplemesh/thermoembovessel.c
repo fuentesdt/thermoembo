@@ -102,7 +102,7 @@ typedef struct {
   PetscInt numFields;
   char  **fieldNames;
   IS         *fields;
-  IS         *subfields;
+  IS         vesselIS;
   Vec        solvedirection, locDirection;
   IS   isnotstate;
   CoeffType      variableCoefficient;
@@ -1341,16 +1341,16 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
 
   PetscFunctionBeginUser;
   
-  if( ctx->solvesystem == PETSC_FALSE ) 
-   { //  solve phase feild on all state variables
-     ierr = PetscDSSetResidual(prob, FIELD_TEMPERATURE, f0_phas, f1_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetResidual(prob,    FIELD_PRESSURE, f0_phas, f1_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetJacobian(prob,    FIELD_PRESSURE,    FIELD_PRESSURE, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetResidual(prob, FIELD_SATURATION, f0_phas, f1_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetJacobian(prob, FIELD_SATURATION, FIELD_SATURATION, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
-   }
-  else  
+  //if( ctx->solvesystem == PETSC_FALSE ) 
+  // { //  solve phase feild on all state variables
+  //   ierr = PetscDSSetResidual(prob, FIELD_TEMPERATURE, f0_phas, f1_phas);CHKERRQ(ierr);
+  //   ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
+  //   ierr = PetscDSSetResidual(prob,    FIELD_PRESSURE, f0_phas, f1_phas);CHKERRQ(ierr);
+  //   ierr = PetscDSSetJacobian(prob,    FIELD_PRESSURE,    FIELD_PRESSURE, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
+  //   ierr = PetscDSSetResidual(prob, FIELD_SATURATION, f0_phas, f1_phas);CHKERRQ(ierr);
+  //   ierr = PetscDSSetJacobian(prob, FIELD_SATURATION, FIELD_SATURATION, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
+  // }
+  //else  
    {
     // temperature equations
     // debug
@@ -1413,13 +1413,13 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_TEMPERATURE,  0, NULL, (void(*)())salttemperature   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Vertex Sets", FIELD_TEMPERATURE,  0, NULL, (void(*)())bodytemperature   , 1, &nodeSetNeumannBoundaryValue , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, (void(*)())vessel_pres       , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "marker", FIELD_PRESSURE   ,  0, NULL, (void(*)())baseline_pres     , 1, &id , ctx);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets", FIELD_PRESSURE   ,  0, NULL, (void(*)())baseline_pres     , 1, &id , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_DAMAGE     ,  0, NULL, (void(*)())tissuedamagefcn   , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, (void(*)())bolusinjection    , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "marker", FIELD_SATURATION ,  0, NULL, (void(*)())fieldzero         , 1, &id , ctx);CHKERRQ(ierr);
   // Cauchy BC
-  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "marker", FIELD_TEMPERATURE,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "marker", FIELD_SATURATION ,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets", FIELD_TEMPERATURE,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets", FIELD_SATURATION ,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
   // Neuman BC
   //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
@@ -1585,7 +1585,8 @@ PetscErrorCode subspaceDMPlexTSComputeIFunctionFEM(DM dm, PetscReal time, Vec lo
   PetscErrorCode ierr;
   AppCtx *ctx = (AppCtx *)user;
   ierr = DMPlexTSComputeIFunctionFEM(dm, time, locX, locX_t, locF, user);CHKERRQ(ierr);
-  ierr = VecPointwiseMult(locF,locF,ctx->locDirection);CHKERRQ(ierr);
+  //ierr = VecPointwiseMult(locF,locF,ctx->locDirection);CHKERRQ(ierr);
+  ierr = VecISSet(locX ,ctx->vesselIS,ctx->parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec locX, Vec locX_t, PetscReal X_tShift, Mat Jac, Mat JacP, void *user)
@@ -1595,7 +1596,7 @@ PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec lo
   ierr = DMPlexTSComputeIJacobianFEM(dm, time, locX, locX_t, X_tShift, Jac, JacP, user);CHKERRQ(ierr);
 
   ierr = MatSetOption( Jac ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
-  ierr = MatZeroRowsIS(Jac ,ctx->isnotstate,1.0,NULL,NULL);CHKERRQ(ierr);
+  ierr = MatZeroRowsIS(Jac ,ctx->vesselIS,1.0,NULL,NULL);CHKERRQ(ierr);
   //ierr = MatZeroRowsIS(JacP,ctx->isnotstate,1.0,NULL,NULL);CHKERRQ(ierr);
 
   PetscFunctionReturn(0);
@@ -1639,102 +1640,53 @@ int main(int argc, char **argv)
   ierr = TSGetSNES(ts,&mysnes);
   ierr = SNESGetKSP(mysnes,&myksp);CHKERRQ(ierr);
   ierr = SNESGetLineSearch(mysnes,&mylinesearch);CHKERRQ(ierr);
-  ierr = SNESSetObjective(mysnes,subspaceobjective,&ctx); CHKERRQ(ierr);
+  //ierr = SNESSetObjective(mysnes,subspaceobjective,&ctx); CHKERRQ(ierr);
   //ierr = SNESLineSearchSetPreCheck(mylinesearch,myprecheck,&ctx); CHKERRQ(ierr);
   ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
 
 
-  // solve in multiple steps
-  if( ctx.solvesystem == PETSC_FALSE ) 
-    {/* solve and write phase field solution to disk in vector in binary format */
-
-     // same application context for each field
-     void          *ctxarray[ctx.numFields];
-     ctxarray[0] = &ctx; ctxarray[1] = &ctx; ctxarray[2] = &ctx; ctxarray[3] = &ctx; ctxarray[4] = &ctx;
-
-     // setup initial conditions
-     ierr = DMProjectFunction(dm, t, ctx.exactFuncs, ctxarray, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
-
-     // setup ts options
-     ierr = TSSetOptionsPrefix(ts,"phasepresolve_");CHKERRQ(ierr);
-     ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
-
-     // PCApply_FieldSplit
-     // PCFieldSplitSetDefaults
-     // use damage a dummy field to 'solve'
-     ierr = PCFieldSplitSetIS(mypc,"d",ctx.fields[FIELD_DAMAGE]);CHKERRQ(ierr);
-
-     char              prevtkfilenametemplate[PETSC_MAX_PATH_LEN];
-     ierr = PetscSNPrintf(prevtkfilenametemplate,sizeof(prevtkfilenametemplate),"%spre%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
-     ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&prevtkfilenametemplate,NULL);CHKERRQ(ierr);
-     ierr = TSSetPostStage(ts,TSUpdatePhase);CHKERRQ(ierr);
-
-     // set pc to do nothing
-     //ierr = SNESSetUp(mysnes);CHKERRQ(ierr);
-     //ierr = KSPSetUp(myksp);CHKERRQ(ierr);
-     //int numsplit;
-     //KSP *ksplist;
-     //PC  shellpc;
-     //ierr = PCFieldSplitGetSubKSP(mypc,&numsplit ,&ksplist);
-     //ierr = KSPGetPC(ksplist[1],&shellpc);CHKERRQ(ierr);
-     //ierr = PCShellSetApply(shellpc,DoNothingShellPCApply);CHKERRQ(ierr);
-     //ierr = PetscFree(ksplist);CHKERRQ(ierr);
-
-     PetscViewer    viewer;
-     ierr = TSSetTimeStep(ts,ctx.time_step);CHKERRQ(ierr);
-     // TSTheta_SNESSolve
-     ierr = TSSolve(ts, u);CHKERRQ(ierr);
-
-     // save to disk
-     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,ctx.phasefieldsolution,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
-     ierr = VecView(u,viewer); CHKERRQ(ierr);
- 
-     //  clean up
-     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-     ierr = PetscPrintf(PETSC_COMM_WORLD,"phase solution saved to binary vector %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
-    } 
-  else
+  //else
     {
 
-     /* Read in previously computed solution in binary format */
-     PetscViewer    viewer;
-     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
-     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,ctx.phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
-     ierr = VecLoad(u,viewer); CHKERRQ(ierr);
-     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+     ///* Read in previously computed solution in binary format */
+     //PetscViewer    viewer;
+     //ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
+     //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,ctx.phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
+     //ierr = VecLoad(u,viewer); CHKERRQ(ierr);
+     //ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
-     // solve outside the phase field
-     ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
-     for(PetscInt jjj = 0 ; jjj < ctx.numFields; jjj++)
-       {
-         if (jjj == FIELD_PRESSURE || jjj ==  FIELD_SATURATION || jjj == FIELD_TEMPERATURE) 
-           {
-            int nlocalsize;
-            const PetscInt *nindices;
-            PetscScalar  *vectordata;
-            ierr = ISGetLocalSize(ctx.fields[jjj],&nlocalsize);  CHKERRQ(ierr);
-            ierr = ISGetIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
-            ierr = PetscMalloc1(nlocalsize, &vectordata);CHKERRQ(ierr);
-            ierr = VecGetValues(u,nlocalsize, nindices,vectordata);CHKERRQ(ierr);
+     //// solve outside the phase field
+     //ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
+     //for(PetscInt jjj = 0 ; jjj < ctx.numFields; jjj++)
+     //  {
+     //    if (jjj == FIELD_PRESSURE || jjj ==  FIELD_SATURATION || jjj == FIELD_TEMPERATURE) 
+     //      {
+     //       int nlocalsize;
+     //       const PetscInt *nindices;
+     //       PetscScalar  *vectordata;
+     //       ierr = ISGetLocalSize(ctx.fields[jjj],&nlocalsize);  CHKERRQ(ierr);
+     //       ierr = ISGetIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
+     //       ierr = PetscMalloc1(nlocalsize, &vectordata);CHKERRQ(ierr);
+     //       ierr = VecGetValues(u,nlocalsize, nindices,vectordata);CHKERRQ(ierr);
 
-            // create IS without dirichlet nodes
-            std::vector<int> isnotdirichlet; 
-            for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < ctx.parameters[PARAM_PHASETHRESH]  )
-              {
-               isnotdirichlet.push_back(nindices[kkk] );
-               // ierr = PetscPrintf(PETSC_COMM_WORLD, "field=%d ix=%d y[ix]=%f \n",jjj,nindices[kkk],vectordata[kkk]);CHKERRQ(ierr);
-              }
-            ierr = ISCreateGeneral(PETSC_COMM_WORLD,isnotdirichlet.size(),&isnotdirichlet[0],PETSC_COPY_VALUES,&ctx.subfields[jjj]);
-            //ierr = ISView(ctx.subfields[jjj],0);
-            // cleanup
-            ierr = ISRestoreIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
-            ierr = PetscFree(vectordata);CHKERRQ(ierr);
-           }
-         else
-           {
-            ctx.subfields[jjj]  = NULL;
-           }
-       }
+     //       // create IS without dirichlet nodes
+     //       std::vector<int> isnotdirichlet; 
+     //       for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < ctx.parameters[PARAM_PHASETHRESH]  )
+     //         {
+     //          isnotdirichlet.push_back(nindices[kkk] );
+     //          // ierr = PetscPrintf(PETSC_COMM_WORLD, "field=%d ix=%d y[ix]=%f \n",jjj,nindices[kkk],vectordata[kkk]);CHKERRQ(ierr);
+     //         }
+     //       ierr = ISCreateGeneral(PETSC_COMM_WORLD,isnotdirichlet.size(),&isnotdirichlet[0],PETSC_COPY_VALUES,&ctx.subfields[jjj]);
+     //       //ierr = ISView(ctx.subfields[jjj],0);
+     //       // cleanup
+     //       ierr = ISRestoreIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
+     //       ierr = PetscFree(vectordata);CHKERRQ(ierr);
+     //      }
+     //    else
+     //      {
+     //       ctx.subfields[jjj]  = NULL;
+     //      }
+     //  }
       
 
   PetscInt        num_vs, num_fs, skipCells = 0;
@@ -1793,6 +1745,7 @@ int main(int argc, char **argv)
     ierr = DMLabelGetNumValues(vsLabel, &nValues);CHKERRQ(ierr);
     ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
     ierr = ISGetIndices(vsIS, &values);CHKERRQ(ierr);
+    std::vector<int> vesselNodes;
     //  DMLabelConvertToSection  DMPlexView_ExodusII_Internal
     for (vvv = 0; vvv < nValues; ++vvv) {
       IS              is;
@@ -1814,9 +1767,13 @@ int main(int argc, char **argv)
       ctx.nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2]});
       ctx.nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2]});
       ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
+      vesselNodes.push_back(globoffA);
+      vesselNodes.push_back(globoffB);
+
       ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
       ierr = ISDestroy(&is);CHKERRQ(ierr);
     }
+    ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodes.size(),&vesselNodes[0],PETSC_COPY_VALUES,&ctx.vesselIS);
     ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
     // ierr = ISRestoreIndices(vsIS, &vsIdx);CHKERRQ(ierr);
     ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
@@ -1856,21 +1813,22 @@ int main(int argc, char **argv)
 
    }
 
-     // solve direction implements dirichlet BC
-     ierr = VecDuplicate(u, &ctx.solvedirection);CHKERRQ(ierr);
-     ierr = VecCopy(u,ctx.solvedirection);CHKERRQ(ierr);
-     ierr = VecShift(ctx.solvedirection,-1.0);CHKERRQ(ierr);
-     ierr = VecAbs(ctx.solvedirection);CHKERRQ(ierr);
+     // // solve direction implements dirichlet BC
+     // ierr = VecDuplicate(u, &ctx.solvedirection);CHKERRQ(ierr);
+     // ierr = VecCopy(u,ctx.solvedirection);CHKERRQ(ierr);
+     // ierr = VecShift(ctx.solvedirection,-1.0);CHKERRQ(ierr);
+     // ierr = VecAbs(ctx.solvedirection);CHKERRQ(ierr);
 
-     ierr = DMCreateLocalVector( dm,&ctx.locDirection);CHKERRQ(ierr);
-     ierr = DMGlobalToLocalBegin(dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
-     ierr = DMGlobalToLocalEnd(  dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
+     // ierr = DMCreateLocalVector( dm,&ctx.locDirection);CHKERRQ(ierr);
+     // ierr = DMGlobalToLocalBegin(dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
+     // ierr = DMGlobalToLocalEnd(  dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
 
      // view solve direction
      char              vtkfilenametemplate[PETSC_MAX_PATH_LEN];
      ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssetup%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
+     ierr = VecISSet(u ,ctx.vesselIS,ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
      ierr = TSMonitorSolutionVTK(ts,0,1.e9,                 u,vtkfilenametemplate);CHKERRQ(ierr);
-     ierr = TSMonitorSolutionVTK(ts,1,1.e9,ctx.solvedirection,vtkfilenametemplate);CHKERRQ(ierr);
+     //ierr = TSMonitorSolutionVTK(ts,1,1.e9,ctx.solvedirection,vtkfilenametemplate);CHKERRQ(ierr);
      if ( ctx.debugfd ) 
        {
          Vec        debugids;
@@ -1885,35 +1843,36 @@ int main(int argc, char **argv)
          ierr = VecDestroy(&debugids);CHKERRQ(ierr);
        }
 
-     // setup initial conditions inside dirichlet boundary
-     Vec        temperaturevector,   pressurevector, pressurework;
-     ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
-     ierr = VecGetSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     // smooth BC
-     ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
-     ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
-     ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
-     ierr = VecShift(pressurevector,                                         ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
-     // strong boundary
-     // ierr = VecSet(temperaturevector,ctx.parameters[PARAM_USALT]           );CHKERRQ(ierr);
-     // ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     // // setup initial conditions inside dirichlet boundary
+     // Vec        temperaturevector,   pressurevector, pressurework;
+     Vec        pressurevector, pressurework;
+     // ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     // ierr = VecGetSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     // // smooth BC
+     // ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
+     // ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
+     // ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     // ierr = VecShift(pressurevector,                                         ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     // // strong boundary
+     // // ierr = VecSet(temperaturevector,ctx.parameters[PARAM_USALT]           );CHKERRQ(ierr);
+     // // ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
+     // ierr = VecRestoreSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     // ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
 
-     // setup initial conditions outside dirichlet boundary
-     Vec        saturationvector ;
-     ierr = VecGetSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     ierr = VecSet(saturationvector , 1.0        );CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     ierr = VecGetSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     ierr = VecShift(saturationvector ,-1.0        );CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
-     ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
-     ierr = VecGetSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     ierr = VecSet(temperaturevector,ctx.parameters[PARAM_UARTERY]         );CHKERRQ(ierr);
-     ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     // // setup initial conditions outside dirichlet boundary
+     // Vec        saturationvector ;
+     // ierr = VecGetSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     // ierr = VecSet(saturationvector , 1.0        );CHKERRQ(ierr);
+     // ierr = VecRestoreSubVector(u, ctx.fields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     // ierr = VecGetSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     // ierr = VecShift(saturationvector ,-1.0        );CHKERRQ(ierr);
+     // ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_SATURATION],    &saturationvector );CHKERRQ(ierr);
+     // ierr = VecGetSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     // ierr = VecGetSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     // ierr = VecSet(temperaturevector,ctx.parameters[PARAM_UARTERY]         );CHKERRQ(ierr);
+     // ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     // ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
+     // ierr = VecRestoreSubVector(u, ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
 
      //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
      // write vtk file at every time point
@@ -1931,17 +1890,17 @@ int main(int argc, char **argv)
      // setup field split
      // PCApply_FieldSplit
      // PCFieldSplitSetDefaults
-     IS   isstate, fullsystem;
-     ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.subfields[FIELD_PRESSURE],&isstate); CHKERRQ(ierr);
-     ierr = ISSort(isstate);CHKERRQ(ierr);
-     ierr = ISConcatenate(PETSC_COMM_WORLD,5,&ctx.fields[FIELD_PRESSURE],&fullsystem); CHKERRQ(ierr);
-     ierr = ISDifference(fullsystem,isstate,&ctx.isnotstate); CHKERRQ(ierr);
+     // IS   isstate, fullsystem;
+     // ierr = ISConcatenate(PETSC_COMM_WORLD,3,&ctx.subfields[FIELD_PRESSURE],&isstate); CHKERRQ(ierr);
+     // ierr = ISSort(isstate);CHKERRQ(ierr);
+     // ierr = ISConcatenate(PETSC_COMM_WORLD,5,&ctx.fields[FIELD_PRESSURE],&fullsystem); CHKERRQ(ierr);
+     // ierr = ISDifference(fullsystem,isstate,&ctx.isnotstate); CHKERRQ(ierr);
      //ierr = PCFieldSplitSetIS(mypc,"s",isstate);CHKERRQ(ierr);
-     ierr = PCFieldSplitSetIS(mypc,"p",ctx.subfields[FIELD_PRESSURE]);CHKERRQ(ierr);
-     ierr = PCFieldSplitSetIS(mypc,"s",ctx.subfields[FIELD_SATURATION]);CHKERRQ(ierr);
-     ierr = PCFieldSplitSetIS(mypc,"u",ctx.subfields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
-     ierr = KSPSetPostSolve(myksp,KSPPostSolve_ZeroSearch,&ctx);CHKERRQ(ierr);
-     ierr = KSPSetPreSolve(myksp,KSPPreSolve_ManualBC,&ctx);CHKERRQ(ierr);
+     ierr = PCFieldSplitSetIS(mypc,"p",ctx.fields[FIELD_PRESSURE]);CHKERRQ(ierr);
+     ierr = PCFieldSplitSetIS(mypc,"s",ctx.fields[FIELD_SATURATION]);CHKERRQ(ierr);
+     ierr = PCFieldSplitSetIS(mypc,"u",ctx.fields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
+     //ierr = KSPSetPostSolve(myksp,KSPPostSolve_ZeroSearch,&ctx);CHKERRQ(ierr);
+    // ierr = KSPSetPreSolve(myksp,KSPPreSolve_ManualBC,&ctx);CHKERRQ(ierr);
 
      // get initial pressure for saturation solve
      // following SNESSolve_KSPONLY
@@ -1966,11 +1925,11 @@ int main(int argc, char **argv)
      // ierr = VecAXPY(X,-1.0,Y);CHKERRQ(ierr);
 
      // update pressure 
-     ierr = VecGetSubVector(u    , ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     ierr = VecGetSubVector(sinit, ctx.subfields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
+     ierr = VecGetSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecGetSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
      ierr = VecAXPY(pressurevector,-1.0,pressurework);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u    , ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(sinit, ctx.subfields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
+     ierr = VecRestoreSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
      ierr = VecDestroy(&uinit);CHKERRQ(ierr);
      ierr = VecDestroy(&rinit);CHKERRQ(ierr);
      ierr = VecDestroy(&sinit);CHKERRQ(ierr);
@@ -2018,14 +1977,14 @@ int main(int argc, char **argv)
      ierr = TSGetTime(ts, &t);CHKERRQ(ierr);
 
      // clean up
-     ierr = ISDestroy(&isstate);CHKERRQ(ierr);
-     ierr = ISDestroy(&fullsystem);CHKERRQ(ierr);
-     ierr = ISDestroy(&ctx.isnotstate);CHKERRQ(ierr);
+     //ierr = ISDestroy(&isstate);CHKERRQ(ierr);
+     //ierr = ISDestroy(&fullsystem);CHKERRQ(ierr);
+     //ierr = ISDestroy(&ctx.isnotstate);CHKERRQ(ierr);
      ierr = VecDestroy(&ctx.solvedirection);CHKERRQ(ierr);
      ierr = VecDestroy(&ctx.locDirection);CHKERRQ(ierr);
 
-     for(PetscInt iii = 0 ; iii < ctx.numFields; iii++) 
-          ierr = ISDestroy(&ctx.subfields[iii]);CHKERRQ(ierr);
+     //for(PetscInt iii = 0 ; iii < ctx.numFields; iii++) 
+      //    ierr = ISDestroy(&ctx.subfields[iii]);CHKERRQ(ierr);
     } 
 
   // clean up
@@ -2038,6 +1997,7 @@ int main(int argc, char **argv)
      ierr = PetscFree(ctx.fieldNames[iii]);CHKERRQ(ierr);
      ierr = ISDestroy(&ctx.fields[iii]);CHKERRQ(ierr);
     }
+  ierr = ISDestroy(&ctx.vesselIS);CHKERRQ(ierr);
   ierr = PetscFree(ctx.fieldNames);CHKERRQ(ierr);
   ierr = PetscFree(ctx.fields);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
