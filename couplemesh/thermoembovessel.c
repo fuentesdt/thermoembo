@@ -34,6 +34,7 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkPolyData.h>
 #include <vector>
+#include <algorithm> 
 
 /*
   parabolic equation:
@@ -1610,9 +1611,9 @@ PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec lo
   AppCtx *ctx = (AppCtx *)user;
   ierr = DMPlexTSComputeIJacobianFEM(dm, time, locX, locX_t, X_tShift, Jac, JacP, user);CHKERRQ(ierr);
 
-  ierr = MatSetOption( Jac ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
+  //ierr = MatSetOption( Jac ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
   //ierr = MatZeroRowsIS(Jac ,ctx->vesselIS,1.0,NULL,NULL);CHKERRQ(ierr);
-  //ierr = MatZeroRowsIS(Jac ,ctx->dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
+  ierr = MatZeroRowsIS(Jac ,ctx->dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
   const PetscInt *mvalues,*nvalues;
   PetscInt mSize,nSize;
 
@@ -1621,7 +1622,7 @@ PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec lo
   ierr = ISGetSize(ctx->vesselIS, &nSize);CHKERRQ(ierr);
   ierr = ISGetIndices(ctx->vesselIS, &nvalues);CHKERRQ(ierr);
 
-  ierr = MatSetValues(Jac ,mSize,mvalues,nSize,nvalues,ctx->rowValue,INSERT_VALUES);CHKERRQ(ierr);
+  ierr = MatSetValues(Jac ,mSize,mvalues,nSize,nvalues,ctx->rowValue,ADD_VALUES);CHKERRQ(ierr);
 
   ierr = ISRestoreIndices(ctx->dirichletIS, &mvalues);CHKERRQ(ierr);
   ierr = ISRestoreIndices(ctx->vesselIS, &nvalues);CHKERRQ(ierr);
@@ -1824,6 +1825,10 @@ int main(int argc, char **argv)
   ierr = ISRestoreIndices(vsIS, &values);CHKERRQ(ierr);
   ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
   
+  //removing duplicates messes up the order
+  //std::sort (vesselNodesLocal.begin(),vesselNodesLocal.end()); 
+  //vesselNodesLocal.erase( std::unique( vesselNodesLocal.begin(), vesselNodesLocal.end() ), vesselNodesLocal.end() );
+
   // create IS
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodes.size(),&dirichletNodes[0],PETSC_COPY_VALUES,&ctx.dirichletIS);
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodesLocal.size(),&dirichletNodesLocal[0],PETSC_COPY_VALUES,&ctx.dirichletISLocal);
@@ -1842,7 +1847,7 @@ int main(int argc, char **argv)
    }
   // setup BC data structures
   ierr = PetscMalloc1(dirichletCoord.size(), &ctx.bcValue);CHKERRQ(ierr);
-  ierr = PetscMalloc1(dirichletCoord.size()*ctx.greensVesselBoundary.size(), &ctx.rowValue);CHKERRQ(ierr);
+  ierr = PetscMalloc1(dirichletCoord.size()*ctx.greensVesselBoundary.size()*2, &ctx.rowValue);CHKERRQ(ierr);
   //FIXME - need real params
   PetscScalar beta1d = 2.0 , lambda = .8; 
   if(ctx.greensVesselBoundary.size())
@@ -1866,9 +1871,10 @@ int main(int argc, char **argv)
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
          PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA) ) ;
 
-         ctx.bcValue[Jj] =  ctx.bcValue[Jj] -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(1.0  + beta1d * ctx.greensVesselBoundary[Ii]/lambda )* greensDirichletBoundary;
-         //std::cout << ctx.greensVesselBoundary.size()*Jj+Ii << " " << std::flush ;
-         ctx.rowValue[ctx.greensVesselBoundary.size()*Jj+Ii] =  beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         ctx.bcValue[Jj] =  ctx.bcValue[Jj] -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx.greensVesselBoundary[Ii])* greensDirichletBoundary;
+         //std::cout << ctx.greensVesselBoundary.size()*2*Jj+2*Ii << " " << ctx.greensVesselBoundary.size()*2*Jj+2*Ii + 1 << " " << std::flush ;
+         ctx.rowValue[ctx.greensVesselBoundary.size()*2*Jj+2*Ii] = 0.5* beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         ctx.rowValue[ctx.greensVesselBoundary.size()*2*Jj+2*Ii+1] = 0.5* beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
       }
       //ierr = MatSetValues(myJac, 1, &vesselNodes[Jj], vesselNodes.size(),&vesselNodes[0],rowValue);
      }
@@ -1981,14 +1987,43 @@ int main(int argc, char **argv)
      ierr = SNESSetUp(mysnes);CHKERRQ(ierr);
      // ierr = TSStep(ts);CHKERRQ(ierr);
      ierr = SNESComputeFunction(mysnes,uinit,rinit);CHKERRQ(ierr);
-     ierr = VecISSet(rinit ,ctx.vesselIS,0.);CHKERRQ(ierr);
-     ierr = VecISSet(rinit ,ctx.dirichletIS,0.);CHKERRQ(ierr);
+     //ierr = VecISSet(rinit ,ctx.vesselIS,0.);CHKERRQ(ierr);
+     //ierr = VecISSet(rinit ,ctx.dirichletIS,0.);CHKERRQ(ierr);
+
+     const PetscInt *isvalues;
+     PetscInt isSize;
+     ierr = ISGetSize(ctx.dirichletIS, &isSize);CHKERRQ(ierr);
+     ierr = ISGetIndices(ctx.dirichletIS, &isvalues);CHKERRQ(ierr);
+     ierr = VecSetValues(rinit, isSize, isvalues, ctx.bcValue,INSERT_VALUES);
+     ierr = ISRestoreIndices(ctx.dirichletIS, &isvalues);CHKERRQ(ierr);
+     ierr = VecAssemblyBegin(rinit);
+     ierr = VecAssemblyEnd(rinit);
+
+
      Mat myjmat, mypmat;
      ierr = SNESGetJacobian(mysnes,&myjmat,&mypmat,NULL,NULL);CHKERRQ(ierr);
      ierr = SNESComputeJacobian(mysnes,uinit,myjmat,mypmat);CHKERRQ(ierr);
-     ierr = MatSetOption( myjmat ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
-     ierr = MatZeroRowsIS(myjmat ,ctx.vesselIS,1.0,NULL,NULL);CHKERRQ(ierr);
      ierr = MatZeroRowsIS(myjmat ,ctx.dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
+     ierr = MatSetOption( myjmat ,MAT_KEEP_NONZERO_PATTERN,PETSC_FALSE);CHKERRQ(ierr);
+
+     const PetscInt *mvalues,*nvalues;
+     PetscInt mSize,nSize;
+
+     ierr = ISGetSize(ctx.dirichletIS, &mSize);CHKERRQ(ierr);
+     ierr = ISGetIndices(ctx.dirichletIS, &mvalues);CHKERRQ(ierr);
+     ierr = ISGetSize(ctx.vesselIS, &nSize);CHKERRQ(ierr);
+     ierr = ISGetIndices(ctx.vesselIS, &nvalues);CHKERRQ(ierr);
+
+     ierr = MatSetValues(myjmat ,mSize,mvalues,nSize,nvalues,ctx.rowValue,ADD_VALUES);CHKERRQ(ierr);
+
+     ierr = ISRestoreIndices(ctx.dirichletIS, &mvalues);CHKERRQ(ierr);
+     ierr = ISRestoreIndices(ctx.vesselIS, &nvalues);CHKERRQ(ierr);
+
+     ierr = MatAssemblyBegin(myjmat,MAT_FINAL_ASSEMBLY );
+     ierr = MatAssemblyEnd(myjmat,MAT_FINAL_ASSEMBLY);
+     ierr = MatSetOption( myjmat ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
+
+
      ierr = KSPSetOperators(myksp,myjmat,mypmat);CHKERRQ(ierr);
      //ierr = KSPSolve(myksp,rinit,sinit);CHKERRQ(ierr);
      // pc performs a single block solve
