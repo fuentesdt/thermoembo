@@ -1770,9 +1770,9 @@ int main(int argc, char **argv)
     for (PetscInt aaa = 0 ; aaa < sssize; aaa++ ){
       ierr = PetscSectionGetDof(csglobal, spoints[aaa], &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(csglobal, spoints[aaa], &off );CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(cs, spoints[aaa], &offcoord);CHKERRQ(ierr);
       if(dof > 0){
           dirichletNodes.push_back(off);
+          ierr = PetscSectionGetOffset(cs, spoints[aaa], &offcoord);CHKERRQ(ierr);
           dirichletCoord.push_back({coords[offcoord],coords[offcoord+1],coords[offcoord+2]});
           ierr = PetscSectionGetDof(cs, spoints[aaa], &dofloc);CHKERRQ(ierr);
           ierr = PetscSectionGetOffset(cs, spoints[aaa], &offloc );CHKERRQ(ierr);
@@ -1867,7 +1867,8 @@ int main(int argc, char **argv)
          PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA) ) ;
 
          ctx.bcValue[Jj] =  ctx.bcValue[Jj] -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(1.0  + beta1d * ctx.greensVesselBoundary[Ii]/lambda )* greensDirichletBoundary;
-         ctx.rowValue[dirichletCoord.size()*Jj+Ii] =  beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         //std::cout << ctx.greensVesselBoundary.size()*Jj+Ii << " " << std::flush ;
+         ctx.rowValue[ctx.greensVesselBoundary.size()*Jj+Ii] =  beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
       }
       //ierr = MatSetValues(myJac, 1, &vesselNodes[Jj], vesselNodes.size(),&vesselNodes[0],rowValue);
      }
