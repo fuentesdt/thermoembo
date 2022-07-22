@@ -102,14 +102,16 @@ typedef struct {
   PetscInt numFields;
   char  **fieldNames;
   IS         *fields;
-  IS         vesselIS;
-  IS         dirichletIS;
+  IS         vesselIS, vesselISLocal;
+  IS         dirichletIS, dirichletISLocal;
   Vec        solvedirection, locDirection;
   IS   isnotstate;
   CoeffType      variableCoefficient;
   // store vessel data
   std::vector<int> vesselElements;
   std::vector<PetscScalar>  greensVesselBoundary;
+  PetscScalar *rowValue;
+  PetscScalar *bcValue;
   std::vector<MyCoord> nodeA, nodeB;
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
 } AppCtx;
@@ -1588,7 +1590,18 @@ PetscErrorCode subspaceDMPlexTSComputeIFunctionFEM(DM dm, PetscReal time, Vec lo
   ierr = DMPlexTSComputeIFunctionFEM(dm, time, locX, locX_t, locF, user);CHKERRQ(ierr);
   //ierr = VecPointwiseMult(locF,locF,ctx->locDirection);CHKERRQ(ierr);
   //ierr = VecISSet(locX ,ctx->vesselIS,ctx->parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
-  ierr = VecISSet(locX ,ctx->vesselIS,0.);CHKERRQ(ierr);
+  //ierr = VecISSet(locF ,ctx->vesselISLocal,0.);CHKERRQ(ierr);
+  //ierr = VecISSet(locF ,ctx->dirichletISLocal,0.);CHKERRQ(ierr);
+
+  const PetscInt *isvalues;
+  PetscInt isSize;
+  ierr = ISGetSize(ctx->dirichletISLocal, &isSize);CHKERRQ(ierr);
+  ierr = ISGetIndices(ctx->dirichletISLocal, &isvalues);CHKERRQ(ierr);
+  ierr = VecSetValues(locF, isSize, isvalues, ctx->bcValue,INSERT_VALUES);
+  ierr = ISRestoreIndices(ctx->dirichletISLocal, &isvalues);CHKERRQ(ierr);
+  ierr = VecAssemblyBegin(locF);
+  ierr = VecAssemblyEnd(locF);
+
   PetscFunctionReturn(0);
 }
 PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec locX, Vec locX_t, PetscReal X_tShift, Mat Jac, Mat JacP, void *user)
@@ -1598,8 +1611,23 @@ PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec lo
   ierr = DMPlexTSComputeIJacobianFEM(dm, time, locX, locX_t, X_tShift, Jac, JacP, user);CHKERRQ(ierr);
 
   ierr = MatSetOption( Jac ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
-  ierr = MatZeroRowsIS(Jac ,ctx->vesselIS,1.0,NULL,NULL);CHKERRQ(ierr);
-  //ierr = MatZeroRowsIS(JacP,ctx->isnotstate,1.0,NULL,NULL);CHKERRQ(ierr);
+  //ierr = MatZeroRowsIS(Jac ,ctx->vesselIS,1.0,NULL,NULL);CHKERRQ(ierr);
+  //ierr = MatZeroRowsIS(Jac ,ctx->dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
+  const PetscInt *mvalues,*nvalues;
+  PetscInt mSize,nSize;
+
+  ierr = ISGetSize(ctx->dirichletIS, &mSize);CHKERRQ(ierr);
+  ierr = ISGetIndices(ctx->dirichletIS, &mvalues);CHKERRQ(ierr);
+  ierr = ISGetSize(ctx->vesselIS, &nSize);CHKERRQ(ierr);
+  ierr = ISGetIndices(ctx->vesselIS, &nvalues);CHKERRQ(ierr);
+
+  ierr = MatSetValues(Jac ,mSize,mvalues,nSize,nvalues,ctx->rowValue,INSERT_VALUES);CHKERRQ(ierr);
+
+  ierr = ISRestoreIndices(ctx->dirichletIS, &mvalues);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(ctx->vesselIS, &nvalues);CHKERRQ(ierr);
+
+  ierr = MatAssemblyBegin(Jac,MAT_FINAL_ASSEMBLY );
+  ierr = MatAssemblyEnd(Jac,MAT_FINAL_ASSEMBLY);
 
   PetscFunctionReturn(0);
 }
@@ -1695,7 +1723,8 @@ int main(int argc, char **argv)
   ierr = DMGetLabelSize(dm, "Vertex Sets", &num_vs);CHKERRQ(ierr);
   ierr = DMGetLabelSize(dm, "Face Sets", &num_fs);CHKERRQ(ierr);
   PetscBool       hasLabel;
-  std::vector<int> dirichletNodes;
+  std::vector<int> dirichletNodes,dirichletNodesLocal;
+  std::vector<MyCoord> dirichletCoord;
   DMHasLabel(dm, "Vertex Sets", &hasLabel);
 
   PetscInt        vvv, vs, vsSize,nValues,sValues;
@@ -1714,10 +1743,16 @@ int main(int argc, char **argv)
   ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
   ierr = DMGetGlobalSection(dm, &csglobal);CHKERRQ(ierr);
 
-  //PetscInt  pStartGlobal, pEndGlobal;
-  //ierr = PetscSectionGetChart(csglobal, &pStartGlobal, &pEndGlobal);CHKERRQ(ierr);
-  //PetscInt pStart, pEnd;
-  //ierr = PetscSectionGetChart(cs, &pStart, &pEnd);CHKERRQ(ierr);
+  ISLocalToGlobalMapping myltog;
+  ierr = DMGetLocalToGlobalMapping(dm,&myltog);
+  //ISLocalToGlobalMappingView(myltog,0);
+
+  //const PetscInt         *g_idx;
+  //PetscInt         locglobSize;
+  //ierr = ISLocalToGlobalMappingGetSize(myltog,&locglobSize) ;
+  //ierr = ISLocalToGlobalMappingGetIndices(myltog,&g_idx);
+  //ierr = ISLocalToGlobalMappingRestoreIndices(myltog,&g_idx);
+
   const PetscScalar *coords;
   ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
 
@@ -1728,14 +1763,21 @@ int main(int argc, char **argv)
   for (vvv = 0; vvv < sValues; ++vvv) {
     IS              is;
     const PetscInt *spoints;
-    PetscInt        dof, off, sssize;
+    PetscInt        dof, off, offcoord, sssize,dofloc,offloc;
     ierr = DMLabelGetStratumIS(ssLabel, salues[vvv], &is);CHKERRQ(ierr);
     ierr = DMLabelGetStratumSize(ssLabel, salues[vvv], &sssize);CHKERRQ(ierr);
     ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
     for (PetscInt aaa = 0 ; aaa < sssize; aaa++ ){
       ierr = PetscSectionGetDof(csglobal, spoints[aaa], &dof);CHKERRQ(ierr);
       ierr = PetscSectionGetOffset(csglobal, spoints[aaa], &off );CHKERRQ(ierr);
-      if(dof > 0) dirichletNodes.push_back(off);
+      ierr = PetscSectionGetOffset(cs, spoints[aaa], &offcoord);CHKERRQ(ierr);
+      if(dof > 0){
+          dirichletNodes.push_back(off);
+          dirichletCoord.push_back({coords[offcoord],coords[offcoord+1],coords[offcoord+2]});
+          ierr = PetscSectionGetDof(cs, spoints[aaa], &dofloc);CHKERRQ(ierr);
+          ierr = PetscSectionGetOffset(cs, spoints[aaa], &offloc );CHKERRQ(ierr);
+          if(dofloc > 0) dirichletNodesLocal.push_back(offloc);
+        }
      }
 
     ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
@@ -1748,6 +1790,7 @@ int main(int argc, char **argv)
   ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
   ierr = ISGetIndices(vsIS, &values);CHKERRQ(ierr);
   std::vector<int> vesselNodes;
+  std::vector<int> vesselNodesLocal;
   //  DMLabelConvertToSection  DMPlexView_ExodusII_Internal
   for (vvv = 0; vvv < nValues; ++vvv) {
     IS              is;
@@ -1771,17 +1814,21 @@ int main(int argc, char **argv)
     ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
     vesselNodes.push_back(globoffA);
     vesselNodes.push_back(globoffB);
+    vesselNodesLocal.push_back(offA);
+    vesselNodesLocal.push_back(offB);
 
     ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
     ierr = ISDestroy(&is);CHKERRQ(ierr);
   }
   ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
-  // ierr = ISRestoreIndices(vsIS, &vsIdx);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(vsIS, &values);CHKERRQ(ierr);
   ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
   
   // create IS
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodes.size(),&dirichletNodes[0],PETSC_COPY_VALUES,&ctx.dirichletIS);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodesLocal.size(),&dirichletNodesLocal[0],PETSC_COPY_VALUES,&ctx.dirichletISLocal);
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodes.size(),&vesselNodes[0],PETSC_COPY_VALUES,&ctx.vesselIS);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodesLocal.size(),&vesselNodesLocal[0],PETSC_COPY_VALUES,&ctx.vesselISLocal);
 
   // precompute green function at vessel element
   for (PetscInt iii = 0 ; iii < ctx.nodeB.size(); iii++ )
@@ -1793,21 +1840,35 @@ int main(int argc, char **argv)
                                     +(ctx.nodeB[iii].z - ctx.nodeA[iii].z)*(ctx.nodeB[iii].z - ctx.nodeA[iii].z));
        ctx.greensVesselBoundary.push_back(  2* PETSC_PI * log( ( sqrt(.5*seglength*seglength+ segrad * segrad ) + 1.5*seglength )/ ( sqrt(.5*seglength*seglength+ segrad * segrad )  + .5*seglength   )) );
    }
-  std::vector<PetscScalar> rowValue;
-  rowValue.resize(ctx.greensVesselBoundary.size());
-  //FIXME
+  // setup BC data structures
+  ierr = PetscMalloc1(dirichletCoord.size(), &ctx.bcValue);CHKERRQ(ierr);
+  ierr = PetscMalloc1(dirichletCoord.size()*ctx.greensVesselBoundary.size(), &ctx.rowValue);CHKERRQ(ierr);
+  //FIXME - need real params
   PetscScalar beta1d = 2.0 , lambda = .8; 
   if(ctx.greensVesselBoundary.size())
    {
-    for (PetscInt Jj = 0 ; Jj < dirichletNodes.size(); Jj++ )
+    for (PetscInt Jj = 0 ; Jj < dirichletCoord.size(); Jj++ )
      {
+      ctx.bcValue[Jj] =  ctx.parameters[PARAM_BOUNDARYPRESSURE];
       for (PetscInt Ii = 0 ; Ii < ctx.greensVesselBoundary.size(); Ii++ )
       {
-         PetscScalar bcValue = ctx.parameters[PARAM_BOUNDARYPRESSURE];
-         bcValue = bcValue -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* ctx.greensVesselBoundary[Ii];
-         rowValue[Ii] =  beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* ctx.greensVesselBoundary[Ii];
+         PetscScalar distA = sqrt( (ctx.nodeA[Ii].x - dirichletCoord[Jj].x)*(ctx.nodeA[Ii].x - dirichletCoord[Jj].x)
+                                  +(ctx.nodeA[Ii].y - dirichletCoord[Jj].y)*(ctx.nodeA[Ii].y - dirichletCoord[Jj].y)
+                                  +(ctx.nodeA[Ii].z - dirichletCoord[Jj].z)*(ctx.nodeA[Ii].z - dirichletCoord[Jj].z));
+         PetscScalar distB = sqrt( (ctx.nodeB[Ii].x - dirichletCoord[Jj].x)*(ctx.nodeB[Ii].x - dirichletCoord[Jj].x)
+                                  +(ctx.nodeB[Ii].y - dirichletCoord[Jj].y)*(ctx.nodeB[Ii].y - dirichletCoord[Jj].y)
+                                  +(ctx.nodeB[Ii].z - dirichletCoord[Jj].z)*(ctx.nodeB[Ii].z - dirichletCoord[Jj].z));
+         PetscScalar seglength = sqrt( (ctx.nodeB[Ii].x - ctx.nodeA[Ii].x)*(ctx.nodeB[Ii].x - ctx.nodeA[Ii].x)
+                                      +(ctx.nodeB[Ii].y - ctx.nodeA[Ii].y)*(ctx.nodeB[Ii].y - ctx.nodeA[Ii].y)
+                                      +(ctx.nodeB[Ii].z - ctx.nodeA[Ii].z)*(ctx.nodeB[Ii].z - ctx.nodeA[Ii].z));
+         MyCoord myTau = { (ctx.nodeB[Ii].x - ctx.nodeA[Ii].x)/seglength, (ctx.nodeB[Ii].y - ctx.nodeA[Ii].y)/seglength, (ctx.nodeB[Ii].z - ctx.nodeA[Ii].z)/seglength};
+         MyCoord myvecA = { ctx.nodeA[Ii].x - dirichletCoord[Jj].x, ctx.nodeA[Ii].y - dirichletCoord[Jj].y, ctx.nodeA[Ii].z - dirichletCoord[Jj].z};
+         PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
+         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA) ) ;
+
+         ctx.bcValue[Jj] =  ctx.bcValue[Jj] -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(1.0  + beta1d * ctx.greensVesselBoundary[Ii]/lambda )* greensDirichletBoundary;
+         ctx.rowValue[dirichletCoord.size()*Jj+Ii] =  beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
       }
-      //ierr = VecSetValues (myRHS, 1, &vesselNodes[Jj], &bcValue, INSERT_VALUES);
       //ierr = MatSetValues(myJac, 1, &vesselNodes[Jj], vesselNodes.size(),&vesselNodes[0],rowValue);
      }
     //ierr = VecAssemblyBegin(myRHS);
@@ -2006,6 +2067,8 @@ int main(int argc, char **argv)
      ierr = PetscFree(ctx.fieldNames[iii]);CHKERRQ(ierr);
      ierr = ISDestroy(&ctx.fields[iii]);CHKERRQ(ierr);
     }
+  ierr = PetscFree(ctx.bcValue);CHKERRQ(ierr);
+  ierr = PetscFree(ctx.rowValue);CHKERRQ(ierr);
   ierr = ISDestroy(&ctx.vesselIS);CHKERRQ(ierr);
   ierr = ISDestroy(&ctx.dirichletIS);CHKERRQ(ierr);
   ierr = PetscFree(ctx.fieldNames);CHKERRQ(ierr);
