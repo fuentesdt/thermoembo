@@ -1611,7 +1611,6 @@ PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec lo
   AppCtx *ctx = (AppCtx *)user;
   ierr = DMPlexTSComputeIJacobianFEM(dm, time, locX, locX_t, X_tShift, Jac, JacP, user);CHKERRQ(ierr);
 
-  //ierr = MatSetOption( Jac ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
   //ierr = MatZeroRowsIS(Jac ,ctx->vesselIS,1.0,NULL,NULL);CHKERRQ(ierr);
   ierr = MatZeroRowsIS(Jac ,ctx->dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
   const PetscInt *mvalues,*nvalues;
@@ -1869,10 +1868,10 @@ int main(int argc, char **argv)
          MyCoord myTau = { (ctx.nodeB[Ii].x - ctx.nodeA[Ii].x)/seglength, (ctx.nodeB[Ii].y - ctx.nodeA[Ii].y)/seglength, (ctx.nodeB[Ii].z - ctx.nodeA[Ii].z)/seglength};
          MyCoord myvecA = { ctx.nodeA[Ii].x - dirichletCoord[Jj].x, ctx.nodeA[Ii].y - dirichletCoord[Jj].y, ctx.nodeA[Ii].z - dirichletCoord[Jj].z};
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
-         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA) ) ;
+         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
 
          ctx.bcValue[Jj] =  ctx.bcValue[Jj] -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx.greensVesselBoundary[Ii])* greensDirichletBoundary;
-         //std::cout << ctx.greensVesselBoundary.size()*2*Jj+2*Ii << " " << ctx.greensVesselBoundary.size()*2*Jj+2*Ii + 1 << " " << std::flush ;
+         //std::cout << Ii << " " <<  Jj << " " <<  greensDirichletBoundary << " " << std::flush ;
          ctx.rowValue[ctx.greensVesselBoundary.size()*2*Jj+2*Ii] = 0.5* beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
          ctx.rowValue[ctx.greensVesselBoundary.size()*2*Jj+2*Ii+1] = 0.5* beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
       }
@@ -1896,11 +1895,10 @@ int main(int argc, char **argv)
      // ierr = DMGlobalToLocalEnd(  dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
 
      // view solve direction
-     char              vtkfilenametemplate[PETSC_MAX_PATH_LEN];
-     ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssetup%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
+     char              vtkfilenametemplatesetup[PETSC_MAX_PATH_LEN];
+     ierr = PetscSNPrintf(vtkfilenametemplatesetup,sizeof(vtkfilenametemplatesetup),"%ssetup%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
      ierr = VecISSet(u ,ctx.vesselIS,ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
-     ierr = TSMonitorSolutionVTK(ts,0,1.e9,                 u,vtkfilenametemplate);CHKERRQ(ierr);
-     //ierr = TSMonitorSolutionVTK(ts,1,1.e9,ctx.solvedirection,vtkfilenametemplate);CHKERRQ(ierr);
+     ierr = TSMonitorSolutionVTK(ts,0,1.e9,u,vtkfilenametemplatesetup);CHKERRQ(ierr);
      if ( ctx.debugfd ) 
        {
          Vec        debugids;
@@ -1911,7 +1909,7 @@ int main(int argc, char **argv)
          ierr = VecGetArray(debugids,&array);
          for (iii=0; iii<nlocal; iii++) array[iii] = iii;
          ierr = VecRestoreArray(debugids,&array);
-         ierr = TSMonitorSolutionVTK(ts,2,1.e9,debugids,vtkfilenametemplate);CHKERRQ(ierr);
+         ierr = TSMonitorSolutionVTK(ts,3,1.e9,debugids,vtkfilenametemplatesetup);CHKERRQ(ierr);
          ierr = VecDestroy(&debugids);CHKERRQ(ierr);
        }
 
@@ -1948,6 +1946,7 @@ int main(int argc, char **argv)
 
      //ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&ctx,(void*)&TSMonitorSolutionVTKDestroy);CHKERRQ(ierr);
      // write vtk file at every time point
+     char              vtkfilenametemplate[PETSC_MAX_PATH_LEN];
      ierr = PetscSNPrintf(vtkfilenametemplate,sizeof(vtkfilenametemplate),"%ssolution%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
      ierr = TSMonitorSet(ts,TSMonitorModuloVTK,&vtkfilenametemplate,NULL);CHKERRQ(ierr);
      char              resvtkfilenametemplate[PETSC_MAX_PATH_LEN];
@@ -1999,12 +1998,14 @@ int main(int argc, char **argv)
      ierr = VecAssemblyBegin(rinit);
      ierr = VecAssemblyEnd(rinit);
 
+     ierr = TSMonitorSolutionVTK(ts,1,1.e9,rinit,vtkfilenametemplatesetup);CHKERRQ(ierr);
 
      Mat myjmat, mypmat;
      ierr = SNESGetJacobian(mysnes,&myjmat,&mypmat,NULL,NULL);CHKERRQ(ierr);
      ierr = SNESComputeJacobian(mysnes,uinit,myjmat,mypmat);CHKERRQ(ierr);
-     ierr = MatZeroRowsIS(myjmat ,ctx.dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
      ierr = MatSetOption( myjmat ,MAT_KEEP_NONZERO_PATTERN,PETSC_FALSE);CHKERRQ(ierr);
+     ierr = MatZeroRowsIS(myjmat ,ctx.dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
+     ierr = MatSetOption(myjmat , MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE) ;CHKERRQ(ierr);
 
      const PetscInt *mvalues,*nvalues;
      PetscInt mSize,nSize;
@@ -2014,6 +2015,7 @@ int main(int argc, char **argv)
      ierr = ISGetSize(ctx.vesselIS, &nSize);CHKERRQ(ierr);
      ierr = ISGetIndices(ctx.vesselIS, &nvalues);CHKERRQ(ierr);
 
+     //ierr = MatZeroEntries(myjmat);
      ierr = MatSetValues(myjmat ,mSize,mvalues,nSize,nvalues,ctx.rowValue,ADD_VALUES);CHKERRQ(ierr);
 
      ierr = ISRestoreIndices(ctx.dirichletIS, &mvalues);CHKERRQ(ierr);
@@ -2021,8 +2023,14 @@ int main(int argc, char **argv)
 
      ierr = MatAssemblyBegin(myjmat,MAT_FINAL_ASSEMBLY );
      ierr = MatAssemblyEnd(myjmat,MAT_FINAL_ASSEMBLY);
-     ierr = MatSetOption( myjmat ,MAT_KEEP_NONZERO_PATTERN,PETSC_TRUE);CHKERRQ(ierr);
 
+     //{
+     //  PetscViewer matviewer;
+     //  PetscViewerASCIIOpen(PETSC_COMM_WORLD,"myjmat.m",&matviewer);
+     //  PetscViewerPushFormat(matviewer,	PETSC_VIEWER_ASCII_MATLAB);
+     //  ierr = MatView(myjmat, matviewer);
+     //  PetscViewerDestroy(&matviewer);
+     //}
 
      ierr = KSPSetOperators(myksp,myjmat,mypmat);CHKERRQ(ierr);
      //ierr = KSPSolve(myksp,rinit,sinit);CHKERRQ(ierr);
@@ -2039,6 +2047,8 @@ int main(int argc, char **argv)
      ierr = VecDestroy(&uinit);CHKERRQ(ierr);
      ierr = VecDestroy(&rinit);CHKERRQ(ierr);
      ierr = VecDestroy(&sinit);CHKERRQ(ierr);
+     // view solution
+     ierr = TSMonitorSolutionVTK(ts,2,1.e9,u,vtkfilenametemplatesetup);CHKERRQ(ierr);
 
      // solve full problem 
      ierr = TSSetTime(ts, 0.0);CHKERRQ(ierr);
