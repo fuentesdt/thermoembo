@@ -1,5 +1,5 @@
 // 22.3*50/.1 = 11150.0
-// mpirun -n 12 ./thermoembo-arch-xenial-gcc-5.4.0-dbg -dim 3  -ts_max_steps 11150 -ts_dt 1.e-1 -modulowrite 223 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_max_it 1000 -ksp_rtol 1.e-3 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short  -snes_converged_reason -ts_monitor -log_summary  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57  -phasepresolve_pc_type fieldsplit -phasepresolve_ksp_type preonly  -phasepresolve_ts_type beuler -phasepresolve_ts_max_steps 0 -phasepresolve_fieldsplit_1_pc_type bjacobi -phasepresolve_fieldsplit_1_ksp_type gmres -phasepresolve_fieldsplit_d_ksp_type preonly -phasepresolve_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_monitor_short -phasepresolve_fieldsplit_d_ksp_monitor_short -phasepresolve_fieldsplit_1_ksp_rtol 1.e-12 -phasepresolve_fieldsplit_d_pc_type none -phasepresolve_ksp_converged_reason -phasepresolve_snes_type ksponly -phasepresolve_snes_monitor_short -phasepresolve_snes_lag_jacobian 1  -phasepresolve_snes_converged_reason -phasepresolve_ksp_view -phasepresolve_ts_monitor   -phasepresolve_pc_fieldsplit_type additive -vtk ./mytetmeshimage.vtk  -mesh ./meshSphere.exo -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13  -snes_max_linear_solve_fail 10 -snes_max_fail 10                  > log`date +%s`   2>&1
+// mpirun -n 12 ./thermoembo-arch-xenial-gcc-5.4.0-dbg -dim 3  -ts_max_steps 11150 -ts_dt 1.e-1 -modulowrite 223 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -auxtemp_petscspace_degree 1 -auxpres_petscspace_degree 1 -auxconc_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_max_it 1000 -ksp_rtol 1.e-3 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short  -snes_converged_reason -ts_monitor -log_summary  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57 -vtk ./mytetmeshimage.vtk  -mesh ./meshSphere.exo -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13  -snes_max_linear_solve_fail 10 -snes_max_fail 10                  > log`date +%s`   2>&1
 
 
 
@@ -35,6 +35,7 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 #include <vtkPolyData.h>
 #include <vector>
 #include <algorithm> 
+#include <assert.h>
 
 /*
   parabolic equation:
@@ -107,7 +108,6 @@ typedef struct {
   IS         dirichletIS, dirichletISLocal;
   Vec        solvedirection, locDirection;
   IS   isnotstate;
-  CoeffType      variableCoefficient;
   // store vessel data
   std::vector<int> vesselElements;
   std::vector<PetscScalar>  greensVesselBoundary;
@@ -379,9 +379,10 @@ static void f1_p(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f1[])
 { // break PetscFEIntegrateResidual_Basic
   PetscInt d;
-  double   totalmobility = u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]+(1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD];
-  PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
-  for (d = 0; d < dim; ++d) f1[d] = u_x[uOff_x[FIELD_PRESSURE]+d] * totalmobility +  u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL] * dpds * u_x[uOff_x[FIELD_SATURATION]+d];
+  // double   totalmobility = u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]+(1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD];
+  // PetscReal  dpds    = -constants[PARAM_DISPLACEMENTPRESSURE]/2.0/(sqrt(1- PetscMin(1, u[FIELD_SATURATION])+_globalepsilon)+_globalepsilon) ;
+  double   totalmobility = constants[PARAM_KMURATIOOIL];
+  for (d = 0; d < dim; ++d) f1[d] = u_x[uOff_x[FIELD_PRESSURE]+d] * totalmobility; // +  u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL] * dpds * u_x[uOff_x[FIELD_SATURATION]+d];
 }
 
 static void g3_pp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -390,7 +391,8 @@ static void g3_pp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                   PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g3[])
 { // break PetscFEIntegrateJacobian_Basic
   PetscInt   d;
-  double   totalmobility = u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]+(1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD];
+  //double   totalmobility = u[FIELD_SATURATION]*constants[PARAM_KMURATIOOIL]+(1-u[FIELD_SATURATION])*constants[PARAM_KMURATIOBLOOD];
+  double   totalmobility = constants[PARAM_KMURATIOOIL];
   for (d = 0; d < dim; ++d) g3[d*dim+d] =  totalmobility;
 }
 
@@ -1074,7 +1076,6 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->dim     = 3;
   options->modulowrite = 1; /* write all timesteps by default */
   options->simplex = PETSC_TRUE;
-  options->variableCoefficient = COEFF_NONE;
   options->fieldBC             = PETSC_FALSE;
   options->solvesystem         = PETSC_FALSE;
   options->debugfd             = PETSC_FALSE;
@@ -1242,6 +1243,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   // convenience
   options->parameters[PARAM_SATURATION_SOURCE  ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]/options->parameters[PARAM_RHOBLOOD];
   options->parameters[PARAM_PRESSURE_SOURCE    ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*(1./options->parameters[PARAM_RHOBLOOD] - 1./options->parameters[PARAM_RHOOIL]);
+  options->parameters[PARAM_PRESSURE_SOURCE    ] = 0.0;
   options->parameters[PARAM_TEMPERATURE_SOURCE ] = gammaconst*options->parameters[PARAM_RHODCACL]*options->parameters[PARAM_EPSILON]*options->parameters[PARAM_POROSITY]/options->parameters[PARAM_RHOBLOOD] /options->parameters[PARAM_SPECIFICHEATBLOOD] /molecularmass * heatofreaction/ options->temperaturescaling ; // [(1/s) / (kg/mole) / (J/kg/K) * (J/mole)  (1hK/100K) ] = [hK/s]
 
   // echo parameters
@@ -1374,7 +1376,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
     // wetting phase pressure equations
     ierr = PetscDSSetResidual(  prob, FIELD_PRESSURE, f0_p, f1_p);CHKERRQ(ierr);
     ierr = PetscDSSetJacobian(  prob, FIELD_PRESSURE, FIELD_PRESSURE  , NULL, NULL, NULL,g3_pp);CHKERRQ(ierr);
-    ierr = PetscDSSetJacobian(  prob, FIELD_PRESSURE, FIELD_SATURATION,g0_ps, NULL,g2_ps,g3_ps);CHKERRQ(ierr);
+    ierr = PetscDSSetJacobian(  prob, FIELD_PRESSURE, FIELD_SATURATION,g0_ps, NULL,NULL,NULL);CHKERRQ(ierr);
+    //ierr = PetscDSSetJacobian(  prob, FIELD_PRESSURE, FIELD_SATURATION,g0_ps, NULL,g2_ps,g3_ps);CHKERRQ(ierr);
     //ierr = PetscDSSetBdResidual(prob, FIELD_PRESSURE, f0_bd_p, NULL);CHKERRQ(ierr);
     // debug
     // ierr = PetscDSSetResidual(  prob, FIELD_PRESSURE, f0_damg, NULL);CHKERRQ(ierr);
@@ -1445,71 +1448,324 @@ static PetscErrorCode SetupMaterial(DM dm, DM dmAux, AppCtx *user)
   ierr = VecDestroy(&nu);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
+static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *lctx)
+{
+  AppCtx *ctx = (AppCtx*)lctx;
+  assert(lctx);
+  u[0] = 0.0;
+      for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
+      {
+         PetscScalar distA = sqrt( (ctx->nodeA[Ii].x - x[0])*(ctx->nodeA[Ii].x - x[0])
+                                  +(ctx->nodeA[Ii].y - x[1])*(ctx->nodeA[Ii].y - x[1])
+                                  +(ctx->nodeA[Ii].z - x[2])*(ctx->nodeA[Ii].z - x[2]));
+         PetscScalar distB = sqrt( (ctx->nodeB[Ii].x - x[0])*(ctx->nodeB[Ii].x - x[0])
+                                  +(ctx->nodeB[Ii].y - x[1])*(ctx->nodeB[Ii].y - x[1])
+                                  +(ctx->nodeB[Ii].z - x[2])*(ctx->nodeB[Ii].z - x[2]));
+         PetscScalar seglength = sqrt( (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)*(ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)
+                                      +(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)*(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)
+                                      +(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)*(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z));
+         MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength};
+         MyCoord myvecA = { ctx->nodeA[Ii].x - x[0], ctx->nodeA[Ii].y - x[1], ctx->nodeA[Ii].z - x[2]};
+         PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
+         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
+         u[0] = u[0] + greensDirichletBoundary ;
+      }
+  return 0;
+}
 
+static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
+{
+  PetscInt        num_vs, num_fs, skipCells = 0;
+  DM             cdm;
+  PetscErrorCode ierr;
+
+
+  ierr = DMGetLabelSize(dm, "Vertex Sets", &num_vs);CHKERRQ(ierr);
+  ierr = DMGetLabelSize(dm, "Face Sets", &num_fs);CHKERRQ(ierr);
+  PetscBool       hasLabel;
+  std::vector<int> dirichletNodes,dirichletNodesLocal;
+  std::vector<MyCoord> dirichletCoord;
+  DMHasLabel(dm, "Vertex Sets", &hasLabel);
+
+  PetscInt        vvv, vs, vsSize,nValues,sValues;
+  const PetscInt *vsIdx, *vertices;
+  PetscInt       *nodeList;
+  IS              vsIS, ssIS,  stratumIS;
+  DMLabel         vsLabel,ssLabel;
+  PetscSection    vsSection;
+  const PetscInt *values,*salues;
+  // get coord
+  Vec coordinates;
+  PetscSection cs, csglobal;
+
+  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
+  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
+  ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
+  ierr = DMGetGlobalSection(dm, &csglobal);CHKERRQ(ierr);
+
+  ISLocalToGlobalMapping myltog;
+  ierr = DMGetLocalToGlobalMapping(dm,&myltog);
+  //ISLocalToGlobalMappingView(myltog,0);
+
+  //const PetscInt         *g_idx;
+  //PetscInt         locglobSize;
+  //ierr = ISLocalToGlobalMappingGetSize(myltog,&locglobSize) ;
+  //ierr = ISLocalToGlobalMappingGetIndices(myltog,&g_idx);
+  //ierr = ISLocalToGlobalMappingRestoreIndices(myltog,&g_idx);
+
+  const PetscScalar *coords;
+  ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
+
+  ierr = DMGetLabel(dm, "Face Sets", &ssLabel);CHKERRQ(ierr);
+  ierr = DMLabelGetNumValues(ssLabel, &sValues);CHKERRQ(ierr);
+  ierr = DMLabelGetValueIS(ssLabel, &ssIS);CHKERRQ(ierr);
+  ierr = ISGetIndices(ssIS, &salues);CHKERRQ(ierr);
+  for (vvv = 0; vvv < sValues; ++vvv) {
+    IS              is;
+    const PetscInt *spoints;
+    PetscInt        dof, off, offcoord, sssize,dofloc,offloc;
+    ierr = DMLabelGetStratumIS(ssLabel, salues[vvv], &is);CHKERRQ(ierr);
+    ierr = DMLabelGetStratumSize(ssLabel, salues[vvv], &sssize);CHKERRQ(ierr);
+    ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
+    for (PetscInt aaa = 0 ; aaa < sssize; aaa++ ){
+      ierr = PetscSectionGetDof(csglobal, spoints[aaa], &dof);CHKERRQ(ierr);
+      ierr = PetscSectionGetOffset(csglobal, spoints[aaa], &off );CHKERRQ(ierr);
+      if(dof > 0){
+          dirichletNodes.push_back(off);
+          ierr = PetscSectionGetOffset(cs, spoints[aaa], &offcoord);CHKERRQ(ierr);
+          dirichletCoord.push_back({coords[offcoord],coords[offcoord+1],coords[offcoord+2]});
+          ierr = PetscSectionGetDof(cs, spoints[aaa], &dofloc);CHKERRQ(ierr);
+          ierr = PetscSectionGetOffset(cs, spoints[aaa], &offloc );CHKERRQ(ierr);
+          if(dofloc > 0) dirichletNodesLocal.push_back(offloc);
+        }
+     }
+
+    ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
+    ierr = ISDestroy(&is);CHKERRQ(ierr);
+  }
+
+
+  ierr = DMGetLabel(dm, "Vertex Sets", &vsLabel);CHKERRQ(ierr);
+  ierr = DMLabelGetNumValues(vsLabel, &nValues);CHKERRQ(ierr);
+  ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
+  ierr = ISGetIndices(vsIS, &values);CHKERRQ(ierr);
+  std::vector<int> vesselNodes;
+  std::vector<int> vesselNodesLocal;
+  //  DMLabelConvertToSection  DMPlexView_ExodusII_Internal
+  for (vvv = 0; vvv < nValues; ++vvv) {
+    IS              is;
+    const PetscInt *spoints;
+    PetscInt        dofA, offA, dofB, offB, nssize;
+    PetscInt       globdofA,globoffA,globdofB,globoffB;
+
+    ierr = DMLabelGetStratumIS(vsLabel, values[vvv], &is);CHKERRQ(ierr);
+    ierr = DMLabelGetStratumSize(vsLabel, values[vvv], &nssize);CHKERRQ(ierr);
+    ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(cs, spoints[0], &dofA);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(cs, spoints[0], &offA );CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(cs, spoints[1], &dofB);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(cs, spoints[1], &offB );CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(csglobal, spoints[0], &globdofA);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(csglobal, spoints[0], &globoffA );CHKERRQ(ierr);
+    ierr = PetscSectionGetDof(csglobal, spoints[1], &globdofB);CHKERRQ(ierr);
+    ierr = PetscSectionGetOffset(csglobal, spoints[1], &globoffB );CHKERRQ(ierr);
+    ctx->nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2]});
+    ctx->nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2]});
+    ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
+    vesselNodes.push_back(globoffA);
+    vesselNodes.push_back(globoffB);
+    vesselNodesLocal.push_back(offA);
+    vesselNodesLocal.push_back(offB);
+
+    ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
+    ierr = ISDestroy(&is);CHKERRQ(ierr);
+  }
+  ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
+  ierr = ISRestoreIndices(vsIS, &values);CHKERRQ(ierr);
+  ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
+  
+  //removing duplicates messes up the order
+  //std::sort (vesselNodesLocal.begin(),vesselNodesLocal.end()); 
+  //vesselNodesLocal.erase( std::unique( vesselNodesLocal.begin(), vesselNodesLocal.end() ), vesselNodesLocal.end() );
+
+  // create IS
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodes.size(),&dirichletNodes[0],PETSC_COPY_VALUES,&ctx->dirichletIS);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodesLocal.size(),&dirichletNodesLocal[0],PETSC_COPY_VALUES,&ctx->dirichletISLocal);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodes.size(),&vesselNodes[0],PETSC_COPY_VALUES,&ctx->vesselIS);
+  ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodesLocal.size(),&vesselNodesLocal[0],PETSC_COPY_VALUES,&ctx->vesselISLocal);
+
+  // precompute green function at vessel element
+  for (PetscInt iii = 0 ; iii < ctx->nodeB.size(); iii++ )
+   {
+       // FIXME --- need to read in radius --- PetscScalar segrad    = 0.5 * (nodeBrad + nodeArad);
+       PetscScalar segrad    = .001; //mm
+       PetscScalar seglength = sqrt( (ctx->nodeB[iii].x - ctx->nodeA[iii].x)*(ctx->nodeB[iii].x - ctx->nodeA[iii].x)
+                                    +(ctx->nodeB[iii].y - ctx->nodeA[iii].y)*(ctx->nodeB[iii].y - ctx->nodeA[iii].y)
+                                    +(ctx->nodeB[iii].z - ctx->nodeA[iii].z)*(ctx->nodeB[iii].z - ctx->nodeA[iii].z));
+       ctx->greensVesselBoundary.push_back(  2* PETSC_PI * log( ( sqrt(.5*seglength*seglength+ segrad * segrad ) + 1.5*seglength )/ ( sqrt(.5*seglength*seglength+ segrad * segrad )  + .5*seglength   )) );
+   }
+  // setup BC data structures
+  ierr = PetscMalloc1(dirichletCoord.size(), &ctx->bcValue);CHKERRQ(ierr);
+  ierr = PetscMalloc1(dirichletCoord.size()*ctx->greensVesselBoundary.size()*2, &ctx->rowValue);CHKERRQ(ierr);
+  //FIXME - need real params
+  PetscScalar beta1d = 100.0 , lambda = .8; 
+  if(ctx->greensVesselBoundary.size())
+   {
+    for (PetscInt Jj = 0 ; Jj < dirichletCoord.size(); Jj++ )
+     {
+      ctx->bcValue[Jj] =  ctx->parameters[PARAM_BOUNDARYPRESSURE];
+      for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
+      {
+         PetscScalar distA = sqrt( (ctx->nodeA[Ii].x - dirichletCoord[Jj].x)*(ctx->nodeA[Ii].x - dirichletCoord[Jj].x)
+                                  +(ctx->nodeA[Ii].y - dirichletCoord[Jj].y)*(ctx->nodeA[Ii].y - dirichletCoord[Jj].y)
+                                  +(ctx->nodeA[Ii].z - dirichletCoord[Jj].z)*(ctx->nodeA[Ii].z - dirichletCoord[Jj].z));
+         PetscScalar distB = sqrt( (ctx->nodeB[Ii].x - dirichletCoord[Jj].x)*(ctx->nodeB[Ii].x - dirichletCoord[Jj].x)
+                                  +(ctx->nodeB[Ii].y - dirichletCoord[Jj].y)*(ctx->nodeB[Ii].y - dirichletCoord[Jj].y)
+                                  +(ctx->nodeB[Ii].z - dirichletCoord[Jj].z)*(ctx->nodeB[Ii].z - dirichletCoord[Jj].z));
+         PetscScalar seglength = sqrt( (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)*(ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)
+                                      +(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)*(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)
+                                      +(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)*(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z));
+         MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength};
+         MyCoord myvecA = { ctx->nodeA[Ii].x - dirichletCoord[Jj].x, ctx->nodeA[Ii].y - dirichletCoord[Jj].y, ctx->nodeA[Ii].z - dirichletCoord[Jj].z};
+         PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
+         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
+
+         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
+         //std::cout << Ii << " " <<  Jj << " " <<  greensDirichletBoundary << " " << std::flush ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii] = 0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = 0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+      }
+
+     }
+
+   }
+  PetscFunctionReturn(0);
+}
+
+static PetscErrorCode SetupGreensFunction(DM dm, DM dmAux, AppCtx *ctx)
+{
+  PetscErrorCode (*eqFuncs[3])(PetscInt, PetscReal, const PetscReal [], PetscInt, PetscScalar [], void *) = {greenFunction, greenFunction, greenFunction};
+  Vec            eq;
+  PetscErrorCode ierr;
+  AppCtx *ctxarr[3];
+
+  ctxarr[0] = ctxarr[1] = ctxarr[2] = ctx; /* each variable could have a different context */
+  PetscFunctionBegin;
+  ierr = ComputeGreensFunction(dm, ctx);CHKERRQ(ierr);
+
+  ierr = DMCreateLocalVector(dmAux, &eq);CHKERRQ(ierr);
+  ierr = DMProjectFunctionLocal(dmAux, 0.0, eqFuncs, (void **)ctxarr, INSERT_ALL_VALUES, eq);CHKERRQ(ierr);
+  ierr = PetscObjectCompose((PetscObject) dm, "A", (PetscObject) eq);CHKERRQ(ierr);
+  {  /* plot reference functions */
+    PetscViewer       viewer = NULL;
+    PetscBool         isHDF5,isVTK;
+    char              buf[256];
+    Vec               global;
+    ierr = DMCreateGlobalVector(dmAux,&global);CHKERRQ(ierr);
+    ierr = VecSet(global,.0);CHKERRQ(ierr); /* BCs! */
+    ierr = DMLocalToGlobalBegin(dmAux,eq,INSERT_VALUES,global);CHKERRQ(ierr);
+    ierr = DMLocalToGlobalEnd(dmAux,eq,INSERT_VALUES,global);CHKERRQ(ierr);
+    ierr = PetscViewerCreate(PetscObjectComm((PetscObject)dmAux),&viewer);CHKERRQ(ierr);
+    ierr = PetscViewerSetType(viewer,PETSCVIEWERVTK);CHKERRQ(ierr);
+    ierr = PetscViewerSetFromOptions(viewer);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERHDF5,&isHDF5);CHKERRQ(ierr);
+    ierr = PetscObjectTypeCompare((PetscObject)viewer,PETSCVIEWERVTK,&isVTK);CHKERRQ(ierr);
+    if (isHDF5) {
+      ierr = PetscSNPrintf(buf, 256, "auxFields%dD.h5", ctx->dim);CHKERRQ(ierr);
+    } else if (isVTK) {
+      ierr = PetscSNPrintf(buf, 256, "auxFields%dD.vtu", ctx->dim);CHKERRQ(ierr);
+      ierr = PetscViewerPushFormat(viewer,PETSC_VIEWER_VTK_VTU);CHKERRQ(ierr);
+    }
+    ierr = PetscViewerFileSetMode(viewer,FILE_MODE_WRITE);CHKERRQ(ierr);
+    ierr = PetscViewerFileSetName(viewer,buf);CHKERRQ(ierr);
+    if (isHDF5) {ierr = DMView(dmAux,viewer);CHKERRQ(ierr);}
+    /* view equilibrium fields, this will overwrite fine grids with coarse grids! */
+    ierr = PetscObjectSetName((PetscObject) global, "u0");CHKERRQ(ierr);
+    ierr = VecView(global,viewer);CHKERRQ(ierr);
+    ierr = PetscViewerDestroy(&viewer);CHKERRQ(ierr);
+    ierr = VecDestroy(&global);CHKERRQ(ierr);
+  }
+  ierr = VecDestroy(&eq);CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
 
 static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
 {
   DM             cdm = dm;
   const PetscInt dim = ctx->dim;
-  PetscFE        feAux = NULL;
   PetscDS        prob, probAux = NULL;
-  PetscFE        fe[5];
+  PetscInt       Nf = 5, NfAux = 3, fff;
+  PetscFE        fe[Nf ], feAux[NfAux ];
   PetscQuadrature q;
+  MPI_Comm        comm;
   PetscErrorCode ierr;
 
   PetscFunctionBeginUser;
   /* Create finite element */
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "phas_", PETSC_DEFAULT, &fe[FIELD_PHASE]);CHKERRQ(ierr);
-  ierr = PetscFEGetQuadrature(fe[FIELD_PHASE], &q);CHKERRQ(ierr);
+  ierr = PetscObjectGetComm((PetscObject) dm, &comm);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "phas_", PETSC_DEFAULT, &fe[FIELD_PHASE]);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe[FIELD_PHASE], "phasefield");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "temp_", -1, &fe[FIELD_TEMPERATURE]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[FIELD_TEMPERATURE], q);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "temp_", PETSC_DEFAULT, &fe[FIELD_TEMPERATURE]);CHKERRQ(ierr);
+  //ierr = PetscFESetQuadrature(fe[FIELD_TEMPERATURE], q);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe[FIELD_TEMPERATURE], "temperature");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "damg_", PETSC_DEFAULT, &fe[FIELD_DAMAGE]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[FIELD_DAMAGE], q);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "damg_", PETSC_DEFAULT, &fe[FIELD_DAMAGE]);CHKERRQ(ierr);
+  //ierr = PetscFESetQuadrature(fe[FIELD_DAMAGE], q);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe[FIELD_DAMAGE], "damage");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "pres_", PETSC_DEFAULT, &fe[FIELD_PRESSURE]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[FIELD_PRESSURE], q);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "pres_", PETSC_DEFAULT, &fe[FIELD_PRESSURE]);CHKERRQ(ierr);
+  //ierr = PetscFESetQuadrature(fe[FIELD_PRESSURE], q);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe[FIELD_PRESSURE], "pressure");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "conc_", PETSC_DEFAULT, &fe[FIELD_SATURATION]);CHKERRQ(ierr);
-  ierr = PetscFESetQuadrature(fe[FIELD_SATURATION], q);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "conc_", PETSC_DEFAULT, &fe[FIELD_SATURATION]);CHKERRQ(ierr);
+  //ierr = PetscFESetQuadrature(fe[FIELD_SATURATION], q);CHKERRQ(ierr);
   ierr = PetscObjectSetName((PetscObject) fe[FIELD_SATURATION], "concentration");CHKERRQ(ierr);
 
-  /* Setup Variable Coeff */
-  if (ctx->variableCoefficient == COEFF_FIELD) {
-
-    ierr = PetscFECreateDefault(PetscObjectComm((PetscObject) dm), dim, 1, ctx->simplex, "mat_", -1, &feAux);CHKERRQ(ierr);
-    ierr = PetscFESetQuadrature(feAux, q);CHKERRQ(ierr);
-    ierr = PetscDSCreate(PetscObjectComm((PetscObject)dm),&probAux);CHKERRQ(ierr);
-    ierr = PetscDSSetDiscretization(probAux, 0, (PetscObject) feAux);CHKERRQ(ierr);
-  } 
+  /* Setup Auxillary Field */
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "auxpres_", PETSC_DEFAULT, &feAux[FIELD_PRESSURE]);CHKERRQ(ierr);
+  ierr = PetscFEGetQuadrature(fe[FIELD_PRESSURE], &q);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(feAux[FIELD_PRESSURE], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) feAux[FIELD_PRESSURE], "green_p");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "auxconc_", PETSC_DEFAULT, &feAux[FIELD_SATURATION]);CHKERRQ(ierr);
+  ierr = PetscFEGetQuadrature(fe[FIELD_SATURATION], &q);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(feAux[FIELD_SATURATION], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) feAux[FIELD_SATURATION], "green_c");CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, dim, 1, ctx->simplex, "auxtemp_", PETSC_DEFAULT, &feAux[FIELD_TEMPERATURE]);CHKERRQ(ierr);
+  ierr = PetscFEGetQuadrature(fe[FIELD_TEMPERATURE], &q);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(feAux[FIELD_TEMPERATURE], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject) feAux[FIELD_TEMPERATURE], "green_u");CHKERRQ(ierr);
 
   /* Set discretization and boundary conditions for each mesh */
   ierr = DMGetDS(dm, &prob);CHKERRQ(ierr);
-  ierr = PetscDSSetDiscretization(prob, 0, (PetscObject) fe[0]);CHKERRQ(ierr);
-  ierr = PetscDSSetDiscretization(prob, 1, (PetscObject) fe[1]);CHKERRQ(ierr);
-  ierr = PetscDSSetDiscretization(prob, 2, (PetscObject) fe[2]);CHKERRQ(ierr);
-  ierr = PetscDSSetDiscretization(prob, 3, (PetscObject) fe[3]);CHKERRQ(ierr);
-  ierr = PetscDSSetDiscretization(prob, 4, (PetscObject) fe[4]);CHKERRQ(ierr);
+  for (fff = 0; fff < Nf; ++fff) {ierr = PetscDSSetDiscretization(prob, fff, (PetscObject) fe[fff]);CHKERRQ(ierr);}
+  ierr = PetscDSCreate(comm, &probAux);CHKERRQ(ierr);
+  for (fff = 0; fff < NfAux; ++fff) {ierr = PetscDSSetDiscretization(probAux, fff, (PetscObject) feAux[fff]);CHKERRQ(ierr);}
+
   ierr = SetupProblem(prob, ctx);CHKERRQ(ierr);
   while (cdm) {
-    PetscBool hasLabel;
+    DM coordDM, dmAux;
 
-    ierr = DMSetDS(cdm, prob);CHKERRQ(ierr);
-    ierr = DMHasLabel(cdm, "marker", &hasLabel);CHKERRQ(ierr);
-    if (!hasLabel) {ierr = CreateBCLabel(cdm, "marker");CHKERRQ(ierr);}
+    ierr = DMSetDS(cdm,prob);CHKERRQ(ierr);
+    ierr = DMGetCoordinateDM(cdm,&coordDM);CHKERRQ(ierr);
+    {
+      PetscBool hasLabel;
+
+      ierr = DMHasLabel(cdm, "marker", &hasLabel);CHKERRQ(ierr);
+      if (!hasLabel) {ierr = CreateBCLabel(cdm, "marker");CHKERRQ(ierr);}
+    }
+
+    ierr = DMClone(cdm, &dmAux);CHKERRQ(ierr);
+    ierr = DMSetCoordinateDM(dmAux, coordDM);CHKERRQ(ierr);
+    ierr = DMSetDS(dmAux, probAux);CHKERRQ(ierr);
+    ierr = PetscObjectCompose((PetscObject) dm, "dmAux", (PetscObject) dmAux);CHKERRQ(ierr);
+    ierr = SetupGreensFunction(cdm, dmAux, ctx);CHKERRQ(ierr);
+    ierr = DMDestroy(&dmAux);CHKERRQ(ierr);
+
     ierr = DMGetCoarseDM(cdm, &cdm);CHKERRQ(ierr);
   }
-  ierr = PetscFEDestroy(&fe[0]);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&fe[1]);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&fe[2]);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&fe[3]);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&fe[4]);CHKERRQ(ierr);
-  ierr = PetscFEDestroy(&feAux);CHKERRQ(ierr);
+  for (fff = 0; fff < Nf; ++fff) {ierr = PetscFEDestroy(&fe[fff]);CHKERRQ(ierr);}
+  for (fff = 0; fff < NfAux; ++fff) {ierr = PetscFEDestroy(&feAux[fff]);CHKERRQ(ierr);}
   ierr = PetscDSDestroy(&probAux);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1635,7 +1891,7 @@ PetscErrorCode subspaceDMPlexTSComputeIJacobianFEM(DM dm, PetscReal time, Vec lo
 int main(int argc, char **argv)
 {
   AppCtx         ctx;
-  DM             dm,cdm;
+  DM             dm;
   TS             ts;
   Vec            u; 
   PetscReal      t       = 0.0;
@@ -1675,224 +1931,9 @@ int main(int argc, char **argv)
   ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
 
 
-  //else
     {
 
-     ///* Read in previously computed solution in binary format */
-     //PetscViewer    viewer;
-     //ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
-     //ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,ctx.phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
-     //ierr = VecLoad(u,viewer); CHKERRQ(ierr);
-     //ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
 
-     //// solve outside the phase field
-     //ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
-     //for(PetscInt jjj = 0 ; jjj < ctx.numFields; jjj++)
-     //  {
-     //    if (jjj == FIELD_PRESSURE || jjj ==  FIELD_SATURATION || jjj == FIELD_TEMPERATURE) 
-     //      {
-     //       int nlocalsize;
-     //       const PetscInt *nindices;
-     //       PetscScalar  *vectordata;
-     //       ierr = ISGetLocalSize(ctx.fields[jjj],&nlocalsize);  CHKERRQ(ierr);
-     //       ierr = ISGetIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
-     //       ierr = PetscMalloc1(nlocalsize, &vectordata);CHKERRQ(ierr);
-     //       ierr = VecGetValues(u,nlocalsize, nindices,vectordata);CHKERRQ(ierr);
-
-     //       // create IS without dirichlet nodes
-     //       std::vector<int> isnotdirichlet; 
-     //       for(PetscInt kkk = 0 ; kkk < nlocalsize; kkk++) if (vectordata[kkk] < ctx.parameters[PARAM_PHASETHRESH]  )
-     //         {
-     //          isnotdirichlet.push_back(nindices[kkk] );
-     //          // ierr = PetscPrintf(PETSC_COMM_WORLD, "field=%d ix=%d y[ix]=%f \n",jjj,nindices[kkk],vectordata[kkk]);CHKERRQ(ierr);
-     //         }
-     //       ierr = ISCreateGeneral(PETSC_COMM_WORLD,isnotdirichlet.size(),&isnotdirichlet[0],PETSC_COPY_VALUES,&ctx.subfields[jjj]);
-     //       //ierr = ISView(ctx.subfields[jjj],0);
-     //       // cleanup
-     //       ierr = ISRestoreIndices(ctx.fields[jjj],&nindices); CHKERRQ(ierr);
-     //       ierr = PetscFree(vectordata);CHKERRQ(ierr);
-     //      }
-     //    else
-     //      {
-     //       ctx.subfields[jjj]  = NULL;
-     //      }
-     //  }
-      
-
-  PetscInt        num_vs, num_fs, skipCells = 0;
-  ierr = DMGetLabelSize(dm, "Vertex Sets", &num_vs);CHKERRQ(ierr);
-  ierr = DMGetLabelSize(dm, "Face Sets", &num_fs);CHKERRQ(ierr);
-  PetscBool       hasLabel;
-  std::vector<int> dirichletNodes,dirichletNodesLocal;
-  std::vector<MyCoord> dirichletCoord;
-  DMHasLabel(dm, "Vertex Sets", &hasLabel);
-
-  PetscInt        vvv, vs, vsSize,nValues,sValues;
-  const PetscInt *vsIdx, *vertices;
-  PetscInt       *nodeList;
-  IS              vsIS, ssIS,  stratumIS;
-  DMLabel         vsLabel,ssLabel;
-  PetscSection    vsSection;
-  const PetscInt *values,*salues;
-  // get coord
-  Vec coordinates;
-  PetscSection cs, csglobal;
-
-  ierr = DMGetCoordinatesLocal(dm, &coordinates);CHKERRQ(ierr);
-  ierr = DMGetCoordinateDM(dm, &cdm);CHKERRQ(ierr);
-  ierr = DMGetDefaultSection(cdm, &cs);CHKERRQ(ierr);
-  ierr = DMGetGlobalSection(dm, &csglobal);CHKERRQ(ierr);
-
-  ISLocalToGlobalMapping myltog;
-  ierr = DMGetLocalToGlobalMapping(dm,&myltog);
-  //ISLocalToGlobalMappingView(myltog,0);
-
-  //const PetscInt         *g_idx;
-  //PetscInt         locglobSize;
-  //ierr = ISLocalToGlobalMappingGetSize(myltog,&locglobSize) ;
-  //ierr = ISLocalToGlobalMappingGetIndices(myltog,&g_idx);
-  //ierr = ISLocalToGlobalMappingRestoreIndices(myltog,&g_idx);
-
-  const PetscScalar *coords;
-  ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
-
-  ierr = DMGetLabel(dm, "Face Sets", &ssLabel);CHKERRQ(ierr);
-  ierr = DMLabelGetNumValues(ssLabel, &sValues);CHKERRQ(ierr);
-  ierr = DMLabelGetValueIS(ssLabel, &ssIS);CHKERRQ(ierr);
-  ierr = ISGetIndices(ssIS, &salues);CHKERRQ(ierr);
-  for (vvv = 0; vvv < sValues; ++vvv) {
-    IS              is;
-    const PetscInt *spoints;
-    PetscInt        dof, off, offcoord, sssize,dofloc,offloc;
-    ierr = DMLabelGetStratumIS(ssLabel, salues[vvv], &is);CHKERRQ(ierr);
-    ierr = DMLabelGetStratumSize(ssLabel, salues[vvv], &sssize);CHKERRQ(ierr);
-    ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
-    for (PetscInt aaa = 0 ; aaa < sssize; aaa++ ){
-      ierr = PetscSectionGetDof(csglobal, spoints[aaa], &dof);CHKERRQ(ierr);
-      ierr = PetscSectionGetOffset(csglobal, spoints[aaa], &off );CHKERRQ(ierr);
-      if(dof > 0){
-          dirichletNodes.push_back(off);
-          ierr = PetscSectionGetOffset(cs, spoints[aaa], &offcoord);CHKERRQ(ierr);
-          dirichletCoord.push_back({coords[offcoord],coords[offcoord+1],coords[offcoord+2]});
-          ierr = PetscSectionGetDof(cs, spoints[aaa], &dofloc);CHKERRQ(ierr);
-          ierr = PetscSectionGetOffset(cs, spoints[aaa], &offloc );CHKERRQ(ierr);
-          if(dofloc > 0) dirichletNodesLocal.push_back(offloc);
-        }
-     }
-
-    ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
-    ierr = ISDestroy(&is);CHKERRQ(ierr);
-  }
-
-
-  ierr = DMGetLabel(dm, "Vertex Sets", &vsLabel);CHKERRQ(ierr);
-  ierr = DMLabelGetNumValues(vsLabel, &nValues);CHKERRQ(ierr);
-  ierr = DMLabelGetValueIS(vsLabel, &vsIS);CHKERRQ(ierr);
-  ierr = ISGetIndices(vsIS, &values);CHKERRQ(ierr);
-  std::vector<int> vesselNodes;
-  std::vector<int> vesselNodesLocal;
-  //  DMLabelConvertToSection  DMPlexView_ExodusII_Internal
-  for (vvv = 0; vvv < nValues; ++vvv) {
-    IS              is;
-    const PetscInt *spoints;
-    PetscInt        dofA, offA, dofB, offB, nssize;
-    PetscInt       globdofA,globoffA,globdofB,globoffB;
-
-    ierr = DMLabelGetStratumIS(vsLabel, values[vvv], &is);CHKERRQ(ierr);
-    ierr = DMLabelGetStratumSize(vsLabel, values[vvv], &nssize);CHKERRQ(ierr);
-    ierr = ISGetIndices(is, &spoints);CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(cs, spoints[0], &dofA);CHKERRQ(ierr);
-    ierr = PetscSectionGetOffset(cs, spoints[0], &offA );CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(cs, spoints[1], &dofB);CHKERRQ(ierr);
-    ierr = PetscSectionGetOffset(cs, spoints[1], &offB );CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(csglobal, spoints[0], &globdofA);CHKERRQ(ierr);
-    ierr = PetscSectionGetOffset(csglobal, spoints[0], &globoffA );CHKERRQ(ierr);
-    ierr = PetscSectionGetDof(csglobal, spoints[1], &globdofB);CHKERRQ(ierr);
-    ierr = PetscSectionGetOffset(csglobal, spoints[1], &globoffB );CHKERRQ(ierr);
-    ctx.nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2]});
-    ctx.nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2]});
-    ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
-    vesselNodes.push_back(globoffA);
-    vesselNodes.push_back(globoffB);
-    vesselNodesLocal.push_back(offA);
-    vesselNodesLocal.push_back(offB);
-
-    ierr = ISRestoreIndices(is, &spoints);CHKERRQ(ierr);
-    ierr = ISDestroy(&is);CHKERRQ(ierr);
-  }
-  ierr = VecRestoreArrayRead(coordinates, &coords);CHKERRQ(ierr);
-  ierr = ISRestoreIndices(vsIS, &values);CHKERRQ(ierr);
-  ierr = ISDestroy(&vsIS);CHKERRQ(ierr);
-  
-  //removing duplicates messes up the order
-  //std::sort (vesselNodesLocal.begin(),vesselNodesLocal.end()); 
-  //vesselNodesLocal.erase( std::unique( vesselNodesLocal.begin(), vesselNodesLocal.end() ), vesselNodesLocal.end() );
-
-  // create IS
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodes.size(),&dirichletNodes[0],PETSC_COPY_VALUES,&ctx.dirichletIS);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD,dirichletNodesLocal.size(),&dirichletNodesLocal[0],PETSC_COPY_VALUES,&ctx.dirichletISLocal);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodes.size(),&vesselNodes[0],PETSC_COPY_VALUES,&ctx.vesselIS);
-  ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodesLocal.size(),&vesselNodesLocal[0],PETSC_COPY_VALUES,&ctx.vesselISLocal);
-
-  // precompute green function at vessel element
-  for (PetscInt iii = 0 ; iii < ctx.nodeB.size(); iii++ )
-   {
-       // FIXME --- need to read in radius --- PetscScalar segrad    = 0.5 * (nodeBrad + nodeArad);
-       PetscScalar segrad    = .001; //mm
-       PetscScalar seglength = sqrt( (ctx.nodeB[iii].x - ctx.nodeA[iii].x)*(ctx.nodeB[iii].x - ctx.nodeA[iii].x)
-                                    +(ctx.nodeB[iii].y - ctx.nodeA[iii].y)*(ctx.nodeB[iii].y - ctx.nodeA[iii].y)
-                                    +(ctx.nodeB[iii].z - ctx.nodeA[iii].z)*(ctx.nodeB[iii].z - ctx.nodeA[iii].z));
-       ctx.greensVesselBoundary.push_back(  2* PETSC_PI * log( ( sqrt(.5*seglength*seglength+ segrad * segrad ) + 1.5*seglength )/ ( sqrt(.5*seglength*seglength+ segrad * segrad )  + .5*seglength   )) );
-   }
-  // setup BC data structures
-  ierr = PetscMalloc1(dirichletCoord.size(), &ctx.bcValue);CHKERRQ(ierr);
-  ierr = PetscMalloc1(dirichletCoord.size()*ctx.greensVesselBoundary.size()*2, &ctx.rowValue);CHKERRQ(ierr);
-  //FIXME - need real params
-  PetscScalar beta1d = 2.0 , lambda = .8; 
-  if(ctx.greensVesselBoundary.size())
-   {
-    for (PetscInt Jj = 0 ; Jj < dirichletCoord.size(); Jj++ )
-     {
-      ctx.bcValue[Jj] =  ctx.parameters[PARAM_BOUNDARYPRESSURE];
-      for (PetscInt Ii = 0 ; Ii < ctx.greensVesselBoundary.size(); Ii++ )
-      {
-         PetscScalar distA = sqrt( (ctx.nodeA[Ii].x - dirichletCoord[Jj].x)*(ctx.nodeA[Ii].x - dirichletCoord[Jj].x)
-                                  +(ctx.nodeA[Ii].y - dirichletCoord[Jj].y)*(ctx.nodeA[Ii].y - dirichletCoord[Jj].y)
-                                  +(ctx.nodeA[Ii].z - dirichletCoord[Jj].z)*(ctx.nodeA[Ii].z - dirichletCoord[Jj].z));
-         PetscScalar distB = sqrt( (ctx.nodeB[Ii].x - dirichletCoord[Jj].x)*(ctx.nodeB[Ii].x - dirichletCoord[Jj].x)
-                                  +(ctx.nodeB[Ii].y - dirichletCoord[Jj].y)*(ctx.nodeB[Ii].y - dirichletCoord[Jj].y)
-                                  +(ctx.nodeB[Ii].z - dirichletCoord[Jj].z)*(ctx.nodeB[Ii].z - dirichletCoord[Jj].z));
-         PetscScalar seglength = sqrt( (ctx.nodeB[Ii].x - ctx.nodeA[Ii].x)*(ctx.nodeB[Ii].x - ctx.nodeA[Ii].x)
-                                      +(ctx.nodeB[Ii].y - ctx.nodeA[Ii].y)*(ctx.nodeB[Ii].y - ctx.nodeA[Ii].y)
-                                      +(ctx.nodeB[Ii].z - ctx.nodeA[Ii].z)*(ctx.nodeB[Ii].z - ctx.nodeA[Ii].z));
-         MyCoord myTau = { (ctx.nodeB[Ii].x - ctx.nodeA[Ii].x)/seglength, (ctx.nodeB[Ii].y - ctx.nodeA[Ii].y)/seglength, (ctx.nodeB[Ii].z - ctx.nodeA[Ii].z)/seglength};
-         MyCoord myvecA = { ctx.nodeA[Ii].x - dirichletCoord[Jj].x, ctx.nodeA[Ii].y - dirichletCoord[Jj].y, ctx.nodeA[Ii].z - dirichletCoord[Jj].z};
-         PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
-         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
-
-         ctx.bcValue[Jj] =  ctx.bcValue[Jj] -  beta1d * ctx.parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx.greensVesselBoundary[Ii])* greensDirichletBoundary;
-         //std::cout << Ii << " " <<  Jj << " " <<  greensDirichletBoundary << " " << std::flush ;
-         ctx.rowValue[ctx.greensVesselBoundary.size()*2*Jj+2*Ii] = 0.5* beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
-         ctx.rowValue[ctx.greensVesselBoundary.size()*2*Jj+2*Ii+1] = 0.5* beta1d  /(lambda + beta1d * ctx.greensVesselBoundary[Ii] )* greensDirichletBoundary ;
-      }
-      //ierr = MatSetValues(myJac, 1, &vesselNodes[Jj], vesselNodes.size(),&vesselNodes[0],rowValue);
-     }
-    //ierr = VecAssemblyBegin(myRHS);
-    //ierr = VecAssemblyEnd(myRHS);
-    //ierr = MatAssemblyBegin(myJac,MAT_FINAL_ASSEMBLY);
-    //ierr = MatAssemblyEnd(myJac,MAT_FINAL_ASSEMBLY);
-
-   }
-
-     // // solve direction implements dirichlet BC
-     // ierr = VecDuplicate(u, &ctx.solvedirection);CHKERRQ(ierr);
-     // ierr = VecCopy(u,ctx.solvedirection);CHKERRQ(ierr);
-     // ierr = VecShift(ctx.solvedirection,-1.0);CHKERRQ(ierr);
-     // ierr = VecAbs(ctx.solvedirection);CHKERRQ(ierr);
-
-     // ierr = DMCreateLocalVector( dm,&ctx.locDirection);CHKERRQ(ierr);
-     // ierr = DMGlobalToLocalBegin(dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
-     // ierr = DMGlobalToLocalEnd(  dm, ctx.solvedirection, INSERT_VALUES, ctx.locDirection);CHKERRQ(ierr);
 
      // view solve direction
      char              vtkfilenametemplatesetup[PETSC_MAX_PATH_LEN];
@@ -1980,6 +2021,8 @@ int main(int argc, char **argv)
      ierr = VecCopy(u, uinit);CHKERRQ(ierr);
      ierr = VecDuplicate(u, &sinit);CHKERRQ(ierr);
      ierr = VecDuplicate(u, &rinit);CHKERRQ(ierr);
+     // name for plotting
+     ierr = PetscObjectSetName((PetscObject) rinit, "solution");CHKERRQ(ierr);
      // initialize
      ierr = TSSetSolution(ts,u);CHKERRQ(ierr);
      ierr = TSSetUp(ts);CHKERRQ(ierr);
@@ -2024,13 +2067,13 @@ int main(int argc, char **argv)
      ierr = MatAssemblyBegin(myjmat,MAT_FINAL_ASSEMBLY );
      ierr = MatAssemblyEnd(myjmat,MAT_FINAL_ASSEMBLY);
 
-     //{
-     //  PetscViewer matviewer;
-     //  PetscViewerASCIIOpen(PETSC_COMM_WORLD,"myjmat.m",&matviewer);
-     //  PetscViewerPushFormat(matviewer,	PETSC_VIEWER_ASCII_MATLAB);
-     //  ierr = MatView(myjmat, matviewer);
-     //  PetscViewerDestroy(&matviewer);
-     //}
+     {
+       PetscViewer matviewer;
+       PetscViewerASCIIOpen(PETSC_COMM_WORLD,"myjmat.m",&matviewer);
+       PetscViewerPushFormat(matviewer,	PETSC_VIEWER_ASCII_MATLAB);
+       ierr = MatView(myjmat, matviewer);
+       PetscViewerDestroy(&matviewer);
+     }
 
      ierr = KSPSetOperators(myksp,myjmat,mypmat);CHKERRQ(ierr);
      //ierr = KSPSolve(myksp,rinit,sinit);CHKERRQ(ierr);
