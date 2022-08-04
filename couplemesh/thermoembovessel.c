@@ -74,12 +74,14 @@ typedef enum {PARAM_OMEGA,
               PARAM_TEMPERATURE_SOURCE, 
               PARAM_ADVECTIONTERM, 
               PARAM_SATURATIONARTIFICIALDIFFUSION,
+              PARAM_BETA1D,
               PARAM_ARTIFICIALDIFFUSION} ParameterType;
 struct MyCoord
 {
-    PetscScalar x;
-    PetscScalar y;
-    PetscScalar z;
+    PetscScalar x; // x position
+    PetscScalar y; // y position
+    PetscScalar z; // z position
+    PetscScalar p; // pressure correction value
 };
 typedef struct {
   PetscInt          dim;
@@ -114,6 +116,7 @@ typedef struct {
   PetscScalar *rowValue;
   PetscScalar *bcValue;
   std::vector<MyCoord> nodeA, nodeB;
+  std::vector<PetscInt> nodeAOffset, nodeBOffset;
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
 } AppCtx;
 
@@ -1236,6 +1239,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   //options->solvesystem         = PETSC_FALSE;
 
   // update solve parameters
+  options->parameters[PARAM_BETA1D             ] = 100.0; // [?]
   options->parameters[PARAM_KMURATIOOIL        ] = tissue_permeability/oil_viscosity  *atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_KMURATIOBLOOD      ] = tissue_permeability/water_viscosity*atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_ALPHA              ] = conduction/ options->parameters[PARAM_RHOBLOOD] / options->parameters[PARAM_SPECIFICHEATBLOOD] ;    // [W/m/K / (kg/m^3) / (J/kg/K)] =      m^s /s
@@ -1452,6 +1456,8 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
 {
   AppCtx *ctx = (AppCtx*)lctx;
   assert(lctx);
+  PetscScalar beta1d = ctx->parameters[PARAM_BETA1D ] , lambda = ctx->parameters[PARAM_KMURATIOOIL        ];
+  PetscScalar betastar,vhat ;
   u[0] = 0.0;
       for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
       {
@@ -1464,11 +1470,13 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
          PetscScalar seglength = sqrt( (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)*(ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)
                                       +(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)*(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)
                                       +(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)*(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z));
-         MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength};
-         MyCoord myvecA = { ctx->nodeA[Ii].x - x[0], ctx->nodeA[Ii].y - x[1], ctx->nodeA[Ii].z - x[2]};
+         MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength,0.};
+         MyCoord myvecA = { ctx->nodeA[Ii].x - x[0], ctx->nodeA[Ii].y - x[1], ctx->nodeA[Ii].z - x[2],0.};
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
          PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
-         u[0] = u[0] + greensDirichletBoundary ;
+         betastar = beta1d/(1+beta1d*ctx->greensVesselBoundary[Ii]);
+         vhat     = 0.5*(ctx->nodeA[Ii].p+ctx->nodeB[Ii].p); // pressure correction at vessel element centroid
+         u[0] = u[0] + betastar *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundary ;
       }
   return 0;
 }
@@ -1569,8 +1577,8 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
     ierr = PetscSectionGetOffset(csglobal, spoints[0], &globoffA );CHKERRQ(ierr);
     ierr = PetscSectionGetDof(csglobal, spoints[1], &globdofB);CHKERRQ(ierr);
     ierr = PetscSectionGetOffset(csglobal, spoints[1], &globoffB );CHKERRQ(ierr);
-    ctx->nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2]});
-    ctx->nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2]});
+    ctx->nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2],0.});
+    ctx->nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2],0.});
     ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
     vesselNodes.push_back(globoffA);
     vesselNodes.push_back(globoffB);
@@ -1607,8 +1615,8 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
   // setup BC data structures
   ierr = PetscMalloc1(dirichletCoord.size(), &ctx->bcValue);CHKERRQ(ierr);
   ierr = PetscMalloc1(dirichletCoord.size()*ctx->greensVesselBoundary.size()*2, &ctx->rowValue);CHKERRQ(ierr);
-  //FIXME - need real params
-  PetscScalar beta1d = 100.0 , lambda = .8; 
+  // compute BC entries
+  PetscScalar beta1d = ctx->parameters[PARAM_BETA1D ] , lambda = ctx->parameters[PARAM_KMURATIOOIL        ];
   if(ctx->greensVesselBoundary.size())
    {
     for (PetscInt Jj = 0 ; Jj < dirichletCoord.size(); Jj++ )
@@ -1625,8 +1633,8 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
          PetscScalar seglength = sqrt( (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)*(ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)
                                       +(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)*(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)
                                       +(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)*(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z));
-         MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength};
-         MyCoord myvecA = { ctx->nodeA[Ii].x - dirichletCoord[Jj].x, ctx->nodeA[Ii].y - dirichletCoord[Jj].y, ctx->nodeA[Ii].z - dirichletCoord[Jj].z};
+         MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength,0.};
+         MyCoord myvecA = { ctx->nodeA[Ii].x - dirichletCoord[Jj].x, ctx->nodeA[Ii].y - dirichletCoord[Jj].y, ctx->nodeA[Ii].z - dirichletCoord[Jj].z,0.};
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
          PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
 
@@ -1642,7 +1650,7 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
   PetscFunctionReturn(0);
 }
 
-static PetscErrorCode SetupGreensFunction(DM dm, DM dmAux, AppCtx *ctx)
+static PetscErrorCode SetupGreensFunction(DM dm,Vec mysoln, DM dmAux, AppCtx *ctx)
 {
   PetscErrorCode (*eqFuncs[3])(PetscInt, PetscReal, const PetscReal [], PetscInt, PetscScalar [], void *) = {greenFunction, greenFunction, greenFunction};
   Vec            eq;
@@ -1651,11 +1659,21 @@ static PetscErrorCode SetupGreensFunction(DM dm, DM dmAux, AppCtx *ctx)
 
   ctxarr[0] = ctxarr[1] = ctxarr[2] = ctx; /* each variable could have a different context */
   PetscFunctionBegin;
-  ierr = ComputeGreensFunction(dm, ctx);CHKERRQ(ierr);
 
-  ierr = DMCreateLocalVector(dmAux, &eq);CHKERRQ(ierr);
+  // update dof
+  PetscScalar    *globalarray;
+  ierr = VecGetArray(mysoln,&globalarray);CHKERRQ(ierr);
+  for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
+   {
+     ctx->nodeA[Ii].p = globalarray[ctx->nodeAOffset[Ii]];
+     ctx->nodeB[Ii].p = globalarray[ctx->nodeBOffset[Ii]];
+   }
+  ierr = VecRestoreArray(mysoln,&globalarray);CHKERRQ(ierr);
+
+  //ierr = DMCreateLocalVector(dmAux, &eq);CHKERRQ(ierr);
+  ierr = PetscObjectQuery((PetscObject) dm, "A", (PetscObject *) &eq);CHKERRQ(ierr);
   ierr = DMProjectFunctionLocal(dmAux, 0.0, eqFuncs, (void **)ctxarr, INSERT_ALL_VALUES, eq);CHKERRQ(ierr);
-  ierr = PetscObjectCompose((PetscObject) dm, "A", (PetscObject) eq);CHKERRQ(ierr);
+  //ierr = PetscObjectCompose((PetscObject) dm, "A", (PetscObject) eq);CHKERRQ(ierr);
   {  /* plot reference functions */
     PetscViewer       viewer = NULL;
     PetscBool         isHDF5,isVTK;
@@ -1745,6 +1763,7 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
   ierr = SetupProblem(prob, ctx);CHKERRQ(ierr);
   while (cdm) {
     DM coordDM, dmAux;
+    Vec eq;
 
     ierr = DMSetDS(cdm,prob);CHKERRQ(ierr);
     ierr = DMGetCoordinateDM(cdm,&coordDM);CHKERRQ(ierr);
@@ -1759,7 +1778,10 @@ static PetscErrorCode SetupDiscretization(DM dm, AppCtx* ctx)
     ierr = DMSetCoordinateDM(dmAux, coordDM);CHKERRQ(ierr);
     ierr = DMSetDS(dmAux, probAux);CHKERRQ(ierr);
     ierr = PetscObjectCompose((PetscObject) dm, "dmAux", (PetscObject) dmAux);CHKERRQ(ierr);
-    ierr = SetupGreensFunction(cdm, dmAux, ctx);CHKERRQ(ierr);
+    ierr = DMCreateLocalVector(dmAux, &eq);CHKERRQ(ierr);
+    ierr = PetscObjectCompose((PetscObject) dm, "A", (PetscObject) eq);CHKERRQ(ierr);
+    ierr = VecDestroy(&eq);CHKERRQ(ierr);
+    //ierr = SetupGreensFunction(cdm, dmAux, ctx);CHKERRQ(ierr);
     ierr = DMDestroy(&dmAux);CHKERRQ(ierr);
 
     ierr = DMGetCoarseDM(cdm, &cdm);CHKERRQ(ierr);
@@ -1903,6 +1925,7 @@ int main(int argc, char **argv)
   ierr = CreateMesh(PETSC_COMM_WORLD, &dm, &ctx);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &ctx);CHKERRQ(ierr);
   ierr = SetupDiscretization(dm, &ctx);CHKERRQ(ierr);
+  ierr = ComputeGreensFunction(dm,&ctx);CHKERRQ(ierr);
 
   // get index subsets
   ierr = DMCreateFieldIS(dm, &ctx.numFields, &ctx.fieldNames, &ctx.fields);CHKERRQ(ierr);
@@ -2092,6 +2115,14 @@ int main(int argc, char **argv)
      ierr = VecDestroy(&sinit);CHKERRQ(ierr);
      // view solution
      ierr = TSMonitorSolutionVTK(ts,2,1.e9,u,vtkfilenametemplatesetup);CHKERRQ(ierr);
+
+
+     DM dmAux=NULL;
+     Vec  locA=NULL;
+     //ierr = DMGetAux(dm, &dmAux);CHKERRQ(ierr);
+     ierr = PetscObjectQuery((PetscObject) dm, "A", (PetscObject *) &locA);CHKERRQ(ierr);
+     if (locA) {ierr = VecGetDM(locA, &dmAux);CHKERRQ(ierr);}
+     ierr = SetupGreensFunction(dm, u,dmAux, &ctx);CHKERRQ(ierr);
 
      // solve full problem 
      ierr = TSSetTime(ts, 0.0);CHKERRQ(ierr);
