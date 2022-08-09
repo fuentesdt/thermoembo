@@ -148,6 +148,25 @@ if (options.file_name):
      vtkMesh  = vtkReader.GetOutput()
      print('setup metadata' ,iii)
 
+     mytol = 1.e-5
+     vesselmap = {}
+     # FIXME - HACK - need to quick sort then find 
+     for ipoint in range( vtkMesh  .GetPoints().GetNumberOfPoints() ):
+         CurrentPoint = vtkMesh.GetPoint(ipoint)
+         newnode = ( CurrentPoint[0] ,
+                     CurrentPoint[1] ,
+                     CurrentPoint[2] )
+         for jpoint in range( VesselData.GetPoints().GetNumberOfPoints() ):
+             vPoint = VesselData.GetPoint(jpoint)
+             vnode = ( vPoint[0] ,
+                         vPoint[1] ,
+                         vPoint[2] )
+             if( abs(vPoint[0] - CurrentPoint[0]) < mytol   
+             and abs(vPoint[1] - CurrentPoint[1]) < mytol   
+             and abs(vPoint[2] - CurrentPoint[2]) < mytol ):
+               print(ipoint,jpoint,newnode,vnode)
+               vesselmap[ipoint] = jpoint
+
      ## vtkNew<vtkDummyController> controller;
      ## controller->Initialize(&argc, &argv, 1);
      ## vtkMultiProcessController::SetGlobalController(controller.Get());

@@ -31,4 +31,4 @@ sideset 2 surface 4 8 12 16 20 24 28 32
 #sideset 2 curve 57 remove 
 
 volume all scale 0.001
-export mesh "meshSphere.e" overwrite
+export mesh "meshSphereNodeset.e" overwrite
