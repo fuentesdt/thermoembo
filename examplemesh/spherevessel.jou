@@ -1,0 +1,17 @@
+## Cubit 
+## strategy use cubit to write the nodeset
+## play "spherevessel.jou"
+reset
+set developer on
+
+sphere radius 50 
+sphere radius 5 
+volume 2 scale z 10
+## cylinder height 100 radius 5
+export stl ascii  "vessel.stl" volume 2 overwrite
+
+volume  1  scheme tetmesh
+volume  1  size 10
+mesh volume 1
+volume all scale 0.001
+export mesh "meshSphere.e" overwrite

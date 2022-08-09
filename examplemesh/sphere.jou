@@ -23,11 +23,12 @@ merge volume all
 volume  all  scheme tetmesh
 volume  all  size 10
 mesh volume all
-nodeset 3 node in curve 57 
+#nodeset 3 node in curve 57 
 nodeset 4 node in curve 58 
 nodeset 5 node in curve 59 
 nodeset 6 node in curve 60 
 sideset 2 surface 4 8 12 16 20 24 28 32
+#sideset 2 curve 57 remove 
 
 volume all scale 0.001
 export mesh "meshSphere.e" overwrite
