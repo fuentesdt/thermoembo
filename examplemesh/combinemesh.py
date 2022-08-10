@@ -201,7 +201,7 @@ if (options.file_name):
                print(ipoint,jpoint,newnode,vnode)
                vesselmap[jpoint] = ipoint
      for idset, idline in enumerate (cellSet):
-         print(idset,idline ,vesselmap[idline[0]],vesselmap[idline[1]])
+         print(idset+1,idline ,vesselmap[idline[0]]+1,vesselmap[idline[1]]+1)
 
      ## vtkNew<vtkDummyController> controller;
      ## controller->Initialize(&argc, &argv, 1);

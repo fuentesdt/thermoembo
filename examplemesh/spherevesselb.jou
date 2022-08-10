@@ -1,0 +1,25 @@
+## play "spherevesselb.jou"
+reset
+set developer on
+import mesh geometry "mytetmesh.1.exo" feature_angle 0
+# list node all
+
+## hack from combinemesh.py script
+nodeset 1  node    870 871
+nodeset 2  node    879 880
+nodeset 3  node    883 884
+nodeset 4  node    871 872
+nodeset 5  node    880 881
+nodeset 6  node    873 874
+nodeset 7  node    882 883
+nodeset 8  node    872 873
+nodeset 9  node    876 877
+nodeset 10 node    874 875
+nodeset 11 node    878 879
+nodeset 12 node    881 882
+nodeset 13 node    875 876
+nodeset 14 node    884 885
+nodeset 15 node    877 878
+
+
+export mesh "meshSpheremerge.exo" overwrite
