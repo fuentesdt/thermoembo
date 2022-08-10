@@ -58,11 +58,45 @@ if (options.file_name):
   vtkTransformFEMMesh.SetTransform( AffineTransform )
   vtkTransformFEMMesh.SetInputData( vesselreader.GetOutput() )
   vtkTransformFEMMesh.Update()
+  ## remove nodes that are close/duplicates
   vtkClean = vtk.vtkCleanPolyData()
   vtkClean.SetTolerance(0.05)
   vtkClean.SetInputData( vtkTransformFEMMesh.GetOutput() )
   vtkClean.Update( )
-  VesselData = vtkClean.GetOutput();
+  VesselDataVMTK = vtkClean.GetOutput();
+  ## convert from polydata to line elements
+  points  = VesselDataVMTK.GetPoints()
+  inLines = VesselDataVMTK.GetLines()
+  inField = VesselDataVMTK.GetPointData()
+  cellLocation = 0
+  # use set to remove duplicate
+  cellSet = set()
+  idList = vtk.vtkIdList()
+  cellNum = inLines.GetNumberOfCells()
+  for iii in range(cellNum ):
+    inLines.GetCell(cellLocation,idList )
+    numnode = idList.GetNumberOfIds()
+    # https://public.kitware.com/pipermail/vtkusers/2013-January/078002.html
+    cellLocation += 1 + numnode ;
+    print("numnode", numnode )
+    for jjj in range(numnode-1):
+      cellSet.add((idList.GetId(jjj),idList.GetId(jjj+1) ))
+      #print(idList.GetId(jjj))
+  
+  # use set to remove duplicate
+  lineElements= vtk.vtkCellArray()
+  for idline in cellSet:
+      myLineElement = vtk.vtkIdList()
+      #print(idline)
+      myLineElement.InsertNextId(idline[0])
+      myLineElement.InsertNextId(idline[1])
+      lineElements.InsertNextCell(myLineElement )
+  
+  # set polydata
+  VesselData = vtk.vtkPolyData()
+  VesselData.SetPoints(points)
+  VesselData.GetPointData().AddArray(inField.GetArray(0))
+  VesselData.SetVerts( lineElements )
 
   vesselwriter = vtk.vtkDataSetWriter();
   vesselwriter.SetFileName("Centerlinemodeltransform.vtk" )
@@ -165,7 +199,9 @@ if (options.file_name):
              and abs(vPoint[1] - CurrentPoint[1]) < mytol   
              and abs(vPoint[2] - CurrentPoint[2]) < mytol ):
                print(ipoint,jpoint,newnode,vnode)
-               vesselmap[ipoint] = jpoint
+               vesselmap[jpoint] = ipoint
+     for idset, idline in enumerate (cellSet):
+         print(idset,idline ,vesselmap[idline[0]],vesselmap[idline[1]])
 
      ## vtkNew<vtkDummyController> controller;
      ## controller->Initialize(&argc, &argv, 1);
