@@ -1,5 +1,5 @@
 // 22.3*50/.1 = 11150.0
-// mpirun -n 12 ./thermoembo-arch-xenial-gcc-5.4.0-dbg -dim 3  -ts_max_steps 11150 -ts_dt 1.e-1 -modulowrite 223 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -auxtemp_petscspace_degree 1 -auxpres_petscspace_degree 1 -auxconc_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_max_it 1000 -ksp_rtol 1.e-3 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short  -snes_converged_reason -ts_monitor -log_summary  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57 -vtk ./mytetmeshimage.vtk  -mesh ./meshSphere.exo -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13  -snes_max_linear_solve_fail 10 -snes_max_fail 10                  > log`date +%s`   2>&1
+// mpirun -n 12 ./thermoembo-arch-xenial-gcc-5.4.0-dbg -dim 3  -ts_max_steps 11150 -ts_dt 1.e-1 -modulowrite 223 -temp_petscspace_degree 1 -pres_petscspace_degree 1 -damg_petscspace_degree 1 -conc_petscspace_degree 1 -phas_petscspace_degree 1 -auxtemp_petscspace_degree 1 -auxpres_petscspace_degree 1 -auxconc_petscspace_degree 1 -dm_view -ts_type beuler -pc_type fieldsplit  -ksp_monitor_short -ksp_type gmres -ksp_max_it 1000 -ksp_rtol 1.e-3 -ksp_converged_reason -snes_type newtonls -snes_linesearch_type bt  -snes_rtol 9.e-1  -snes_stol 1.e-3 -snes_monitor_short  -snes_converged_reason -ts_monitor -log_summary  -snes_linesearch_monitor -info -info_exclude  null,vec,mat,pc   -pc_fieldsplit_type additive  -fieldsplit_u_pc_type bjacobi  -fieldsplit_u_ksp_converged_reason -fieldsplit_u_ksp_type gmres -fieldsplit_u_ksp_rtol 1.e-4 -fieldsplit_u_ksp_max_it 1000  -fieldsplit_s_pc_type bjacobi -fieldsplit_s_ksp_rtol 1.e-4 -fieldsplit_s_ksp_max_it 1000 -fieldsplit_s_ksp_converged_reason -fieldsplit_s_ksp_type gmres -fieldsplit_p_pc_type bjacobi -fieldsplit_p_ksp_rtol 1.e-4 -fieldsplit_p_ksp_max_it 1000 -fieldsplit_p_ksp_converged_reason -fieldsplit_p_ksp_type gmres  -salttemp .57 -vtk ./mytetmeshimage.vtk  -mesh ./meshSpheremerge.exo . -disppressure 0.0 -artdiff 1.e-6  -snes_linesearch_alpha 1.e-3 -permeability 5.e-13  -snes_max_linear_solve_fail 10 -snes_max_fail 10                  > log`date +%s`   2>&1
 
 
 
@@ -103,6 +103,7 @@ typedef struct {
   double bounds[6];
   double spacing[3];
   vtkSmartPointer<vtkImageData> ImageData ; 
+  vtkSmartPointer<vtkDataSet> VesselData ;
   PetscInt numFields;
   char  **fieldNames;
   IS         *fields;
@@ -1206,10 +1207,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
      }
 
   vtkSmartPointer<vtkDataSetReader> vesselreader = vtkSmartPointer<vtkDataSetReader>::New();
-  vesselreader->SetFileName("testline.vtk");
+  vesselreader->SetFileName("Centerlinemodeltransform.vtk");
   vesselreader->Update();
-  vtkSmartPointer<vtkDataSet> VesselData = vesselreader->GetOutput();
-  VesselData->PrintSelf(std::cout,vtkIndent());
+  options->VesselData = vesselreader->GetOutput();
+  options->VesselData->PrintSelf(std::cout,vtkIndent());
 
 
   char              *tmpstring;
@@ -1239,7 +1240,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   //options->solvesystem         = PETSC_FALSE;
 
   // update solve parameters
-  options->parameters[PARAM_BETA1D             ] = 100.0; // [?]
+  options->parameters[PARAM_BETA1D             ] = 1.0; // [?]
   options->parameters[PARAM_KMURATIOOIL        ] = tissue_permeability/oil_viscosity  *atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_KMURATIOBLOOD      ] = tissue_permeability/water_viscosity*atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_ALPHA              ] = conduction/ options->parameters[PARAM_RHOBLOOD] / options->parameters[PARAM_SPECIFICHEATBLOOD] ;    // [W/m/K / (kg/m^3) / (J/kg/K)] =      m^s /s
@@ -1328,8 +1329,8 @@ static PetscErrorCode CreateMesh(MPI_Comm comm, DM *dm, AppCtx *ctx)
    }
   ierr = PetscObjectSetName((PetscObject) *dm, "Mesh");CHKERRQ(ierr);
   /* If no boundary marker exists, mark the whole boundary */
-  // ierr = DMHasLabel(*dm, "marker", &hasLabel);CHKERRQ(ierr);
-  // if (!hasLabel) {ierr = CreateBCLabel(*dm, "marker");CHKERRQ(ierr);}
+  ierr = DMHasLabel(*dm, "marker", &hasLabel);CHKERRQ(ierr);
+  if (!hasLabel) {ierr = CreateBCLabel(*dm, "marker");CHKERRQ(ierr);}
   /* Distribute mesh over processes */
   ierr = DMPlexDistribute(*dm, 0, NULL, &pdm);CHKERRQ(ierr);
   if (pdm) {
@@ -1429,8 +1430,8 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, (void(*)())bolusinjection    , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_ESSENTIAL, "applicator", "marker", FIELD_SATURATION ,  0, NULL, (void(*)())fieldzero         , 1, &id , ctx);CHKERRQ(ierr);
   // Cauchy BC
-  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets", FIELD_TEMPERATURE,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
-  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets", FIELD_SATURATION ,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "marker", FIELD_TEMPERATURE,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
+  ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "marker", FIELD_SATURATION ,  0, NULL, NULL                         , 1, &id , ctx);CHKERRQ(ierr);
   // Neuman BC
   //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_PRESSURE   ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
   //ierr = PetscDSAddBoundary(prob, DM_BC_NATURAL  , "applicator", "Face Sets"  , FIELD_SATURATION ,  0, NULL, NULL                         , 1, &nodeSetApplicatorValue      , ctx);CHKERRQ(ierr);
@@ -1473,10 +1474,17 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
          MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength,0.};
          MyCoord myvecA = { ctx->nodeA[Ii].x - x[0], ctx->nodeA[Ii].y - x[1], ctx->nodeA[Ii].z - x[2],0.};
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
-         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
+         //assert(distA + taudotA);
+         PetscScalar greensDirichletBoundary = log(  distB + seglength + taudotA  ) - log(distA + taudotA  )  ;
+         //compute the maxsingularity for 1mm vessel
+         //ie assume the max we can resolve is at the 1mm radius
+         PetscScalar minrad    = .001; //mm
+         PetscScalar maxsingularity =  2* PETSC_PI * log( ( sqrt(.25*seglength*seglength+ minrad * minrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ minrad * minrad )  - .5*seglength   )) ;
+         greensDirichletBoundary  = PetscMin(greensDirichletBoundary ,maxsingularity );
          betastar = beta1d/(1+beta1d*ctx->greensVesselBoundary[Ii]);
          vhat     = 0.5*(ctx->nodeA[Ii].p+ctx->nodeB[Ii].p); // pressure correction at vessel element centroid
-         u[0] = u[0] + betastar *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundary ;
+         //u[0] = u[0] + betastar *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundary ;
+         u[0] = u[0] + ctx->parameters[PARAM_BOUNDARYPRESSURE]*greensDirichletBoundary ;
       }
   return 0;
 }
@@ -1524,7 +1532,7 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
   const PetscScalar *coords;
   ierr = VecGetArrayRead(coordinates, &coords);CHKERRQ(ierr);
 
-  ierr = DMGetLabel(dm, "Face Sets", &ssLabel);CHKERRQ(ierr);
+  ierr = DMGetLabel(dm, "marker", &ssLabel);CHKERRQ(ierr);
   ierr = DMLabelGetNumValues(ssLabel, &sValues);CHKERRQ(ierr);
   ierr = DMLabelGetValueIS(ssLabel, &ssIS);CHKERRQ(ierr);
   ierr = ISGetIndices(ssIS, &salues);CHKERRQ(ierr);
@@ -1580,6 +1588,8 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
     ctx->nodeA.push_back({coords[offA],coords[offA+1],coords[offA+2],0.});
     ctx->nodeB.push_back({coords[offB],coords[offB+1],coords[offB+2],0.});
     ierr = PetscPrintf(PETSC_COMM_WORLD,"nssize %d vessel %d endA %d %d %d %f %f %f  endB %d %d %d %f %f %f ...\n",nssize,values[vvv],spoints[0],globdofA,globoffA,coords[offA],coords[offA+1],coords[offA+2],spoints[1],globdofB,globoffB,coords[offB],coords[offB+1],coords[offB+2]); CHKERRQ(ierr);
+    ctx->nodeAOffset.push_back(globoffA);
+    ctx->nodeBOffset.push_back(globoffB);
     vesselNodes.push_back(globoffA);
     vesselNodes.push_back(globoffB);
     vesselNodesLocal.push_back(offA);
@@ -1610,7 +1620,7 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
        PetscScalar seglength = sqrt( (ctx->nodeB[iii].x - ctx->nodeA[iii].x)*(ctx->nodeB[iii].x - ctx->nodeA[iii].x)
                                     +(ctx->nodeB[iii].y - ctx->nodeA[iii].y)*(ctx->nodeB[iii].y - ctx->nodeA[iii].y)
                                     +(ctx->nodeB[iii].z - ctx->nodeA[iii].z)*(ctx->nodeB[iii].z - ctx->nodeA[iii].z));
-       ctx->greensVesselBoundary.push_back(  2* PETSC_PI * log( ( sqrt(.5*seglength*seglength+ segrad * segrad ) + 1.5*seglength )/ ( sqrt(.5*seglength*seglength+ segrad * segrad )  + .5*seglength   )) );
+       ctx->greensVesselBoundary.push_back(  2* PETSC_PI * log( ( sqrt(.25*seglength*seglength+ segrad * segrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ segrad * segrad )  - .5*seglength   )) );
    }
   // setup BC data structures
   ierr = PetscMalloc1(dirichletCoord.size(), &ctx->bcValue);CHKERRQ(ierr);
@@ -1622,7 +1632,8 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
     for (PetscInt Jj = 0 ; Jj < dirichletCoord.size(); Jj++ )
      {
       ctx->bcValue[Jj] =  ctx->parameters[PARAM_BOUNDARYPRESSURE];
-      for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
+      //for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
+      for (PetscInt Ii = 0 ; Ii < 1                                ; Ii++ )
       {
          PetscScalar distA = sqrt( (ctx->nodeA[Ii].x - dirichletCoord[Jj].x)*(ctx->nodeA[Ii].x - dirichletCoord[Jj].x)
                                   +(ctx->nodeA[Ii].y - dirichletCoord[Jj].y)*(ctx->nodeA[Ii].y - dirichletCoord[Jj].y)
@@ -1636,9 +1647,13 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
          MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength,0.};
          MyCoord myvecA = { ctx->nodeA[Ii].x - dirichletCoord[Jj].x, ctx->nodeA[Ii].y - dirichletCoord[Jj].y, ctx->nodeA[Ii].z - dirichletCoord[Jj].z,0.};
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
-         PetscScalar greensDirichletBoundary = log(  (distB + seglength + taudotA )/(distA + taudotA + 1.e-6 ) + 1.e-6 ) ;
+         // mesh coord of boundary should not be colinear on line segments, even outside of line segment will blow up
+         // a line is a set of measure zero... should not be evaluated on the line
+         assert(distA + taudotA);
+         PetscScalar greensDirichletBoundary = std::log(  distB + seglength + taudotA ) -std::log(distA + taudotA )   ;
 
-         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
+         //ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
+         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] * greensDirichletBoundary;
          //std::cout << Ii << " " <<  Jj << " " <<  greensDirichletBoundary << " " << std::flush ;
          ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii] = 0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
          ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = 0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
@@ -1661,6 +1676,7 @@ static PetscErrorCode SetupGreensFunction(DM dm,Vec mysoln, DM dmAux, AppCtx *ct
   PetscFunctionBegin;
 
   // update dof
+  // FIXME - need to update for parallel vector... not serial
   PetscScalar    *globalarray;
   ierr = VecGetArray(mysoln,&globalarray);CHKERRQ(ierr);
   for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
@@ -2073,6 +2089,7 @@ int main(int argc, char **argv)
      ierr = MatZeroRowsIS(myjmat ,ctx.dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
      ierr = MatSetOption(myjmat , MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE) ;CHKERRQ(ierr);
 
+#if 0
      const PetscInt *mvalues,*nvalues;
      PetscInt mSize,nSize;
 
@@ -2089,6 +2106,7 @@ int main(int argc, char **argv)
 
      ierr = MatAssemblyBegin(myjmat,MAT_FINAL_ASSEMBLY );
      ierr = MatAssemblyEnd(myjmat,MAT_FINAL_ASSEMBLY);
+#endif
 
      {
        PetscViewer matviewer;

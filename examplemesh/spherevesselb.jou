@@ -5,7 +5,7 @@ import mesh geometry "mytetmesh.1.exo" feature_angle 0
 # list node all
 
 ## hack from combinemesh.py script
-nodeset 1  node    870 871
+##nodeset 1  node    870 871
 nodeset 2  node    879 880
 nodeset 3  node    883 884
 nodeset 4  node    871 872
