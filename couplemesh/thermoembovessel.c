@@ -1620,7 +1620,7 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
        PetscScalar seglength = sqrt( (ctx->nodeB[iii].x - ctx->nodeA[iii].x)*(ctx->nodeB[iii].x - ctx->nodeA[iii].x)
                                     +(ctx->nodeB[iii].y - ctx->nodeA[iii].y)*(ctx->nodeB[iii].y - ctx->nodeA[iii].y)
                                     +(ctx->nodeB[iii].z - ctx->nodeA[iii].z)*(ctx->nodeB[iii].z - ctx->nodeA[iii].z));
-       ctx->greensVesselBoundary.push_back(  2* PETSC_PI * log( ( sqrt(.25*seglength*seglength+ segrad * segrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ segrad * segrad )  - .5*seglength   )) );
+       ctx->greensVesselBoundary.push_back(  log( ( sqrt(.25*seglength*seglength+ segrad * segrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ segrad * segrad )  - .5*seglength   ))/segrad );
    }
   // setup BC data structures
   ierr = PetscMalloc1(dirichletCoord.size(), &ctx->bcValue);CHKERRQ(ierr);
@@ -1652,13 +1652,18 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
          assert(distA + taudotA);
          PetscScalar greensDirichletBoundary = std::log(  distB + seglength + taudotA ) -std::log(distA + taudotA )   ;
 
-         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
+#if 0
+         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI)* greensDirichletBoundary;
          //ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] * greensDirichletBoundary;
          //std::cout << Ii << " " <<  Jj << " " <<  greensDirichletBoundary << " " << std::flush ;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii] = 0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = 0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI )* greensDirichletBoundary ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI )* greensDirichletBoundary ;
+#endif 
+         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
       }
-
+      //ctx->bcValue[Jj] = -ctx->bcValue[Jj];
      }
 
    }
@@ -2062,6 +2067,7 @@ int main(int argc, char **argv)
      ierr = VecDuplicate(u, &rinit);CHKERRQ(ierr);
      // name for plotting
      ierr = PetscObjectSetName((PetscObject) rinit, "solution");CHKERRQ(ierr);
+     ierr = PetscObjectSetName((PetscObject) sinit, "solution");CHKERRQ(ierr);
      // initialize
      ierr = TSSetSolution(ts,u);CHKERRQ(ierr);
      ierr = TSSetUp(ts);CHKERRQ(ierr);
@@ -2086,7 +2092,7 @@ int main(int argc, char **argv)
      ierr = SNESGetJacobian(mysnes,&myjmat,&mypmat,NULL,NULL);CHKERRQ(ierr);
      ierr = SNESComputeJacobian(mysnes,uinit,myjmat,mypmat);CHKERRQ(ierr);
      ierr = MatSetOption( myjmat ,MAT_KEEP_NONZERO_PATTERN,PETSC_FALSE);CHKERRQ(ierr);
-     ierr = MatZeroRowsIS(myjmat ,ctx.dirichletIS,1.0,NULL,NULL);CHKERRQ(ierr);
+     ierr = MatZeroRowsIS(myjmat ,ctx.dirichletIS, 1.0,NULL,NULL);CHKERRQ(ierr);
      ierr = MatSetOption(myjmat , MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE) ;CHKERRQ(ierr);
 
      const PetscInt *mvalues,*nvalues;
@@ -2123,14 +2129,15 @@ int main(int argc, char **argv)
      // update pressure 
      ierr = VecGetSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
      ierr = VecGetSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
-     ierr = VecAXPY(pressurevector,-1.0,pressurework);CHKERRQ(ierr);
+     ierr = VecAXPY(pressurevector,1.0,pressurework);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
+     // view solution
+     ierr = TSMonitorSolutionVTK(ts,2,1.e9,sinit,vtkfilenametemplatesetup);CHKERRQ(ierr);
+     // clean up
      ierr = VecDestroy(&uinit);CHKERRQ(ierr);
      ierr = VecDestroy(&rinit);CHKERRQ(ierr);
      ierr = VecDestroy(&sinit);CHKERRQ(ierr);
-     // view solution
-     ierr = TSMonitorSolutionVTK(ts,2,1.e9,u,vtkfilenametemplatesetup);CHKERRQ(ierr);
 
 
      DM dmAux=NULL;
