@@ -1663,7 +1663,13 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
          ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
          ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
       }
-      //ctx->bcValue[Jj] = -ctx->bcValue[Jj];
+      /* minus sign nightmare
+         Ax0 - b = F   
+         Js = F = Ax0 -b
+         J = A == >  A(x0 -s) = b 
+               == >  x = x0 -s
+      */
+      ctx->bcValue[Jj] = -ctx->bcValue[Jj];
      }
 
    }
@@ -1982,7 +1988,7 @@ int main(int argc, char **argv)
      // view solve direction
      char              vtkfilenametemplatesetup[PETSC_MAX_PATH_LEN];
      ierr = PetscSNPrintf(vtkfilenametemplatesetup,sizeof(vtkfilenametemplatesetup),"%ssetup%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
-     ierr = VecISSet(u ,ctx.vesselIS,ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
+     //ierr = VecISSet(u ,ctx.vesselIS,ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
      ierr = TSMonitorSolutionVTK(ts,0,1.e9,u,vtkfilenametemplatesetup);CHKERRQ(ierr);
      if ( ctx.debugfd ) 
        {
@@ -2126,14 +2132,20 @@ int main(int argc, char **argv)
      ierr = PCApply(mypc,rinit,sinit);CHKERRQ(ierr);
      // ierr = VecAXPY(X,-1.0,Y);CHKERRQ(ierr);
 
-     // update pressure 
+     
+     /* Solve J Y = F, where J is Jacobian matrix 
+        update pressure following SNESSolve_NEWTONLS
+        Compute a (scaled) negative update in the line search routine:
+          X <- X - lambda*Y
+        and evaluate F = function(X) (depends on the line search).
+     */
      ierr = VecGetSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
      ierr = VecGetSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
-     ierr = VecAXPY(pressurevector,1.0,pressurework);CHKERRQ(ierr);
+     ierr = VecAXPY(pressurevector,-1.0,pressurework);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(u    , ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
      ierr = VecRestoreSubVector(sinit, ctx.fields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
      // view solution
-     ierr = TSMonitorSolutionVTK(ts,2,1.e9,sinit,vtkfilenametemplatesetup);CHKERRQ(ierr);
+     ierr = TSMonitorSolutionVTK(ts,2,1.e9,u,vtkfilenametemplatesetup);CHKERRQ(ierr);
      // clean up
      ierr = VecDestroy(&uinit);CHKERRQ(ierr);
      ierr = VecDestroy(&rinit);CHKERRQ(ierr);
