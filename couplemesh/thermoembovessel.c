@@ -1240,7 +1240,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   //options->solvesystem         = PETSC_FALSE;
 
   // update solve parameters
-  options->parameters[PARAM_BETA1D             ] = 1.0; // [?]
+  options->parameters[PARAM_BETA1D             ] = 10.0; // [?]
   options->parameters[PARAM_KMURATIOOIL        ] = tissue_permeability/oil_viscosity  *atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_KMURATIOBLOOD      ] = tissue_permeability/water_viscosity*atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_ALPHA              ] = conduction/ options->parameters[PARAM_RHOBLOOD] / options->parameters[PARAM_SPECIFICHEATBLOOD] ;    // [W/m/K / (kg/m^3) / (J/kg/K)] =      m^s /s
@@ -1283,6 +1283,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ADVECTIONTERM                = %12.5e\n",options->parameters[PARAM_ADVECTIONTERM                ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ARTIFICIALDIFFUSION          = %12.5e\n",options->parameters[PARAM_ARTIFICIALDIFFUSION          ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SATURATIONARTIFICIALDIFFUSION= %12.5e\n",options->parameters[PARAM_SATURATIONARTIFICIALDIFFUSION]);CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_BETA1D                       = %12.5e\n",options->parameters[PARAM_BETA1D                       ]);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1474,17 +1475,17 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
          MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength,0.};
          MyCoord myvecA = { ctx->nodeA[Ii].x - x[0], ctx->nodeA[Ii].y - x[1], ctx->nodeA[Ii].z - x[2],0.};
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
-         //assert(distA + taudotA);
-         PetscScalar greensDirichletBoundary = log(  distB + seglength + taudotA  ) - log(distA + taudotA  )  ;
+         PetscScalar greensDirichletBoundary = (std::log(  distB + seglength + taudotA  ) - std::log(distA + taudotA  )  )/4./PETSC_PI/lambda;
          //compute the maxsingularity for 1mm vessel
-         //ie assume the max we can resolve is at the 1mm radius
-         PetscScalar minrad    = .001; //mm
-         PetscScalar maxsingularity =  2* PETSC_PI * log( ( sqrt(.25*seglength*seglength+ minrad * minrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ minrad * minrad )  - .5*seglength   )) ;
-         greensDirichletBoundary  = PetscMin(greensDirichletBoundary ,maxsingularity );
-         betastar = beta1d/(lambda+beta1d*ctx->greensVesselBoundary[Ii]);
+         //ie assume the max we can resolve is at the 1micron radius
+         PetscScalar minrad    = 1.e-3; //mm
+         PetscScalar maxsingularity =  std::log( ( sqrt(.25*seglength*seglength+ minrad * minrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ minrad * minrad )  - .5*seglength   )) /4./PETSC_PI/lambda;
+         PetscScalar greensDirichletBoundaryCheck  = PetscMin(greensDirichletBoundary ,maxsingularity );
+         betastar = beta1d/(1.  +beta1d*ctx->greensVesselBoundary[Ii]);
          vhat     = 0.5*(ctx->nodeA[Ii].p+ctx->nodeB[Ii].p); // pressure correction at vessel element centroid
-         u[0] = u[0] + betastar *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundary ;
+         u[0] = u[0] + betastar *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundaryCheck  ;
          //u[0] = u[0] + ctx->parameters[PARAM_BOUNDARYPRESSURE]*greensDirichletBoundary ;
+         //assert(distA + taudotA);
       }
   return 0;
 }
@@ -1613,6 +1614,7 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
   ierr = ISCreateGeneral(PETSC_COMM_WORLD,vesselNodesLocal.size(),&vesselNodesLocal[0],PETSC_COPY_VALUES,&ctx->vesselISLocal);
 
   // precompute green function at vessel element
+  PetscScalar beta1d = ctx->parameters[PARAM_BETA1D ] , lambda = ctx->parameters[PARAM_KMURATIOOIL        ];
   for (PetscInt iii = 0 ; iii < ctx->nodeB.size(); iii++ )
    {
        // FIXME --- need to read in radius --- PetscScalar segrad    = 0.5 * (nodeBrad + nodeArad);
@@ -1620,18 +1622,17 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
        PetscScalar seglength = sqrt( (ctx->nodeB[iii].x - ctx->nodeA[iii].x)*(ctx->nodeB[iii].x - ctx->nodeA[iii].x)
                                     +(ctx->nodeB[iii].y - ctx->nodeA[iii].y)*(ctx->nodeB[iii].y - ctx->nodeA[iii].y)
                                     +(ctx->nodeB[iii].z - ctx->nodeA[iii].z)*(ctx->nodeB[iii].z - ctx->nodeA[iii].z));
-       ctx->greensVesselBoundary.push_back(  log( ( sqrt(.25*seglength*seglength+ segrad * segrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ segrad * segrad )  - .5*seglength   ))/segrad );
+       ctx->greensVesselBoundary.push_back(  std::log( ( sqrt(.25*seglength*seglength+ segrad * segrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ segrad * segrad )  - .5*seglength   ))/segrad/4./PETSC_PI/lambda );
    }
   // setup BC data structures
   ierr = PetscMalloc1(dirichletCoord.size(), &ctx->bcValue);CHKERRQ(ierr);
   ierr = PetscMalloc1(dirichletCoord.size()*ctx->greensVesselBoundary.size()*2, &ctx->rowValue);CHKERRQ(ierr);
   // compute BC entries
-  PetscScalar beta1d = ctx->parameters[PARAM_BETA1D ] , lambda = ctx->parameters[PARAM_KMURATIOOIL        ];
   if(ctx->greensVesselBoundary.size())
    {
     for (PetscInt Jj = 0 ; Jj < dirichletCoord.size(); Jj++ )
      {
-      ctx->bcValue[Jj] = 4.* PETSC_PI * ctx->parameters[PARAM_BOUNDARYPRESSURE];
+      ctx->bcValue[Jj] =  ctx->parameters[PARAM_BOUNDARYPRESSURE];
       for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
       //for (PetscInt Ii = 0 ; Ii < 1                                ; Ii++ )
       {
@@ -1650,7 +1651,7 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
          // mesh coord of boundary should not be colinear on line segments, even outside of line segment will blow up
          // a line is a set of measure zero... should not be evaluated on the line
          assert(distA + taudotA);
-         PetscScalar greensDirichletBoundary = std::log(  distB + seglength + taudotA ) -std::log(distA + taudotA )   ;
+         PetscScalar greensDirichletBoundary = (std::log(  distB + seglength + taudotA ) -std::log(distA + taudotA ) )/4./PETSC_PI/lambda  ;
 
 #if 0
          ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI)* greensDirichletBoundary;
@@ -1659,9 +1660,9 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
          ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI )* greensDirichletBoundary ;
          ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI )* greensDirichletBoundary ;
 #endif 
-         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(1. + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(1. + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(1. + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
       }
       /* minus sign nightmare
          Ax0 - b = F   
