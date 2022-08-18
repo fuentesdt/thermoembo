@@ -1459,7 +1459,7 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
   AppCtx *ctx = (AppCtx*)lctx;
   assert(lctx);
   PetscScalar beta1d = ctx->parameters[PARAM_BETA1D ] , lambda = ctx->parameters[PARAM_KMURATIOOIL        ];
-  PetscScalar betastar,vhat ;
+  PetscScalar vhat ;
   u[0] = 0.0;
       for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
       {
@@ -1481,10 +1481,9 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
          PetscScalar minrad    = 1.e-3; //mm
          PetscScalar maxsingularity =  std::log( ( sqrt(.25*seglength*seglength+ minrad * minrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ minrad * minrad )  - .5*seglength   )) /4./PETSC_PI/lambda;
          PetscScalar greensDirichletBoundaryCheck  = PetscMin(greensDirichletBoundary ,maxsingularity );
-         betastar = beta1d/(1.  +beta1d*ctx->greensVesselBoundary[Ii]);
          vhat     = 0.5*(ctx->nodeA[Ii].p+ctx->nodeB[Ii].p); // pressure correction at vessel element centroid
-         u[0] = u[0] + betastar *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundaryCheck  ;
-         //u[0] = u[0] + ctx->parameters[PARAM_BOUNDARYPRESSURE]*greensDirichletBoundary ;
+         PetscScalar betastar = beta1d/(1.+beta1d*ctx->greensVesselBoundary[Ii]);
+         u[0] = u[0] + betastar  *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundaryCheck  ;
          //assert(distA + taudotA);
       }
   return 0;
@@ -1622,7 +1621,9 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
        PetscScalar seglength = sqrt( (ctx->nodeB[iii].x - ctx->nodeA[iii].x)*(ctx->nodeB[iii].x - ctx->nodeA[iii].x)
                                     +(ctx->nodeB[iii].y - ctx->nodeA[iii].y)*(ctx->nodeB[iii].y - ctx->nodeA[iii].y)
                                     +(ctx->nodeB[iii].z - ctx->nodeA[iii].z)*(ctx->nodeB[iii].z - ctx->nodeA[iii].z));
-       ctx->greensVesselBoundary.push_back(  std::log( ( sqrt(.25*seglength*seglength+ segrad * segrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ segrad * segrad )  - .5*seglength   ))/segrad/4./PETSC_PI/lambda );
+      PetscScalar  segmentgreens =  std::log( ( sqrt(.25*seglength*seglength+ segrad * segrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ segrad * segrad )  - .5*seglength   ))/segrad/4./PETSC_PI/lambda ;
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "\\bar G[%d] = %f\n"    ,iii,segmentgreens );CHKERRQ(ierr);
+      ctx->greensVesselBoundary.push_back( segmentgreens );
    }
   // setup BC data structures
   ierr = PetscMalloc1(dirichletCoord.size(), &ctx->bcValue);CHKERRQ(ierr);
@@ -1632,9 +1633,8 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
    {
     for (PetscInt Jj = 0 ; Jj < dirichletCoord.size(); Jj++ )
      {
-      ctx->bcValue[Jj] =  ctx->parameters[PARAM_BOUNDARYPRESSURE];
+      ctx->bcValue[Jj] = ctx->parameters[PARAM_BASELINEPRESSURE]; 
       for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
-      //for (PetscInt Ii = 0 ; Ii < 1                                ; Ii++ )
       {
          PetscScalar distA = sqrt( (ctx->nodeA[Ii].x - dirichletCoord[Jj].x)*(ctx->nodeA[Ii].x - dirichletCoord[Jj].x)
                                   +(ctx->nodeA[Ii].y - dirichletCoord[Jj].y)*(ctx->nodeA[Ii].y - dirichletCoord[Jj].y)
@@ -1653,16 +1653,10 @@ static PetscErrorCode ComputeGreensFunction(DM dm, AppCtx *ctx)
          assert(distA + taudotA);
          PetscScalar greensDirichletBoundary = (std::log(  distB + seglength + taudotA ) -std::log(distA + taudotA ) )/4./PETSC_PI/lambda  ;
 
-#if 0
-         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI)* greensDirichletBoundary;
-         //ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] * greensDirichletBoundary;
-         //std::cout << Ii << " " <<  Jj << " " <<  greensDirichletBoundary << " " << std::flush ;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI )* greensDirichletBoundary ;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(lambda + beta1d * ctx->greensVesselBoundary[Ii]/4./PETSC_PI )* greensDirichletBoundary ;
-#endif 
-         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  beta1d * ctx->parameters[PARAM_BASELINEPRESSURE] /(1. + beta1d * ctx->greensVesselBoundary[Ii])* greensDirichletBoundary;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* beta1d  /(1. + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
-         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* beta1d  /(1. + beta1d * ctx->greensVesselBoundary[Ii] )* greensDirichletBoundary ;
+         PetscScalar betastar = beta1d/(1.+beta1d*ctx->greensVesselBoundary[Ii]);
+         ctx->bcValue[Jj] =  ctx->bcValue[Jj] -  betastar * ctx->parameters[PARAM_BOUNDARYPRESSURE]* greensDirichletBoundary ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii  ] = -0.5* betastar* greensDirichletBoundary ;
+         ctx->rowValue[ctx->greensVesselBoundary.size()*2*Jj+2*Ii+1] = -0.5* betastar* greensDirichletBoundary ;
       }
       /* minus sign nightmare
          Ax0 - b = F   
