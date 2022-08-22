@@ -33,6 +33,7 @@ Contributed by: Julian Andrej <juan@tf.uni-kiel.de>\n\n\n";
 #include <vtkDataSetReader.h>
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkPolyData.h>
+#include <vtkCellArray.h>
 #include <vector>
 #include <algorithm> 
 #include <assert.h>
@@ -103,7 +104,7 @@ typedef struct {
   double bounds[6];
   double spacing[3];
   vtkSmartPointer<vtkImageData> ImageData ; 
-  vtkSmartPointer<vtkDataSet> VesselData ;
+  vtkSmartPointer<vtkPolyData> VesselData ;
   PetscInt numFields;
   char  **fieldNames;
   IS         *fields;
@@ -1142,6 +1143,7 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->parameters[PARAM_DISPLACEMENTPRESSURE] = 7.465e3/atmosphericpressure;      // [Pa]
   options->parameters[PARAM_BASELINEPRESSURE    ] = atmosphericpressure/atmosphericpressure;      // [Pa]
   options->parameters[PARAM_BOUNDARYPRESSURE    ] = systolicpressure/atmosphericpressure   ;      // [Pa]
+  options->parameters[PARAM_BOUNDARYPRESSURE    ] = 1000.  ;      // [Pa]
   options->parameters[PARAM_EPSILON             ] = 5.e-1;     // [volume fraction of DCACL]
   // FINITE ELEMENT METHODS FOR LINEAR HYPERBOLIC PROBLEMS  - Claes JOHNSON
   //    artificial diffusion parameter should be on the order of the mesh size, millimeter or submillimeter
@@ -1209,9 +1211,8 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   vtkSmartPointer<vtkDataSetReader> vesselreader = vtkSmartPointer<vtkDataSetReader>::New();
   vesselreader->SetFileName("Centerlinemodeltransform.vtk");
   vesselreader->Update();
-  options->VesselData = vesselreader->GetOutput();
+  options->VesselData = vesselreader->GetPolyDataOutput();
   options->VesselData->PrintSelf(std::cout,vtkIndent());
-
 
   char              *tmpstring;
   ierr = PetscStrcpy(options->filenosuffix,options->meshfile);CHKERRQ(ierr);
@@ -1240,8 +1241,9 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   //options->solvesystem         = PETSC_FALSE;
 
   // update solve parameters
-  options->parameters[PARAM_BETA1D             ] = 10.0; // [?]
+  options->parameters[PARAM_BETA1D             ] = 1.0; // [?]
   options->parameters[PARAM_KMURATIOOIL        ] = tissue_permeability/oil_viscosity  *atmosphericpressure; // [m^2/atm/s]
+  options->parameters[PARAM_KMURATIOOIL        ] = .4;
   options->parameters[PARAM_KMURATIOBLOOD      ] = tissue_permeability/water_viscosity*atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_ALPHA              ] = conduction/ options->parameters[PARAM_RHOBLOOD] / options->parameters[PARAM_SPECIFICHEATBLOOD] ;    // [W/m/K / (kg/m^3) / (J/kg/K)] =      m^s /s
   options->parameters[PARAM_ARTIFICIALDIFFUSION ] = 1.2*options->parameters[PARAM_ALPHA ] ;        // [units]
@@ -1460,20 +1462,39 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
   assert(lctx);
   PetscScalar beta1d = ctx->parameters[PARAM_BETA1D ] , lambda = ctx->parameters[PARAM_KMURATIOOIL        ];
   PetscScalar vhat ;
+  PetscErrorCode ierr;
+
+  vtkCellArray *vesselsegments = ctx->VesselData->GetVerts();
+  vtkPoints *vesselpoints = ctx->VesselData->GetPoints();
+  int icellLocation = 0;
+  vtkSmartPointer<vtkIdList> myLineElement= vtkSmartPointer<vtkIdList>::New();
   u[0] = 0.0;
-      for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
-      {
-         PetscScalar distA = sqrt( (ctx->nodeA[Ii].x - x[0])*(ctx->nodeA[Ii].x - x[0])
-                                  +(ctx->nodeA[Ii].y - x[1])*(ctx->nodeA[Ii].y - x[1])
-                                  +(ctx->nodeA[Ii].z - x[2])*(ctx->nodeA[Ii].z - x[2]));
-         PetscScalar distB = sqrt( (ctx->nodeB[Ii].x - x[0])*(ctx->nodeB[Ii].x - x[0])
-                                  +(ctx->nodeB[Ii].y - x[1])*(ctx->nodeB[Ii].y - x[1])
-                                  +(ctx->nodeB[Ii].z - x[2])*(ctx->nodeB[Ii].z - x[2]));
-         PetscScalar seglength = sqrt( (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)*(ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)
-                                      +(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)*(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)
-                                      +(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)*(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z));
-         MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength,0.};
-         MyCoord myvecA = { ctx->nodeA[Ii].x - x[0], ctx->nodeA[Ii].y - x[1], ctx->nodeA[Ii].z - x[2],0.};
+  // FIXME update data structures to use vtk data direclty...
+  // FIXME use quick sort to setup data structure search
+  for (int bbb = 0;bbb <vesselsegments->GetNumberOfCells();++bbb){
+     //vtkIdList *myLineElement;
+     vesselsegments->GetCell(icellLocation , myLineElement );
+     int numnode = myLineElement->GetNumberOfIds();
+     icellLocation += 1 + numnode ;
+     myLineElement->PrintSelf(std::cout,vtkIndent());
+     double *pointone = vesselpoints->GetPoint(myLineElement->GetId(0) ); 
+     double *pointtwo = vesselpoints->GetPoint(myLineElement->GetId(1) ); 
+     ierr = PetscPrintf(PETSC_COMM_WORLD, "cell id %d of %d, numnode %d, point 1 %f %f %f, point 2 %f %f %f \n",bbb,vesselsegments->GetNumberOfCells(),numnode,pointone[0],pointone[1],pointone[2],pointtwo[0],pointtwo[1],pointtwo[2]);
+         PetscScalar distA = sqrt( (pointone[0] - x[0])*(pointone[0] - x[0])
+                                  +(pointone[1] - x[1])*(pointone[1] - x[1])
+                                  +(pointone[2] - x[2])*(pointone[2] - x[2]));
+         PetscScalar distB = sqrt( (pointtwo[0] - x[0])*(pointtwo[0] - x[0])
+                                  +(pointtwo[1] - x[1])*(pointtwo[1] - x[1])
+                                  +(pointtwo[2] - x[2])*(pointtwo[2] - x[2]));
+         PetscScalar seglength = sqrt( (pointtwo[0] - pointone[0])*(pointtwo[0] - pointone[0])
+                                      +(pointtwo[1] - pointone[1])*(pointtwo[1] - pointone[1])
+                                      +(pointtwo[2] - pointone[2])*(pointtwo[2] - pointone[2]));
+         MyCoord myTau = { (pointtwo[0] - pointone[0])/seglength,
+                           (pointtwo[1] - pointone[1])/seglength,
+                           (pointtwo[2] - pointone[2])/seglength,0.};
+         MyCoord myvecA = { pointone[0] - x[0],
+                            pointone[1] - x[1],
+                            pointone[2] - x[2],0.};
          PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
          PetscScalar greensDirichletBoundary = (std::log(  distB + seglength + taudotA  ) - std::log(distA + taudotA  )  )/4./PETSC_PI/lambda;
          //compute the maxsingularity for 1mm vessel
@@ -1481,11 +1502,38 @@ static PetscErrorCode greenFunction(PetscInt dim, PetscReal time, const PetscRea
          PetscScalar minrad    = 1.e-3; //mm
          PetscScalar maxsingularity =  std::log( ( sqrt(.25*seglength*seglength+ minrad * minrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ minrad * minrad )  - .5*seglength   )) /4./PETSC_PI/lambda;
          PetscScalar greensDirichletBoundaryCheck  = PetscMin(greensDirichletBoundary ,maxsingularity );
-         vhat     = 0.5*(ctx->nodeA[Ii].p+ctx->nodeB[Ii].p); // pressure correction at vessel element centroid
-         PetscScalar betastar = beta1d/(1.+beta1d*ctx->greensVesselBoundary[Ii]);
+         // FIXME store correction term.
+         vhat     = 0.5*(ctx->nodeA[bbb].p+ctx->nodeB[bbb].p); // pressure correction at vessel element centroid
+         PetscScalar betastar = beta1d/(1.+beta1d*ctx->greensVesselBoundary[bbb]);
          u[0] = u[0] + betastar  *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundaryCheck  ;
          //assert(distA + taudotA);
-      }
+  }  
+  // u[0] = 0.0;
+  //     for (PetscInt Ii = 0 ; Ii < ctx->greensVesselBoundary.size(); Ii++ )
+  //     {
+  //        PetscScalar distA = sqrt( (ctx->nodeA[Ii].x - x[0])*(ctx->nodeA[Ii].x - x[0])
+  //                                 +(ctx->nodeA[Ii].y - x[1])*(ctx->nodeA[Ii].y - x[1])
+  //                                 +(ctx->nodeA[Ii].z - x[2])*(ctx->nodeA[Ii].z - x[2]));
+  //        PetscScalar distB = sqrt( (ctx->nodeB[Ii].x - x[0])*(ctx->nodeB[Ii].x - x[0])
+  //                                 +(ctx->nodeB[Ii].y - x[1])*(ctx->nodeB[Ii].y - x[1])
+  //                                 +(ctx->nodeB[Ii].z - x[2])*(ctx->nodeB[Ii].z - x[2]));
+  //        PetscScalar seglength = sqrt( (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)*(ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)
+  //                                     +(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)*(ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)
+  //                                     +(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)*(ctx->nodeB[Ii].z - ctx->nodeA[Ii].z));
+  //        MyCoord myTau = { (ctx->nodeB[Ii].x - ctx->nodeA[Ii].x)/seglength, (ctx->nodeB[Ii].y - ctx->nodeA[Ii].y)/seglength, (ctx->nodeB[Ii].z - ctx->nodeA[Ii].z)/seglength,0.};
+  //        MyCoord myvecA = { ctx->nodeA[Ii].x - x[0], ctx->nodeA[Ii].y - x[1], ctx->nodeA[Ii].z - x[2],0.};
+  //        PetscScalar taudotA = myTau.x * myvecA.x + myTau.y * myvecA.y + myTau.z * myvecA.z ; 
+  //        PetscScalar greensDirichletBoundary = (std::log(  distB + seglength + taudotA  ) - std::log(distA + taudotA  )  )/4./PETSC_PI/lambda;
+  //        //compute the maxsingularity for 1mm vessel
+  //        //ie assume the max we can resolve is at the 1micron radius
+  //        PetscScalar minrad    = 1.e-3; //mm
+  //        PetscScalar maxsingularity =  std::log( ( sqrt(.25*seglength*seglength+ minrad * minrad ) + 0.5*seglength )/ ( sqrt(.25*seglength*seglength+ minrad * minrad )  - .5*seglength   )) /4./PETSC_PI/lambda;
+  //        PetscScalar greensDirichletBoundaryCheck  = PetscMin(greensDirichletBoundary ,maxsingularity );
+  //        vhat     = 0.5*(ctx->nodeA[Ii].p+ctx->nodeB[Ii].p); // pressure correction at vessel element centroid
+  //        PetscScalar betastar = beta1d/(1.+beta1d*ctx->greensVesselBoundary[Ii]);
+  //        u[0] = u[0] + betastar  *(ctx->parameters[PARAM_BOUNDARYPRESSURE]-vhat)* greensDirichletBoundaryCheck  ;
+  //        //assert(distA + taudotA);
+  //     }
   return 0;
 }
 
