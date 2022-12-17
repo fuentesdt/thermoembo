@@ -18,6 +18,8 @@ vesselness.%.nii.gz: sigmoid.nii.gz
 	echo c3d -verbose $<  -hessobj 1 $* $* -o $@
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 .25 .25 10. $*
 
+gmmthresh.nii.gz: vessel.gmm.nii.gz
+	c3d $< -thresh 3 4 1 0  -o $@
 gmmPOSTERIORS4.nii.gz:   mask.nii.gz subtract.nii.gz speed.nii.gz
 	$(ATROPOSCMD) -m [0.0,0x0x0] -i kmeans[4] -x $<  -a $(word 2,$^)  -a $(word 3,$^) -o [vessel.gmm.nii.gz,gmmPOSTERIORS%d.nii.gz] 
 table.nii.gz: arterial.nii.gz 
