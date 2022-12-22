@@ -1,0 +1,7 @@
+track nifti files with git lfs
+https://git-lfs.github.com/
+
+
+git lfs track manual.nii.gz
+git add .gitattributes
+git add manual.nii.gz
