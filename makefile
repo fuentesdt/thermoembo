@@ -48,3 +48,19 @@ $(WORKDIR)/vesselnew.nii.gz: $(WORKDIR)/vesseltmp.nii.gz
 datalocation/radiomicsout.csv: datalocation/radiomics.csv
 	python /opt/apps/pyradiomics/radiomics/scripts/commandlinebatch.py $< $@ -p Params.yaml  -l 1  -l 2 -v  5
 
+rsyncrsrch1:
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S016/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S016/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S017/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S017/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S018/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S018/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S019/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S019/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S020/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S020/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S021/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S021/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S022/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S022/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S023/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S023/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF22S024/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S024/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF23S018/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S018/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF23S019/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S019/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF23S020/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S020/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF23S021/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S021/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF23S022/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S022/
+	rsync -avz /mnt/FUS4/IPVL_research/ZPAF23S023/   /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S023/
