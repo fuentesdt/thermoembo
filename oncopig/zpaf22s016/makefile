@@ -25,13 +25,32 @@ manualregion.nii.gz: manual.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
 artregion.nii.gz: arterial.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
-hessianmagnitude.%.nii.gz: artregion.nii.gz
+gmmpostregion.nii.gz: kmean3/gmmPOSTERIORS3.nii.gz
+	c3d $< -region 0x0x150vox 512x512x100vox -o $@
+hessianmagnitude.%.nii.gz: gmmpostregion.nii.gz
 	c3d -verbose $< -hesseig $* -oo eig$*%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o $@ 
 
 gmmthresh.nii.gz: vessel.gmm.nii.gz
 	c3d $< -thresh 3 4 1 0  -o $@
-gmmPOSTERIORS4.nii.gz:   mask.nii.gz arterial.nii.gz 
-	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[5] -x $<  -a $(word 2,$^)  -o [vessel.gmm.nii.gz,gmmPOSTERIORS%d.nii.gz] 
+gmmoverlap:
+	c3d vesselgmm2.nii.gz manual.nii.gz              -overlap 1
+	c3d vesselgmm2.nii.gz manual.nii.gz -replace 1 2 -overlap 2
+	c3d vesselgmm3.nii.gz manual.nii.gz              -overlap 1
+	c3d vesselgmm3.nii.gz manual.nii.gz -replace 1 2 -overlap 2
+	c3d vesselgmm3.nii.gz manual.nii.gz -replace 1 3 -overlap 3
+	c3d vesselgmm4.nii.gz manual.nii.gz              -overlap 1
+	c3d vesselgmm4.nii.gz manual.nii.gz -replace 1 2 -overlap 2
+	c3d vesselgmm4.nii.gz manual.nii.gz -replace 1 3 -overlap 3
+	c3d vesselgmm4.nii.gz manual.nii.gz -replace 1 4 -overlap 4
+	c3d vesselgmm5.nii.gz manual.nii.gz              -overlap 1
+	c3d vesselgmm5.nii.gz manual.nii.gz -replace 1 2 -overlap 2
+	c3d vesselgmm5.nii.gz manual.nii.gz -replace 1 3 -overlap 3
+	c3d vesselgmm5.nii.gz manual.nii.gz -replace 1 4 -overlap 4
+	c3d vesselgmm5.nii.gz manual.nii.gz -replace 1 5 -overlap 5
+vesselgmm: vesselgmm2.nii.gz vesselgmm3.nii.gz vesselgmm4.nii.gz vesselgmm5.nii.gz
+vesselgmm%.nii.gz: mask.nii.gz arterial.nii.gz 
+	mkdir -p kmean$*
+	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[$*] -x $<  -a $(word 2,$^)  -o [vesselgmm$*.nii.gz,kmean$*/gmmPOSTERIORS%d.nii.gz] 
 table.nii.gz: arterial.nii.gz 
 	c3d -verbose $< -cmv  -thresh  150 230  1 0 -popas ZDIR -thresh 110 480 1 0 -push ZDIR -times -o $@
 #	export HDF5_USE_FILE_LOCKING='FALSE'; python /rsrch1/ip/dtfuentes/github/livermask/applymodel.py --predictimage=/rsrch1/ip/dtfuentes/github/thermoembo/oncopig/arterial.nii.gz --segmentation=/rsrch1/ip/dtfuentes/github/thermoembo/oncopig/mask.nii.gz
