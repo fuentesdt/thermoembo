@@ -21,6 +21,12 @@ otsumax.nii.gz: vesselmax.nii.gz
 vesselness.%.nii.gz: 
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz $@ 1 1 .5 .5 $(Gamma) $*
 
+cylinder1.nii.gz: manualregion.nii.gz
+	c3d -verbose $<  -cmp  -pop -foreach -dup -times -endfor -accum -add -endaccum  -scale -.5 -exp  -scale  0.15915494309189535 -o $@
+cylinderhess1scale.nii.gz: cylinder1.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 .5 .5 5 1 1
+cylinderhess1noscale.nii.gz: cylinder1.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 .5 .5 5 1 0
 manualregion.nii.gz: manual.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
 artregion.nii.gz: arterial.nii.gz
