@@ -1,22 +1,32 @@
 SHELL := /bin/bash
 ANTSPATH=/opt/apps/ANTS/build/ANTS-build/Examples/
 ATROPOSCMD=$(ANTSPATH)/Atropos -v 1 -d 3 -c 5
+Gamma=10
 # keep tmp files
 .SECONDARY: 
-vessels: otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.5.nii.gz
+vessels: otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.4.nii.gz otsu.5.nii.gz
 
 vessel.nii.gz:  otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.5.nii.gz 
 	c3d -verbose $^ -accum -add -endaccum -binarize -dilate 1 3x3x1vox -erode 1 3x3x1vox -o $@
-	c3d $@ -comp -dup -lstat > vessel.txt
-	c3d $@ -comp -thresh 1 30 1 0  -o $@
+	c3d -verbose manualregion.nii.gz $@ -overlap > overlap$(Gamma).txt
+	#c3d $@ -comp -dup -lstat > vessel.txt
+	#c3d $@ -comp -thresh 1 30 1 0  -o $@
 otsu.%.nii.gz: vesselness.%.nii.gz 
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-vesselness.5.nii.gz: sigmoid.nii.gz
-	echo c3d -verbose $<  -hessobj 1 1.5 1.5 -o $@
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 .25 .25 10. 1.5
-vesselness.%.nii.gz: sigmoid.nii.gz
-	echo c3d -verbose $<  -hessobj 1 $* $* -o $@
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 .25 .25 10. $*
+vesselmax.nii.gz:  vesselness.1.nii.gz vesselness.2.nii.gz vesselness.3.nii.gz vesselness.5.nii.gz 
+	c3d -verbose $^ -accum -max -endaccum -dilate 1 3x3x1vox -erode 1 3x3x1vox -o $@
+otsumax.nii.gz: vesselmax.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
+	c3d -verbose manualregion.nii.gz $@ -overlap > overmax$(Gamma).txt
+vesselness.%.nii.gz: 
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz $@ 1 1 .5 .5 $(Gamma) $*
+
+manualregion.nii.gz: manual.nii.gz
+	c3d $< -region 0x0x150vox 512x512x100vox -o $@
+artregion.nii.gz: arterial.nii.gz
+	c3d $< -region 0x0x150vox 512x512x100vox -o $@
+hessianmagnitude.%.nii.gz: artregion.nii.gz
+	c3d -verbose $< -hesseig $* -oo eig$*%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o $@ 
 
 gmmthresh.nii.gz: vessel.gmm.nii.gz
 	c3d $< -thresh 3 4 1 0  -o $@
@@ -36,11 +46,22 @@ subtract.nii.gz:  arterial.nii.gz noconresample.nii.gz
 	c3d -verbose  $^ -scale -1 -add -o $@
 
 
+raw: nocontrast.nii.gz arterial.nii.gz venous.nii.gz lateart.nii.gz
+resample: noconresample.nii.gz venresample.nii.gz lateresample.nii.gz
+info:
+	c3d nocontrast.nii.gz -info  arterial.nii.gz  -info venous.nii.gz  -info lateart.nii.gz    -info 
 noconresample.nii.gz:  arterial.nii.gz nocontrast.nii.gz
 	c3d $^ -reslice-identity -o $@
+venresample.nii.gz:  arterial.nii.gz venous.nii.gz
+	c3d $^ -reslice-identity -o $@
+lateresample.nii.gz:  arterial.nii.gz lateart.nii.gz
+	c3d $^ -reslice-identity -o $@
 nocontrast.nii.gz:
-	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /mnt/FUS4/IPVL_research/ZPAF22S021/20220719/1.3.12.2.1107.5.1.4.83618.30000022071912215001100000001/1.3.12.2.1107.5.1.4.83618.30000022071912194835200000021/  $@ ;fi
-
+	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100000021 $@ ;fi
 arterial.nii.gz:
-	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /mnt/FUS4/IPVL_research/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100001398/  $@ ;fi
-
+	#if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /mnt/FUS4/IPVL_research/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100001398/  $@ ;fi
+	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100001398 $@ ;fi
+venous.nii.gz:
+	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100000939 $@ ;fi
+lateart.nii.gz:
+	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100001856 $@ ;fi
