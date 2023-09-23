@@ -1,25 +1,44 @@
 SHELL := /bin/bash
 ANTSPATH=/opt/apps/ANTS/build/ANTS-build/Examples/
 ATROPOSCMD=$(ANTSPATH)/Atropos -v 1 -d 3 -c 5
-Gamma=10
 # keep tmp files
 .SECONDARY: 
-vessels: otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.4.nii.gz otsu.5.nii.gz
 
-vessel.nii.gz:  otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.5.nii.gz 
+vessel.nii.gz:  otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz 
 	c3d -verbose $^ -accum -add -endaccum -binarize -dilate 1 3x3x1vox -erode 1 3x3x1vox -o $@
-	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overlap$(Gamma).txt
+	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overlap.txt
 	#c3d $@ -comp -dup -lstat > vessel.txt
 	#c3d $@ -comp -thresh 1 30 1 0  -o $@
 otsu.%.nii.gz: vesselness.%.nii.gz 
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-vesselmax.nii.gz:  vesselness.1.nii.gz vesselness.2.nii.gz vesselness.3.nii.gz vesselness.5.nii.gz 
-	c3d -verbose $^ -accum -max -endaccum -dilate 1 3x3x1vox -erode 1 3x3x1vox -o $@
+vesselmax.nii.gz:  vesselness.1.nii.gz vesselness.2.nii.gz  vesselness.3.nii.gz
+	c3d -verbose $^ -accum -max -endaccum -o $@
 otsumax.nii.gz: vesselmax.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overmax$(Gamma).txt
+	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overmax.txt
+vesselnessns.%.nii.gz: 
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@                1 1  .5    .5     5   $* 0
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessnsgam.$*.nii.gz 1 1 1.e-9 1.e9    5   $* 0
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessnsbet.$*.nii.gz 1 1 1.e-9  .5   1.e-9 $* 0
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessnsalp.$*.nii.gz 1 1  .5   1.e9  1.e-9 $* 0
+# note turn off the alpha component of the vesselness filter
 vesselness.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz $@ 1 1 .5 .5 $(Gamma) $*
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@              1 1 1.e-9 .5    5    $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessgam.$*.nii.gz 1 1 1.e-9 1.e9  5    $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessalp.$*.nii.gz 1 1  .5   1.e9 1.e-9 $* 1
+vesselnessnsgmm.%.nii.gz: 
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz            $@                1 1  .5   .5    5    $* 0
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessnsgmmgam.$*.nii.gz 1 1 1.e-9 1.e9  5    $* 0
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessnsgmmbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 0
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessnsgmmalp.$*.nii.gz 1 1   .5  1.e9 1.e-9 $* 0
+vesselnessgmm.%.nii.gz: 
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz            $@              1 1  .5    .5   5    $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessgmmgam.$*.nii.gz 1 1 1.e-9  1.e9 5    $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessgmmbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessgmmalp.$*.nii.gz 1 1  .5   1.e9 1.e-9 $* 1
+viewdbg:
+	vglrun itksnap -g artregion.nii.gz     -o vesselness.1.nii.gz      vesselnessgam.1.nii.gz vesselnessbet.1.nii.gz vesselnessalp.1.nii.gz & vglrun itksnap -g artregion.nii.gz     -o vesselnessns.1.nii.gz  vesselnessnsgam.1.nii.gz  vesselnessnsbet.1.nii.gz  vesselnessnsalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessnsgmm.1.nii.gz vesselnessnsgmmgam.1.nii.gz vesselnessnsgmmbet.1.nii.gz vesselnessnsgmmalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessgmm.1.nii.gz   vesselnessgmmgam.1.nii.gz vesselnessgmmbet.1.nii.gz vesselnessgmmalp.1.nii.gz
 
 cylinder1.nii.gz: manualregion.nii.gz
 	c3d -verbose $<  -cmp  -pop -foreach -dup -times -endfor -accum -add -endaccum  -scale -.5 -exp  -scale  0.15915494309189535 -o $@
