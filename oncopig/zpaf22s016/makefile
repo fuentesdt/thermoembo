@@ -8,7 +8,7 @@ vessels: otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.4.nii.gz otsu.5.nii.gz
 
 vessel.nii.gz:  otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz otsu.5.nii.gz 
 	c3d -verbose $^ -accum -add -endaccum -binarize -dilate 1 3x3x1vox -erode 1 3x3x1vox -o $@
-	c3d -verbose manualregion.nii.gz $@ -overlap > overlap$(Gamma).txt
+	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overlap$(Gamma).txt
 	#c3d $@ -comp -dup -lstat > vessel.txt
 	#c3d $@ -comp -thresh 1 30 1 0  -o $@
 otsu.%.nii.gz: vesselness.%.nii.gz 
@@ -17,7 +17,7 @@ vesselmax.nii.gz:  vesselness.1.nii.gz vesselness.2.nii.gz vesselness.3.nii.gz v
 	c3d -verbose $^ -accum -max -endaccum -dilate 1 3x3x1vox -erode 1 3x3x1vox -o $@
 otsumax.nii.gz: vesselmax.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-	c3d -verbose manualregion.nii.gz $@ -overlap > overmax$(Gamma).txt
+	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overmax$(Gamma).txt
 vesselness.%.nii.gz: 
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz $@ 1 1 .5 .5 $(Gamma) $*
 
