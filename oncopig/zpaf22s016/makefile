@@ -13,6 +13,10 @@ otsu.%.nii.gz: vesselness.%.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
 vesselmax.nii.gz:  vesselness.1.nii.gz vesselness.2.nii.gz  vesselness.3.nii.gz
 	c3d -verbose $^ -accum -max -endaccum -o $@
+maxgmm: maxgmm2.nii.gz maxgmm3.nii.gz maxgmm4.nii.gz
+maxgmm%.nii.gz: maskregion.nii.gz vesselmax.nii.gz 
+	mkdir -p maxkmean$*
+	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[$*] -x $<  -a $(word 2,$^)  -o [$@,maxkmean$*/gmmPOSTERIORS%d.nii.gz] 
 otsumax.nii.gz: vesselmax.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
 	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overmax.txt
@@ -27,6 +31,12 @@ vesselness.%.nii.gz:
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessgam.$*.nii.gz 1 1 1.e-9 1.e9  5    $* 1
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 1
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessalp.$*.nii.gz 1 1  .5   1.e9 1.e-9 $* 1
+blobs: blobs.50.nii.gz blobs.100.nii.gz blobs.200.nii.gz
+blobs.%.nii.gz: 
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@         0 1 0.5   .5    5    $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz blobsgam.$*.nii.gz 0 1 1.e-9 1.e9  5    $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz blobsbet.$*.nii.gz 0 1 1.e-9 .5   1.e-9 $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz blobsalp.$*.nii.gz 0 1  .5   1.e9 1.e-9 $* 1
 vesselnessnsgmm.%.nii.gz: 
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz            $@                1 1  .5   .5    5    $* 0
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessnsgmmgam.$*.nii.gz 1 1 1.e-9 1.e9  5    $* 0
@@ -47,6 +57,8 @@ cylinderhess1scale.nii.gz: cylinder1.nii.gz
 cylinderhess1noscale.nii.gz: cylinder1.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 .5 .5 5 1 0
 manualregion.nii.gz: manual.nii.gz
+	c3d $< -region 0x0x150vox 512x512x100vox -o $@
+maskregion.nii.gz: mask.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
 artregion.nii.gz: arterial.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
