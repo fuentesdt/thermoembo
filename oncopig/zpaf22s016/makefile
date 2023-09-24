@@ -17,8 +17,11 @@ maxgmm: maxgmm2.nii.gz maxgmm3.nii.gz maxgmm4.nii.gz
 maxgmm%.nii.gz: maskregion.nii.gz vesselmax.nii.gz 
 	mkdir -p maxkmean$*
 	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[$*] -x $<  -a $(word 2,$^)  -o [$@,maxkmean$*/gmmPOSTERIORS%d.nii.gz] 
-otsumax.nii.gz: vesselmax.nii.gz
+otsuliver.nii.gz: vesselmax.nii.gz liverregion.nii.gz
+	c3d -verbose $^ -times -o $@
+otsumax.nii.gz: otsuliver.nii.gz 
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
+	c3d -verbose $@ -comp -o $@
 	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overmax.txt
 vesselnessns.%.nii.gz: 
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@                1 1  .5    .5     5   $* 0
@@ -31,6 +34,7 @@ vesselness.%.nii.gz:
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessgam.$*.nii.gz 1 1 1.e-9 1.e9  5    $* 1
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 1
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessalp.$*.nii.gz 1 1  .5   1.e9 1.e-9 $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessall.$*.nii.gz 1 1  .5   .5    5    $* 1
 blobs: blobs.50.nii.gz blobs.100.nii.gz blobs.200.nii.gz
 blobs.%.nii.gz: 
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@         0 1 0.5   .5    5    $* 1
@@ -61,6 +65,10 @@ manualregion.nii.gz: manual.nii.gz
 maskregion.nii.gz: mask.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
 artregion.nii.gz: arterial.nii.gz
+	c3d $< -region 0x0x150vox 512x512x100vox -o $@
+artliver.nii.gz: artregion.nii.gz liverregion.nii.gz
+	c3d $^ -times -o $@
+liverregion.nii.gz: liver.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
 gmmpostregion.nii.gz: kmean3/gmmPOSTERIORS3.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
