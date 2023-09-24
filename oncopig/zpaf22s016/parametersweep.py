@@ -1,8 +1,8 @@
 
 import os
 
-allradlist = [.4,.8,1.,1.6,2.0,2.4,3.]
-radlistlist = [allradlist[2::2], allradlist ]
+allradlist = [1.,1.6,2.0,2.4,3.,3.2]
+radlistlist = [ allradlist[0::2], allradlist[1::2]]
 gamlist = [5,50,500]
 alplist  = [1,5,9]
 betlist  = [1,5,9]
