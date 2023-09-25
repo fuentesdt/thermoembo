@@ -23,34 +23,8 @@ otsumax.nii.gz: otsuliver.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
 	c3d -verbose $@ -comp -o $@
 	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overmax.txt
-vesselnessns.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@                1 1  .5    .5     5   $* 0
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessnsgam.$*.nii.gz 1 1 1.e-9 1.e9    5   $* 0
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessnsbet.$*.nii.gz 1 1 1.e-9  .5   1.e-9 $* 0
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessnsalp.$*.nii.gz 1 1  .5   1.e9  1.e-9 $* 0
-# note turn off the alpha component of the vesselness filter
 vesselness.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@              1 1 1.e-9 .5    5    $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessgam.$*.nii.gz 1 1 1.e-9 1.e9  5    $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessalp.$*.nii.gz 1 1  .5   1.e9 1.e-9 $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz vesselnessall.$*.nii.gz 1 1  .5   .5    5    $* 1
-blobs: blobs.50.nii.gz blobs.100.nii.gz blobs.200.nii.gz
-blobs.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz         $@         0 1 0.5   .5    5    $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz blobsgam.$*.nii.gz 0 1 1.e-9 1.e9  5    $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz blobsbet.$*.nii.gz 0 1 1.e-9 .5   1.e-9 $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz blobsalp.$*.nii.gz 0 1  .5   1.e9 1.e-9 $* 1
-vesselnessnsgmm.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz            $@                1 1  .5   .5    5    $* 0
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessnsgmmgam.$*.nii.gz 1 1 1.e-9 1.e9  5    $* 0
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessnsgmmbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 0
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessnsgmmalp.$*.nii.gz 1 1   .5  1.e9 1.e-9 $* 0
-vesselnessgmm.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz            $@              1 1  .5    .5   5    $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessgmmgam.$*.nii.gz 1 1 1.e-9  1.e9 5    $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessgmmbet.$*.nii.gz 1 1 1.e-9 .5   1.e-9 $* 1
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpostregion.nii.gz vesselnessgmmalp.$*.nii.gz 1 1  .5   1.e9 1.e-9 $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz $@ 1 1  .5   .5    5    $* 1
 viewdbg:
 	vglrun itksnap -g artregion.nii.gz     -o vesselness.1.nii.gz      vesselnessgam.1.nii.gz vesselnessbet.1.nii.gz vesselnessalp.1.nii.gz & vglrun itksnap -g artregion.nii.gz     -o vesselnessns.1.nii.gz  vesselnessnsgam.1.nii.gz  vesselnessnsbet.1.nii.gz  vesselnessnsalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessnsgmm.1.nii.gz vesselnessnsgmmgam.1.nii.gz vesselnessnsgmmbet.1.nii.gz vesselnessnsgmmalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessgmm.1.nii.gz   vesselnessgmmgam.1.nii.gz vesselnessgmmbet.1.nii.gz vesselnessgmmalp.1.nii.gz
 

@@ -6,18 +6,26 @@ radlistlist = [ allradlist[0::2], allradlist[1::2]]
 gamlist = [5,50,500]
 alplist  = [1,5,9]
 betlist  = [1,5,9]
-paramlist ={'alp':(.5   ,1.e9,1.e-9),
-            'bet':(1.e-9, .5 ,1.e-9),
-            'gam':(1.e-9,1.e9,5.   ),
-            'all':( .5  , .5 ,5.   ),
-            'ab': ( .5  , .5 ,1.e-9),
-            'bg': (1.e-9, .5 ,5.   ),
-            'ag': ( .5  ,1.e9,5.   ) }
+paramlist ={'alp':  (.5   ,1.e9,1.e-9,1),
+            'bet':  (1.e-9, .5 ,1.e-9,1),
+            'gam':  (1.e-9,1.e9,5.   ,1),
+            'all':  ( .5  , .5 ,5.   ,1),
+            'ab':   ( .5  , .5 ,1.e-9,1),
+            'bg':   (1.e-9, .5 ,5.   ,1),
+            'ag':   ( .5  ,1.e9,5.   ,1),
+            'nsalp':(.5   ,1.e9,1.e-9,0),
+            'nsbet':(1.e-9, .5 ,1.e-9,0),
+            'nsgam':(1.e-9,1.e9,5.   ,0),
+            'nsall':( .5  , .5 ,5.   ,0),
+            'nsab': ( .5  , .5 ,1.e-9,0),
+            'nsbg': (1.e-9, .5 ,5.   ,0),
+            'nsag': ( .5  ,1.e9,5.   ,0),
+}
 
 for pkey, objval in paramlist.iteritems():
     for idrad in allradlist:
        nessfile = 'vesselness%s.%3.1f.nii.gz' % (pkey,idrad) 
-       nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artliver.nii.gz %s  1 1 %f %f %f %f' % (nessfile,objval[0],objval[1],objval[2],idrad)
+       nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artliver.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2],idrad,objval[3])
        print(nesscmd)
        #if not os.path.isfile(nessfile):
        os.system(nesscmd)
