@@ -17,14 +17,14 @@ maxgmm: maxgmm2.nii.gz maxgmm3.nii.gz maxgmm4.nii.gz
 maxgmm%.nii.gz: maskregion.nii.gz vesselmax.nii.gz 
 	mkdir -p maxkmean$*
 	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[$*] -x $<  -a $(word 2,$^)  -o [$@,maxkmean$*/gmmPOSTERIORS%d.nii.gz] 
-otsuliver.nii.gz: vesselmax.nii.gz liverregion.nii.gz
+otsuliver.nii.gz: vesselmax.nii.gz liver.nii.gz
 	c3d -verbose $^ -times -o $@
 otsumax.nii.gz: otsuliver.nii.gz 
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-	c3d -verbose $@ -comp -o $@
-	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overmax.txt
+	c3d $@ -dilate 1 3x3x1vox -erode 1 3x3x1vox -verbose -o $@
+	c3d -verbose manual.nii.gz $@ -overlap 1 > overmax.txt
 vesselness.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz $@ 1 1  .5   .5    5    $* 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter arterial.nii.gz $@ 1 1  .5   .5    5    $* 1
 viewdbg:
 	vglrun itksnap -g artregion.nii.gz     -o vesselness.1.nii.gz      vesselnessgam.1.nii.gz vesselnessbet.1.nii.gz vesselnessalp.1.nii.gz & vglrun itksnap -g artregion.nii.gz     -o vesselnessns.1.nii.gz  vesselnessnsgam.1.nii.gz  vesselnessnsbet.1.nii.gz  vesselnessnsalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessnsgmm.1.nii.gz vesselnessnsgmmgam.1.nii.gz vesselnessnsgmmbet.1.nii.gz vesselnessnsgmmalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessgmm.1.nii.gz   vesselnessgmmgam.1.nii.gz vesselnessgmmbet.1.nii.gz vesselnessgmmalp.1.nii.gz
 
