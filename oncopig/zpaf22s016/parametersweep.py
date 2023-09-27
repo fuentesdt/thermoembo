@@ -2,11 +2,11 @@ import subprocess
 import os
 
 allradlist = [1,2,3,4,5]
-paramlist ={'alp':  (.5,1.e9,0.,1),
+paramlist ={'dfl':  (.5, .5 ,5.,1),
+            'alp':  (.5,1.e9,0.,1),
             'bet':  (0., .5 ,0.,1),
             'gam':  (0.,1.e9,1.,1),
             'all':  (.5, .5 ,1.,1),
-            'dfl':  (.5, .5 ,5.,1),
             'ab':   (.5, .5 ,0.,1),
             'bg':   (0., .5 ,1.,1),
             'ag':   (.5,1.e9,1.,1),
@@ -49,7 +49,7 @@ for pkey, objval in paramlist.iteritems():
        print(nesscmd)
        #if not os.path.isfile(nessfile):
        os.system(nesscmd)
-       otsucmd = '/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter %s otsu%s.%d.nii.gz 1  0' % (nessfile,pkey,idrad)
+       otsucmd = 'c3d -verbose liverregion.nii.gz %s -times -o otsu%s.%d.nii.gz; /rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter otsu%s.%d.nii.gz  otsu%s.%d.nii.gz 1  0' % (nessfile,pkey,idrad,pkey,idrad,pkey,idrad)
        print(otsucmd)
        os.system(otsucmd)
 
@@ -57,7 +57,7 @@ radlistlist = [ allradlist[0:3], allradlist, allradlist[1:4]]
 for pkey, objval in paramlist.iteritems():
     for (idlist,radlist) in enumerate(radlistlist):
       nessniilist =  ' '.join(['vesselness%s.%d.nii.gz'%(pkey,idrad) for idrad in radlist])
-      maxcmd     = 'c3d -verbose %s  -accum -max -endaccum  -o vesselmax%s%d.nii.gz' %(nessniilist ,pkey,idlist)
+      maxcmd     = 'c3d -verbose %s  -accum -max -endaccum liverregion.nii.gz -times -o vesselmax%s%d.nii.gz' %(nessniilist ,pkey,idlist)
       print(maxcmd)
       os.system(maxcmd)
       otsumaxcmd = '/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter vesselmax%s%d.nii.gz otsumax%s%d.nii.gz 1  0; c3d -verbose otsumax%s%d.nii.gz -dilate 1 3x3x1vox -erode 1 3x3x1vox -o otsumax%s%d.nii.gz' % (pkey,idlist,pkey,idlist,pkey,idlist,pkey,idlist)
