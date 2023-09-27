@@ -6,6 +6,7 @@ paramlist ={'alp':  (.5,1.e9,0.,1),
             'bet':  (0., .5 ,0.,1),
             'gam':  (0.,1.e9,1.,1),
             'all':  (.5, .5 ,1.,1),
+            'dfl':  (.5, .5 ,5.,1),
             'ab':   (.5, .5 ,0.,1),
             'bg':   (0., .5 ,1.,1),
             'ag':   (.5,1.e9,1.,1),
@@ -41,7 +42,10 @@ print(maxhessdictionary)
 for pkey, objval in paramlist.iteritems():
     for idrad in allradlist:
        nessfile = 'vesselness%s.%d.nii.gz' % (pkey,idrad) 
-       nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artliver.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2]*maxhessdictionary[idrad][1]['Max']/2.,idrad*pixelsize,objval[3])
+       if pkey == 'dfl':
+          nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artliver.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2],idrad*pixelsize,objval[3])
+       else:
+          nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artliver.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2]*maxhessdictionary[idrad][1]['Max']/2.,idrad*pixelsize,objval[3])
        print(nesscmd)
        #if not os.path.isfile(nessfile):
        os.system(nesscmd)
