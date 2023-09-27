@@ -23,10 +23,33 @@ otsumax.nii.gz: otsuliver.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
 	c3d $@ -dilate 1 3x3x1vox -erode 1 3x3x1vox -verbose -o $@
 	c3d -verbose manual.nii.gz $@ -overlap 1 > overmax.txt
+hessmag: hessianmagnitude.1.nii.gz hessianmagnitude.2.nii.gz hessianmagnitude.3.nii.gz
+hessianmagnitude.%.nii.gz: artregion.nii.gz
+	c3d -verbose $< -hesseig $* -oo eig$*%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o $@ 
+# hessian magnitude inside liver should be used for vesselness gamma parameter 
+gamma.%: hessianmagnitude.%.nii.gz
+	c3d $< liverregion.nii.gz -lstat
 vesselness.%.nii.gz: 
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter arterial.nii.gz $@ 1 1  .5   .5    5    $* 1
 viewdbg:
 	vglrun itksnap -g artregion.nii.gz     -o vesselness.1.nii.gz      vesselnessgam.1.nii.gz vesselnessbet.1.nii.gz vesselnessalp.1.nii.gz & vglrun itksnap -g artregion.nii.gz     -o vesselnessns.1.nii.gz  vesselnessnsgam.1.nii.gz  vesselnessnsbet.1.nii.gz  vesselnessnsalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessnsgmm.1.nii.gz vesselnessnsgmmgam.1.nii.gz vesselnessnsgmmbet.1.nii.gz vesselnessnsgmmalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessgmm.1.nii.gz   vesselnessgmmgam.1.nii.gz vesselnessgmmbet.1.nii.gz vesselnessgmmalp.1.nii.gz
+
+regressiontest: regressionhessmagnitude.nii.gz regressionotsu.nii.gz regressionvesselnessalpha.nii.gz regressionvesselnessbeta.nii.gz regressionvesselnessgamma.nii.gz
+	vglrun itksnap -g regressionscale.nii.gz -s regressiontest.nii.gz -o regressioneig0?.nii.gz regressionvesselness*.nii.gz regressionhessmagnitude.nii.gz   & vglrun itksnap -g regressionscale.nii.gz -s regressionotsu.nii.gz -o regressioneig0?.nii.gz regressionvesselness*.nii.gz regressionhessmagnitude.nii.gz  
+regressionscale.nii.gz: regressiontest.nii.gz
+	c3d $< -binarize -scale 500 -type float -o $@
+regressionhessmagnitude.nii.gz: regressionscale.nii.gz
+	c3d -verbose $< -hesseig .818 -oo regressioneig%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o $@ 
+regressionvesselnessalpha.nii.gz: regressionscale.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5   1.e9   1.e-9  .818 1
+regressionvesselnessbeta.nii.gz:  regressionscale.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 1.e-9  .5    1.e-9  .818 1
+regressionvesselnessgamma.nii.gz: regressionscale.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 1.e-9 1.e9 167.     .818 1
+regressionvesselness.nii.gz: regressionscale.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5    .5  167.     .818 1
+regressionotsu.nii.gz: regressionvesselness.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
 
 cylinder1.nii.gz: manualregion.nii.gz
 	c3d -verbose $<  -cmp  -pop -foreach -dup -times -endfor -accum -add -endaccum  -scale -.5 -exp  -scale  0.15915494309189535 -o $@
@@ -46,8 +69,6 @@ liverregion.nii.gz: liver.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
 gmmpostregion.nii.gz: kmean3/gmmPOSTERIORS3.nii.gz
 	c3d $< -region 0x0x150vox 512x512x100vox -o $@
-hessianmagnitude.%.nii.gz: gmmpostregion.nii.gz
-	c3d -verbose $< -hesseig $* -oo eig$*%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o $@ 
 
 gmmthresh.nii.gz: vessel.gmm.nii.gz
 	c3d $< -thresh 3 4 1 0  -o $@
