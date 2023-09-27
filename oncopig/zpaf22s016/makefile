@@ -26,6 +26,17 @@ otsumax.nii.gz: otsuliver.nii.gz
 hessmag: hessianmagnitude.1.nii.gz hessianmagnitude.2.nii.gz hessianmagnitude.3.nii.gz
 hessianmagnitude.%.nii.gz: artregion.nii.gz
 	c3d -verbose $< -hesseig $* -oo eig$*%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o $@ 
+manualrf.nii.gz: manualregion.nii.gz
+	c3d -verbose $< -shift 1 -type uchar -o $@
+myforest1.rf: vesselnessalp.1.nii.gz vesselnessalp.2.nii.gz vesselnessalp.3.nii.gz vesselnessbet.1.nii.gz vesselnessbet.2.nii.gz vesselnessbet.3.nii.gz vesselnessgam.1.nii.gz vesselnessgam.2.nii.gz vesselnessgam.3.nii.gz  manualrf.nii.gz
+	c3d -verbose $^  -rf-train $@
+class_prob.nii.gz: myforest1.rf
+	c3d -verbose vesselnessalp.1.nii.gz vesselnessalp.2.nii.gz vesselnessalp.3.nii.gz vesselnessbet.1.nii.gz vesselnessbet.2.nii.gz vesselnessbet.3.nii.gz vesselnessgam.1.nii.gz vesselnessgam.2.nii.gz vesselnessgam.3.nii.gz  -rf-apply $<  -omc class_prob.nii.gz
+
+rfotsu.nii.gz: class_prob.nii.gz
+	c3d -verbose -mcs $< -oo class_prob%02d.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter class_prob01.nii.gz  $@ 1  0 
+	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overrf.txt
 # hessian magnitude inside liver should be used for vesselness gamma parameter 
 gamma.%: hessianmagnitude.%.nii.gz
 	c3d $< liverregion.nii.gz -lstat
