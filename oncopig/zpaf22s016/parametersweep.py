@@ -60,7 +60,7 @@ for pkey, objval in paramlist.iteritems():
       maxcmd     = 'c3d -verbose %s  -accum -max -endaccum  -o vesselmax%s%d.nii.gz' %(nessniilist ,pkey,idlist)
       print(maxcmd)
       os.system(maxcmd)
-      otsumaxcmd = '/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter vesselmax%s%d.nii.gz otsumax%s%d.nii.gz 1  0' % (pkey,idlist,pkey,idlist)
+      otsumaxcmd = '/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter vesselmax%s%d.nii.gz otsumax%s%d.nii.gz 1  0; c3d -verbose otsumax%s%d.nii.gz -dilate 1 3x3x1vox -erode 1 3x3x1vox -o otsumax%s%d.nii.gz' % (pkey,idlist,pkey,idlist,pkey,idlist,pkey,idlist)
       print(otsumaxcmd)
       os.system(otsumaxcmd)
       otsuniilist =  ' '.join(['otsu%s.%d.nii.gz'%(pkey,idrad) for idrad in radlist])

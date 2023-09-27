@@ -36,6 +36,7 @@ class_prob.nii.gz: myforest1.rf
 rfotsu.nii.gz: class_prob.nii.gz
 	c3d -verbose -mcs $< -oo class_prob%02d.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter class_prob01.nii.gz  $@ 1  0 
+	c3d $@ -dilate 1 3x3x1vox -erode 1 3x3x1vox -verbose -o $@
 	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overrf.txt
 # hessian magnitude inside liver should be used for vesselness gamma parameter 
 gamma.%: hessianmagnitude.%.nii.gz
