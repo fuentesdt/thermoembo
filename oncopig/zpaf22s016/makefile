@@ -19,6 +19,9 @@ maxgmm%.nii.gz: maskregion.nii.gz vesselmax.nii.gz
 	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[$*] -x $<  -a $(word 2,$^)  -o [$@,maxkmean$*/gmmPOSTERIORS%d.nii.gz] 
 otsuliver.nii.gz: vesselmax.nii.gz liver.nii.gz
 	c3d -verbose $^ -times -o $@
+otsucomp.nii.gz: 
+	c3d -verbose otsumaxall0.nii.gz -as SEG -cmv -pop -pop  -thresh 0 205 1 0 -as MASK -push SEG -times -o seg_left.nii.gz  -push MASK -replace 1 0 0 1  -push SEG -times -o seg_right.nii.gz
+
 otsumax.nii.gz: otsuliver.nii.gz 
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
 	c3d $@ -dilate 1 3x3x1vox -erode 1 3x3x1vox -verbose -o $@
@@ -53,11 +56,11 @@ regressionscale.nii.gz: regressiontest.nii.gz
 regressionhessmagnitude.nii.gz: regressionscale.nii.gz
 	c3d -verbose $< -hesseig .818 -oo regressioneig%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o $@ 
 regressionvesselnessalpha.nii.gz: regressionscale.nii.gz
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5   1.e9   1.e-9  .818 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5   1.e9   0.  .818 1
 regressionvesselnessbeta.nii.gz:  regressionscale.nii.gz
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 1.e-9  .5    1.e-9  .818 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 0.  .5    0.  .818 1
 regressionvesselnessgamma.nii.gz: regressionscale.nii.gz
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 1.e-9 1.e9 167.     .818 1
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1 0. 1.e9 167.     .818 1
 regressionvesselness.nii.gz: regressionscale.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5    .5  167.     .818 1
 regressionotsu.nii.gz: regressionvesselness.nii.gz

@@ -18,14 +18,15 @@ paramlist ={'dfl':  (.5, .5 ,5.,1),
 #            'nsbg': (0.   , .5 ,5.   ,0),
 #            'nsag': ( .5  ,1.e9,5.   ,0),
 }
+pixelsize = 1.0
 pixelsize = 0.818359
 maxhessdictionary = {}
 
 # need hessian magnitude to scale gamma parameter for vesselness feature
 for idrad in allradlist:
-   hesscmd ='c3d -verbose artliver.nii.gz -hesseig %f -oo eig%d%%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o hessmag%d.nii.gz '%(idrad*pixelsize,idrad,idrad)
+   hesscmd ='c3d -verbose artregion.nii.gz -hesseig %f -oo eig%d%%02d.nii.gz -foreach -dup -times -endfor -accum -add -endaccum -sqrt -o hessmag%d.nii.gz '%(idrad*pixelsize,idrad,idrad)
    print(hesscmd)
-   os.system(hesscmd)
+   #os.system(hesscmd)
    getHeaderCmd = 'c3d hessmag%d.nii.gz liverregion.nii.gz  -lstat  ' % (idrad)
    print (getHeaderCmd)
    os.system( getHeaderCmd )
@@ -43,9 +44,9 @@ for pkey, objval in paramlist.iteritems():
     for idrad in allradlist:
        nessfile = 'vesselness%s.%d.nii.gz' % (pkey,idrad) 
        if pkey == 'dfl':
-          nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artliver.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2],idrad*pixelsize,objval[3])
+          nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2],idrad*pixelsize,objval[3])
        else:
-          nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artliver.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2]*maxhessdictionary[idrad][1]['Max']/2.,idrad*pixelsize,objval[3])
+          nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2]*maxhessdictionary[idrad][1]['Max']/2.,idrad*pixelsize,objval[3])
        print(nesscmd)
        #if not os.path.isfile(nessfile):
        os.system(nesscmd)
@@ -54,6 +55,7 @@ for pkey, objval in paramlist.iteritems():
        os.system(otsucmd)
 
 radlistlist = [ allradlist[0:3], allradlist, allradlist[1:4]]
+radlistlist = [ allradlist[0:3]]
 for pkey, objval in paramlist.iteritems():
     for (idlist,radlist) in enumerate(radlistlist):
       nessniilist =  ' '.join(['vesselness%s.%d.nii.gz'%(pkey,idrad) for idrad in radlist])
