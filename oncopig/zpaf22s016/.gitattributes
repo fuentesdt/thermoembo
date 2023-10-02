@@ -5,3 +5,5 @@ auto.nii.gz filter=lfs diff=lfs merge=lfs -text
 regressiontest.nii.gz filter=lfs diff=lfs merge=lfs -text
 manualthinvessel.nii.gz filter=lfs diff=lfs merge=lfs -text
 otsucomp.nii.gz filter=lfs diff=lfs merge=lfs -text
+inflow.vtk filter=lfs diff=lfs merge=lfs -text
+outflow.vtk filter=lfs diff=lfs merge=lfs -text

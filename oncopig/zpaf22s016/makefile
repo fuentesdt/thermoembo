@@ -20,7 +20,7 @@ maxgmm%.nii.gz: maskregion.nii.gz vesselmax.nii.gz
 otsuliver.nii.gz: vesselmax.nii.gz liver.nii.gz
 	c3d -verbose $^ -times -o $@
 otsucomp.nii.gz: 
-	c3d -verbose otsumaxall0.nii.gz -as SEG -cmv -pop -pop  -thresh 0 205 1 0 -as MASK -push SEG -times -o seg_left.nii.gz  -push MASK -replace 1 0 0 1  -push SEG -times -o seg_right.nii.gz
+	c3d -verbose otsumaxall0.nii.gz -as SEG -cmv -pop -pop  -thresh 0 205 1 0 -as MASK -push SEG -times -comp -thresh 1 5 1 0 -comp -as LEFT -push MASK -replace 1 0 0 1  -push SEG -times -comp -thresh 1 5 1 0 -comp -push LEFT -add -o $@
 
 otsumax.nii.gz: otsuliver.nii.gz 
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
