@@ -116,26 +116,45 @@ gradient.nii.gz: arterial.nii.gz
 sigmoid.nii.gz: subtract.nii.gz 
 	c3d -verbose $<  -threshold -inf 95% 1 0 
 	c3d -verbose $<  -scale -1 -shift 150.0 -scale 1 -exp -shift 1. -reciprocal -type uchar -o $@
-subtract.nii.gz:  arterial.nii.gz noconresample.nii.gz 
+
+subtract:  art.subtract.nii.gz ven.subtract.nii.gz
+%.subtract.nii.gz:  %.reg.nii.gz pre.reg.nii.gz 
 	c3d -verbose  $^ -scale -1 -add -o $@
 
+art.lung.nii.gz: art.body.nii.gz
+	c3d arterial.nii.gz artbody.nii.gz -times -o bodyroi.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter bodyroi.nii.gz  $@ 1  0 
+	c3d $@ -replace 1 0 0 1 -comp -o $@ 
+
+reg: pre.reg.nii.gz ven.reg.nii.gz  art.reg.nii.gz
+art.reg.nii.gz: art.nii.gz
+	cp $< $@
+%.reg.nii.gz: %.nii.gz  %.body.nii.gz art.nii.gz  art.body.nii.gz 
+	export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=28; /opt/apps/ANTS/build/ANTS-build/Examples/antsRegistration --verbose 1 --dimensionality 3 --float 0 --collapse-output-transforms 1 --output [$(basename $(basename $@)),$@] --interpolation Linear --use-histogram-matching 0 --winsorize-image-intensities [ 0.005,0.995 ] -x [art.body.nii.gz,$*.body.nii.gz] -r [ art.body.nii.gz,$*.body.nii.gz,1] --transform Rigid[ 0.1 ] --metric MI[ art.nii.gz,$<,1,32,Regular,0.25 ] --convergence [ 1000x500x250x100,1e-6,10 ] --shrink-factors 8x4x2x1 --smoothing-sigmas 3x2x1x0vox --transform Affine[ 0.1 ] --metric MI[ art.nii.gz,$<,1,32,Regular,0.25 ] --convergence [ 1000x500x250x100,1e-6,10 ] --shrink-factors 8x4x2x1 --smoothing-sigmas 3x2x1x0vox --transform SyN[ 0.1,3,0 ] --metric CC[art.nii.gz,$<,1,4 ] --convergence [ 100x70x50x20,1e-6,10 ] --shrink-factors 8x4x2x1 --smoothing-sigmas 3x2x1x0vox 
+body: pre.body.nii.gz art.body.nii.gz ven.body.nii.gz
+%.body.nii.gz: %.nii.gz
+	c3d -verbose $< -as REG -threshold -475 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.1.nii.gz
+	c3d -verbose $< -as REG -threshold -190 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.2.nii.gz
+	c3d -verbose $< -as REG -threshold -165 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.3.nii.gz
+	c3d -verbose $< -as REG -threshold -175 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.4.nii.gz
+	c3d -verbose $< -as REG -threshold -150 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.5.nii.gz
+	c3d -verbose $< -as REG -threshold -155 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.6.nii.gz
+	c3d -verbose $< -as REG -threshold -400 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.7.nii.gz
+	c3d -verbose $< -as REG -threshold -200 inf 1 0 -type char -pad 0x0x1vox 0x0x1vox 1  -holefill 1 0 -popas MASK -push REG -push MASK -reslice-identity -o $*body.8.nii.gz
+	c3d -verbose $*body.?.nii.gz -accum -add -endaccum -thresh 8 8 1 0 -comp -thresh 1 1 1 0 -type char -o $@
 
 raw: nocontrast.nii.gz arterial.nii.gz venous.nii.gz 
-resample: arterial.nii.gz noconresample.nii.gz venresample.nii.gz 
-	vglrun itksnap -g arterial.nii.gz -o noconresample.nii.gz venresample.nii.gz 
+resample: art.nii.gz pre.resample.nii.gz ven.resample.nii.gz 
+	vglrun itksnap -g $> -o $(word 2,$^) $(word 3,$^)
 info:
 	c3d nocontrast.nii.gz -info  arterial.nii.gz  -info venous.nii.gz  -info lateart.nii.gz    -info 
-noconresample.nii.gz:  arterial.nii.gz nocontrast.nii.gz
+%.resample.nii.gz:  art.nii.gz %.nii.gz
 	c3d $^ -reslice-identity -o $@
-venresample.nii.gz:  arterial.nii.gz venous.nii.gz
-	c3d $^ -reslice-identity -o $@
-lateresample.nii.gz:  arterial.nii.gz lateart.nii.gz
-	c3d $^ -reslice-identity -o $@
-nocontrast.nii.gz:
+pre.nii.gz:
 	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S023/20230510/1.3.12.2.1107.5.1.4.83618.30000023051011532834500000001/1.3.12.2.1107.5.1.4.83618.30000023050916382426000007919 $@ ;fi
 
-arterial.nii.gz:
+art.nii.gz:
 	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S023/20230510/1.3.12.2.1107.5.1.4.83618.30000023051011532834500000001/1.3.12.2.1107.5.1.4.83618.30000023050916382426000013350 $@ ;fi
 
-venous.nii.gz:
+ven.nii.gz:
 	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF23S023/20230510/1.3.12.2.1107.5.1.4.83618.30000023051011532834500000001/1.3.12.2.1107.5.1.4.83618.30000023050916382426000011535 $@ ;fi
