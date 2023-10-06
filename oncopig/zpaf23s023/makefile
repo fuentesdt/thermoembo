@@ -121,7 +121,8 @@ subtract.nii.gz:  arterial.nii.gz noconresample.nii.gz
 
 
 raw: nocontrast.nii.gz arterial.nii.gz venous.nii.gz 
-resample: noconresample.nii.gz venresample.nii.gz lateresample.nii.gz
+resample: arterial.nii.gz noconresample.nii.gz venresample.nii.gz 
+	vglrun itksnap -g arterial.nii.gz -o noconresample.nii.gz venresample.nii.gz 
 info:
 	c3d nocontrast.nii.gz -info  arterial.nii.gz  -info venous.nii.gz  -info lateart.nii.gz    -info 
 noconresample.nii.gz:  arterial.nii.gz nocontrast.nii.gz
