@@ -9,7 +9,7 @@ paramlist ={'dfl0':  (.5, .5 ,5.,1,1.,0 ),
             'dfl4':  (.5, .5 ,5.,1,.01,30),
             'dfl5':  (.5, .5 ,5.,1,10.,30),
             'dfl6':  (.5, .05 ,5.,1,.1,30),
-            'dfl7':  (.5, .005 ,5.,1,.1,30),
+            'dfl7':  (.5, 5. ,5.,1,.1,30),
 #            'alp':  (.5,1.e9,0.,1,,),
 #            'bet':  (0., .5 ,0.,1,,),
 #            'gam':  (0.,1.e9,1.,1,,),
@@ -49,15 +49,15 @@ maxhessdictionary = {}
    
 for pkey, objval in paramlist.iteritems():
     if (objval[5] == 0):
-      denoisecmd = 'cp artregion.nii.gz artdenoise%3.1f%d.nii.gz ' % (objval[4],objval[5])
+      denoisecmd = 'cp artregion.nii.gz artdenoise%s.nii.gz ' % (pkey)
     else :
-      denoisecmd = 'docker run --entrypoint=/opt/mitk/ImageDenoising/TotalVariationDenoisingImage  --rm -it --user $(id -u):$(id -g) -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016/:/data/  -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016:/out iptools:latest /data/artregion.nii.gz /out/artdenoise%3.1f%d.nii.gz %3.1f %d' % (objval[4],objval[5],objval[4],objval[5])
+      denoisecmd = 'docker run --entrypoint=/opt/mitk/ImageDenoising/TotalVariationDenoisingImage  --rm -it --user $(id -u):$(id -g) -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016/:/data/  -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016:/out iptools:latest /data/artregion.nii.gz /out/artdenoise%s.nii.gz %3.1f %d' % (pkey,objval[4],objval[5])
     print(denoisecmd)
     os.system(denoisecmd)
     for idrad in allradlist:
        nessfile = 'vesselness%s.%d.nii.gz' % (pkey,idrad) 
        #if pkey == 'dfl':
-       nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artdenoise%3.1f%d.nii.gz %s  1 1 %f %f %f %f %d' % (objval[4],objval[5],nessfile,objval[0],objval[1],objval[2],idrad*pixelsize,objval[3])
+       nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artdenoise%s.nii.gz %s  1 1 %f %f %f %f %d' % (pkey,nessfile,objval[0],objval[1],objval[2],idrad*pixelsize,objval[3])
        #else:
        #   nesscmd = '/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter artregion.nii.gz %s  1 1 %f %f %f %f %d' % (nessfile,objval[0],objval[1],objval[2]*maxhessdictionary[idrad][1]['Max']/2.,idrad*pixelsize,objval[3])
        print(nesscmd)
