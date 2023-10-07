@@ -11,8 +11,6 @@ vessel.nii.gz:  otsu.1.nii.gz otsu.2.nii.gz otsu.3.nii.gz
 	#c3d $@ -comp -thresh 1 30 1 0  -o $@
 otsu.%.nii.gz: vesselness.%.nii.gz 
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
-vesselmax.nii.gz:  vesselness.1.nii.gz vesselness.2.nii.gz  vesselness.3.nii.gz
-	c3d -verbose $^ -accum -max -endaccum -o $@
 maxgmm: maxgmm2.nii.gz maxgmm3.nii.gz maxgmm4.nii.gz
 maxgmm%.nii.gz: maskregion.nii.gz vesselmax.nii.gz 
 	mkdir -p maxkmean$*
@@ -44,8 +42,6 @@ rfotsu.nii.gz: class_prob.nii.gz
 # hessian magnitude inside liver should be used for vesselness gamma parameter 
 gamma.%: hessianmagnitude.%.nii.gz
 	c3d $< liverregion.nii.gz -lstat
-vesselness.%.nii.gz: 
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter arterial.nii.gz $@ 1 1  .5   .5    5    $* 1
 viewdbg:
 	vglrun itksnap -g artregion.nii.gz     -o vesselness.1.nii.gz      vesselnessgam.1.nii.gz vesselnessbet.1.nii.gz vesselnessalp.1.nii.gz & vglrun itksnap -g artregion.nii.gz     -o vesselnessns.1.nii.gz  vesselnessnsgam.1.nii.gz  vesselnessnsbet.1.nii.gz  vesselnessnsalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessnsgmm.1.nii.gz vesselnessnsgmmgam.1.nii.gz vesselnessnsgmmbet.1.nii.gz vesselnessnsgmmalp.1.nii.gz & vglrun itksnap -g gmmpostregion.nii.gz -o vesselnessgmm.1.nii.gz   vesselnessgmmgam.1.nii.gz vesselnessgmmbet.1.nii.gz vesselnessgmmalp.1.nii.gz
 
@@ -117,6 +113,15 @@ sigmoid.nii.gz: subtract.nii.gz
 	c3d -verbose $<  -threshold -inf 95% 1 0 
 	c3d -verbose $<  -scale -1 -shift 150.0 -scale 1 -exp -shift 1. -reciprocal -type uchar -o $@
 
+vessel: art.vessel.nii.gz ven.vessel.nii.gz
+%.vessel.nii.gz: %.vesselmax.nii.gz 
+	c3d $< -threshold -inf 13.1 1 0 -dilate 1 3x3x1vox -erode 1 3x3x1vox -verbose -o $@
+%.vesselmax.nii.gz:  %.vesselness.1.nii.gz %.vesselness.2.nii.gz  %.vesselness.3.nii.gz
+	c3d -verbose $^ -accum -max -endaccum -o $@
+art.vesselness.%.nii.gz:  art.reg.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5   .5    5    $* 1
+ven.vesselness.%.nii.gz:  ven.reg.nii.gz
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5   .5    5    $* 1
 subtract:  art.subtract.nii.gz ven.subtract.nii.gz
 %.subtract.nii.gz:  %.reg.nii.gz pre.reg.nii.gz 
 	c3d -verbose  $^ -scale -1 -add -o $@
