@@ -3,12 +3,14 @@ import os
 
 allradlist = [1,2,3]
 paramlist ={'dfl0':  (.5, .5 ,5.,1,1.,0 ),
-            'dfl1':  (.5, .5 ,5.,1,1.,10),
+            'dfl1':  (.5, .5 ,5.,1,1.,30),
             'dfl2':  (.5, .5 ,5.,1,1.,50),
-            'dfl3':  (.5, .5 ,5.,1,.1,10),
+            'dfl3':  (.5, .5 ,5.,1,.1,30),
             'dfl4':  (.5, .5 ,5.,1,.1,50),
-            'dfl5':  (.5, .5 ,5.,1,10.,10),
+            'dfl5':  (.5, .5 ,5.,1,10.,30),
             'dfl7':  (.5, .5 ,5.,1,10.,50),
+            'dfl8':  (.5, .05 ,5.,1,.1,30),
+            'dfl9':  (.5, .005 ,5.,1,.1,30),
 #            'alp':  (.5,1.e9,0.,1,,),
 #            'bet':  (0., .5 ,0.,1,,),
 #            'gam':  (0.,1.e9,1.,1,,),
@@ -47,7 +49,10 @@ maxhessdictionary = {}
 # print(maxhessdictionary)
    
 for pkey, objval in paramlist.iteritems():
-    denoisecmd = 'docker run --entrypoint=/opt/mitk/ImageDenoising/TotalVariationDenoisingImage  --rm -it --user $(id -u):$(id -g) -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016/:/data/  -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016:/out iptools:latest /data/artregion.nii.gz /out/artdenoise%3.1f%d.nii.gz %3.1f %d' % (objval[4],objval[5],objval[4],objval[5])
+    if (objval[5] == 0):
+      denoisecmd = 'cp artregion.nii.gz artdenoise%3.1f%d.nii.gz ' % (objval[4],objval[5])
+    else :
+      denoisecmd = 'docker run --entrypoint=/opt/mitk/ImageDenoising/TotalVariationDenoisingImage  --rm -it --user $(id -u):$(id -g) -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016/:/data/  -v /rsrch3/ip/dtfuentes/github/thermoembo/oncopig/zpaf22s016:/out iptools:latest /data/artregion.nii.gz /out/artdenoise%3.1f%d.nii.gz %3.1f %d' % (objval[4],objval[5],objval[4],objval[5])
     print(denoisecmd)
     os.system(denoisecmd)
     for idrad in allradlist:
@@ -63,19 +68,19 @@ for pkey, objval in paramlist.iteritems():
        print(otsucmd)
        os.system(otsucmd)
 
-radlistlist = [ allradlist[0:3], allradlist, allradlist[1:4]]
-radlistlist = [ allradlist[0:3]]
+#radlistlist = [ allradlist[0:3], allradlist, allradlist[1:4]]
+radlistlist = [ allradlist]
 for pkey, objval in paramlist.iteritems():
     for (idlist,radlist) in enumerate(radlistlist):
       nessniilist =  ' '.join(['vesselness%s.%d.nii.gz'%(pkey,idrad) for idrad in radlist])
       maxcmd     = 'c3d -verbose %s  -accum -max -endaccum liverregion.nii.gz -times -o vesselmax%s%d.nii.gz' %(nessniilist ,pkey,idlist)
       print(maxcmd)
       os.system(maxcmd)
-      otsumaxcmd = '/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter vesselmax%s%d.nii.gz otsumax%s%d.nii.gz 1  0; c3d -verbose otsumax%s%d.nii.gz -dilate 1 3x3x1vox -erode 1 3x3x1vox -o otsumax%s%d.nii.gz' % (pkey,idlist,pkey,idlist,pkey,idlist,pkey,idlist)
+      otsumaxcmd = '/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter vesselmax%s%d.nii.gz otsumax%s%d.nii.gz 1  0; c3d -verbose otsumax%s%d.nii.gz -o otsumax%s%d.nii.gz' % (pkey,idlist,pkey,idlist,pkey,idlist,pkey,idlist)
       print(otsumaxcmd)
       os.system(otsumaxcmd)
       otsuniilist =  ' '.join(['otsu%s.%d.nii.gz'%(pkey,idrad) for idrad in radlist])
-      addbincmd = 'c3d -verbose %s -accum -add -endaccum -binarize -dilate 1 3x3x1vox -erode 1 3x3x1vox -o vessel%s%d.nii.gz' %(otsuniilist,pkey,idlist)
+      addbincmd = 'c3d -verbose %s -accum -add -endaccum -binarize -o vessel%s%d.nii.gz' %(otsuniilist,pkey,idlist)
       print(addbincmd)
       os.system(addbincmd)
       overbincmd ='c3d -verbose manualregion.nii.gz  vessel%s%d.nii.gz -overlap 1 > overlap%s%02d.txt' %(pkey,idlist,pkey,idlist)
