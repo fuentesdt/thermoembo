@@ -115,13 +115,20 @@ sigmoid.nii.gz: subtract.nii.gz
 
 vessel: art.vessel.nii.gz ven.vessel.nii.gz
 %.vessel.nii.gz: %.vesselmax.nii.gz 
-	c3d $< -threshold -inf 13.1 1 0 -dilate 1 3x3x1vox -erode 1 3x3x1vox -verbose -o $@
-%.vesselmax.nii.gz:  %.vesselness.1.nii.gz %.vesselness.2.nii.gz  %.vesselness.3.nii.gz
+	c3d -verbose $< -threshold 1.0 inf 1 0 -o $@
+%.vesselmax.nii.gz:  %.vesselness.1.nii.gz %.vesselness.2.nii.gz  %.vesselness.3.nii.gz 
 	c3d -verbose $^ -accum -max -endaccum -o $@
-art.vesselness.%.nii.gz:  art.reg.nii.gz
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5   .5    5    $* 1
-ven.vesselness.%.nii.gz:  ven.reg.nii.gz
-	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter $< $@ 1 1  .5   .5    5    $* 1
+%.denoise.nii.gz: %.reg.nii.gz
+	docker run --entrypoint=/opt/mitk/ImageDenoising/TotalVariationDenoisingImage  --rm -it --user $$(id -u):$$(id -g) -v $(PWD)/:/data/  -v $(PWD):/out iptools:latest /data/$< /out/$@ .1 30
+pixelsize=0.90625
+art.vesselness.%.nii.gz:
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter art.denoise.nii.gz $@ 1 1  .5   5.    5    $(shell python -c "print $* * $(pixelsize)" ) 1
+art.vesselness.5.nii.gz:                                                                                                     
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter art.denoise.nii.gz $@ 1 1  .5   5.    5    $(shell python -c "print .5 * $(pixelsize)" ) 1
+ven.vesselness.%.nii.gz:                                                                                                     
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter ven.denoise.nii.gz $@ 1 1  .5   5.    5    $(shell python -c "print $* * $(pixelsize)" ) 1
+ven.vesselness.5.nii.gz:                                                                                                     
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter ven.denoise.nii.gz $@ 1 1  .5   5.    5    $(shell python -c "print .5 * $(pixelsize)" ) 1
 subtract:  art.subtract.nii.gz ven.subtract.nii.gz
 %.subtract.nii.gz:  %.reg.nii.gz pre.reg.nii.gz 
 	c3d -verbose  $^ -scale -1 -add -o $@
