@@ -115,7 +115,9 @@ sigmoid.nii.gz: subtract.nii.gz
 
 vessel: art.vessel.nii.gz ven.vessel.nii.gz
 %.vessel.nii.gz: %.vesselmax.nii.gz 
-	c3d -verbose $< -threshold 1.0 inf 1 0 -o $@
+	echo c3d $*.vesselmax.nii.gz $*.liverroi.nii.gz -times -o $*.vesselmax0.nii.gz
+	echo /rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $*.vesselmax0.nii.gz  $@
+	c3d -verbose $< -threshold .01 inf 1 0 -o $@
 %.vesselmax.nii.gz:  %.vesselness.1.nii.gz %.vesselness.2.nii.gz  %.vesselness.3.nii.gz 
 	c3d -verbose $^ -accum -max -endaccum -o $@
 %.denoise.nii.gz: %.reg.nii.gz
