@@ -14,7 +14,7 @@ otsu.%.nii.gz: vesselness.%.nii.gz
 vesselmax.nii.gz:  vesselness.1.nii.gz vesselness.2.nii.gz  vesselness.3.nii.gz
 	c3d -verbose $^ -accum -max -endaccum -o $@
 maxgmm: maxgmm2.nii.gz maxgmm3.nii.gz maxgmm4.nii.gz
-maxgmm%.nii.gz: maskregion.nii.gz vesselmax.nii.gz 
+maxgmm%.nii.gz: liverregion.nii.gz artregion.nii.gz 
 	mkdir -p maxkmean$*
 	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[$*] -x $<  -a $(word 2,$^)  -o [$@,maxkmean$*/gmmPOSTERIORS%d.nii.gz] 
 otsuliver.nii.gz: vesselmax.nii.gz liver.nii.gz
@@ -41,6 +41,23 @@ rfotsu.nii.gz: class_prob.nii.gz
 	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter class_prob01.nii.gz  $@ 1  0 
 	c3d $@ -dilate 1 3x3x1vox -erode 1 3x3x1vox -verbose -o $@
 	c3d -verbose manualregion.nii.gz $@ -overlap 1 > overrf.txt
+gmmpre.nii.gz: maxgmm2.nii.gz
+	c3d $< -thresh 2 2 1 0 -o $@
+gmmvesselness.%.nii.gz: 
+	/rsrch1/ip/dtfuentes/github/ExLib/Vesselness/HessianToObjectnessMeasureImageFilter gmmpre.nii.gz $@ 1 1  .5   .5    5    $* 1
+gmmvessel.nii.gz:  gmmvesselness.1.nii.gz gmmvesselness.2.nii.gz  gmmvesselness.3.nii.gz
+	c3d -verbose $^ -accum -max -endaccum -o $@
+gmmotsumax.nii.gz: gmmvessel.nii.gz 
+	/rsrch1/ip/dtfuentes/github/ExLib/OtsuFilter/OtsuThresholdImageFilter $< $@ 1  0 
+gmmthin.nii.gz: gmmotsumax.nii.gz
+	/rsrch3/ip/dtfuentes/github/ctperfusion/ThinImage $< $@
+soi.nii.gz: gmmthin.nii.gz
+	c3d $< -dilate 255 4x4x4vox  -o $@
+centerline.vtk:
+	export PYTHONPATH=/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/lib/python2.7/site-packages;
+	/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkmarchingcubes -l 1 -ifile gmmotsumax.nii.gz -ofile model.vtp 
+	vglrun /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkcenterlines -ifile model.vtp -ofile foo_centerlines.vtp
+	vglrun /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtklevelsetsegmentation -ifile gmmotsumax.nii.gz --pipe /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkmarchingcubes -i @.o -ofile model.vtp
 # hessian magnitude inside liver should be used for vesselness gamma parameter 
 gamma.%: hessianmagnitude.%.nii.gz
 	c3d $< liverregion.nii.gz -lstat
