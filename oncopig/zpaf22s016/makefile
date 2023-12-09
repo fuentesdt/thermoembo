@@ -56,8 +56,19 @@ soi.nii.gz: gmmthin.nii.gz
 centerline.vtk:
 	export PYTHONPATH=/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/lib/python2.7/site-packages;
 	/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkmarchingcubes -l 1 -ifile gmmotsumax.nii.gz -ofile model.vtp 
-	vglrun /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkcenterlines -ifile model.vtp -ofile foo_centerlines.vtp
+	vglrun /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkcenterlines -ifile model.vtp -seedselector 'idlist' -targetids 17466 -sourceids 16143 -ofile foo_centerlines.vtp
 	vglrun /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtklevelsetsegmentation -ifile gmmotsumax.nii.gz --pipe /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkmarchingcubes -i @.o -ofile model.vtp
+	/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkmarchingcubes -l 1 -ifile regressionvmtk.nii.gz -ofile regmodel.vtp 
+	/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtksurfacedecimation -ifile regmodel.vtp  -ofile decmodel.vtp  -reduction .9
+	/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtksurfacesmoothing -ifile decmodel.vtp  -ofile smtmodel.vtp  -iterations 10
+	vglrun /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkcenterlines -ifile regmodel.vtp -ofile reg_centerlines.vtp
+	vglrun /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkcenterlines -ifile gmmotsumax.nii.surf.stl -ofile acenterlines.vtp
+centerlines.stl:
+	export AMIRA_DATADIR=$(PWD);vglrun /opt/apps/Amira/2020.2/bin/start -tclcmd "load gmmotsumax.nii.gz; create HxCastField ConvertImage; ConvertImage data connect gmmotsumax.nii.gz; ConvertImage fire; ConvertImage outputType setIndex 0 7; ConvertImage create result setLabel ; gmmotsumax.nii.to-labelfield-8_bits ImageData connect gmmotsumax.nii.gz; set hideNewModules 0 ; create HxGMC GenerateSurface ; GenerateSurface setIconPosition 399 68 ; GenerateSurface setVar CustomHelp {HxGMC} ; GenerateSurface setVar CustomXML {HxGMC_config.xml} ; GenerateSurface data connect gmmotsumax.nii.to-labelfield-8_bits ; GenerateSurface fire ; GenerateSurface smoothing setIndex 0 3 ; GenerateSurface smoothingExtent setMinMax 1 9 ; GenerateSurface smoothingExtent setButtons 0 ; GenerateSurface smoothingExtent setEditButton 1 ; GenerateSurface smoothingExtent setIncrement 0.533333 ; GenerateSurface smoothingExtent setValue 2 ; GenerateSurface smoothingExtent setSubMinMax 1 9 ; GenerateSurface options setState {item 0 0 item 1 0 } ; GenerateSurface borderOnOff setValue 1 ; GenerateSurface algorithmMode setIndex 0 0 ; GenerateSurface borderSettings setValue 0 1 ; GenerateSurface borderSettings setToggleVisible 0 1 ; GenerateSurface borderSettings setValue 1 0 ; GenerateSurface borderSettings setToggleVisible 1 1 ; GenerateSurface borderSettings setValue 2 0 ; GenerateSurface borderSettings setToggleVisible 2 1 ; GenerateSurface borderSettings setValue 3 0 ; GenerateSurface borderSettings setToggleVisible 3 0 ; GenerateSurface materialList setIndex 0 0 ; GenerateSurface smoothMaterial setIndex 0 0 ; GenerateSurface applyTransformToResult 1 ; GenerateSurface fire ; GenerateSurface setViewerMask 16383 ; GenerateSurface select ; GenerateSurface setPickable 1 ; set hideNewModules 0 ; [ GenerateSurface create gmmotsumax.nii.surf ] setLabel gmmotsumax.nii.surf ; gmmotsumax.nii.surf setIconPosition 20 115 ; gmmotsumax.nii.surf master connect GenerateSurface result 0 ; gmmotsumax.nii.surf setTransform -1 0 0 0 0 -1 0 0 0 0 1 0 225.091 304.091 464.5 1 ; gmmotsumax.nii.surf fire ; gmmotsumax.nii.surf setViewerMask 16383"
+centerlines.vtp: centerlines.stl
+	export PYTHONPATH=/rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/lib/python2.7/site-packages; vglrun python /rsrch3/ip/dtfuentes/github/vmtk/vmtk-build/Install/bin/vmtkcenterlines -ifile $< -ofile $@
+
+
 # hessian magnitude inside liver should be used for vesselness gamma parameter 
 gamma.%: hessianmagnitude.%.nii.gz
 	c3d $< liverregion.nii.gz -lstat
@@ -156,3 +167,11 @@ venous.nii.gz:
 	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100000939 $@ ;fi
 lateart.nii.gz:
 	if [ ! -f $@  ] ; then DicomSeriesReadImageWrite2 /rsrch1/ip/ip-comp_rsch_lab/oncopigdata/ZPAF22S016/20220809/1.3.12.2.1107.5.1.4.83618.30000022080912274636100000001/1.3.12.2.1107.5.1.4.83618.30000022080912225286100001856 $@ ;fi
+
+dsa.nii.gz:
+	DicomSeriesReadImageWrite2 /mnt/FUS4/IPVL_research/ZPAF22S016/20220809/1.3.12.2.1107.5.4.5.109411.30000022080912120636200000003/1.3.12.2.1107.5.4.5.109411.30000022080912315231600000033/ $@
+
+dsaroi.nii.gz: dsa.nii.gz
+	c3d $< -cmv -thresh 6 25 1 0 $< -thresh 10 inf 1 0 -multiply -o $@
+dsagmm.nii.gz: dsaroi.nii.gz dsa.nii.gz 
+	$(ATROPOSCMD) -m [0.3,1x1x1] -i kmeans[2] -x $<  -a $(word 2,$^)  -o [$@,gmmPOSTERIORS%d.nii.gz] 
