@@ -1,0 +1,22 @@
+# Claude Code working directory — never needed in the image
+.claude/
+
+# Large directories
+oncopig/
+temperaturedata/
+venogram/
+vesseldata/
+examplemesh/
+couplemesh/
+
+# Python / analysis scripts not used by the solver
+*.py
+*.csv
+*.yaml
+*.sql
+*.pvsm
+
+# Git metadata
+.git/
+
+# Only tutorials/ and Dockerfile are needed for the build

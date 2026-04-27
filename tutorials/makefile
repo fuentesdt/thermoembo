@@ -1,5 +1,5 @@
 
-all: thermoembo
+all: thermoembo thermoembo1d
 CFLAGS          =
 FFLAGS          =
 CPPFLAGS	= -I/usr/include/vtk-5.10
@@ -18,6 +18,9 @@ VTK_LIB = -rdynamic /usr/lib/libvtkVolumeRendering.so.5.10 /usr/lib/libvtkIO.so.
 
 thermoembo: thermoembo.o chkopts
 	-${CLINKER} -o thermoembo-${PETSC_ARCH} thermoembo.o ${PETSC_TS_LIB} ${VTK_LIB}
+
+thermoembo1d: thermoembo1d.o chkopts
+	-${CLINKER} -o thermoembo1d-${PETSC_ARCH} thermoembo1d.o ${PETSC_TS_LIB} ${VTK_LIB}
 
 phasemodel: phasemodel.o chkopts
 	-${CLINKER} -o phasemodel phasemodel.o ${PETSC_TS_LIB} ${VTK_LIB}
