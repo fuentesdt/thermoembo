@@ -33,7 +33,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # python:           Python 2.7 — required by PETSc's configure script
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc g++ gfortran \
-        make wget python \
+        make wget curl python \
+        ca-certificates \
+        cmake m4 file \
         openmpi-bin libopenmpi-dev \
         libvtk5-dev \
         liblapack-dev libblas-dev \
@@ -47,10 +49,19 @@ ENV PETSC_ARCH=3.10.2-xenial-gcc-5.4.0-opt
 
 RUN mkdir -p /opt/petsc \
  && wget -q \
-        https://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-${PETSC_VERSION}.tar.gz \
+        https://github.com/petsc/petsc/archive/refs/tags/v${PETSC_VERSION}.tar.gz \
         -O /tmp/petsc.tar.gz \
  && tar -xzf /tmp/petsc.tar.gz -C /opt/petsc \
  && rm /tmp/petsc.tar.gz
+
+# NetCDF 4.5.0 — PETSc 3.10.2 hardcodes a dead Unidata FTP URL.
+# The GitHub archive extracts to netcdf-c-4.5.0/ but PETSc infers the
+# directory name from the tarball (netcdf-4.5.0), so we repack it.
+RUN curl -sL https://github.com/Unidata/netcdf-c/archive/refs/tags/v4.5.0.tar.gz \
+    | tar xzf - -C /tmp \
+ && mv /tmp/netcdf-c-4.5.0 /tmp/netcdf-4.5.0 \
+ && tar czf /tmp/netcdf-4.5.0.tar.gz -C /tmp netcdf-4.5.0 \
+ && rm -rf /tmp/netcdf-4.5.0
 
 # Configure options:
 #   --download-netcdf / --download-exodusii: required for DMPlexCreateFromFile
@@ -69,7 +80,10 @@ RUN cd ${PETSC_DIR} && ./configure \
         --CXXOPTFLAGS='-O2' \
         --FOPTFLAGS='-O2' \
         --with-blaslapack-lib='-L/usr/lib/x86_64-linux-gnu -llapack -lblas -lgfortran -lm' \
-        --download-netcdf=1 \
+        --with-zlib-dir=/usr \
+        --download-hdf5=1 \
+        --download-pnetcdf=1 \
+        --download-netcdf=/tmp/netcdf-4.5.0.tar.gz \
         --download-exodusii=1 \
         --with-shared-libraries=0 \
  && make PETSC_DIR=${PETSC_DIR} PETSC_ARCH=${PETSC_ARCH} all

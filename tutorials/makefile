@@ -16,6 +16,14 @@ include ${PETSC_DIR}/lib/petsc/conf/test
 
 VTK_LIB = -rdynamic /usr/lib/libvtkVolumeRendering.so.5.10 /usr/lib/libvtkIO.so.5.10 /usr/lib/libvtkRendering.so.5.10 /usr/lib/libvtkIO.so.5.10 /usr/lib/libvtkGraphics.so.5.10 /usr/lib/libvtkImaging.so.5.10 /usr/lib/libvtkFiltering.so.5.10 /usr/lib/libvtkCommon.so.5.10 /usr/lib/libvtksys.so.5.10 /usr/lib/libvtkHybrid.so.5.10
 
+# thermoembo*.c include C++ VTK headers; override PETSc's default .c.o rule
+# (which uses mpicc) with an explicit C++ rule using ${CXX} = mpicxx.
+thermoembo.o: thermoembo.c
+	${CXX} ${CXXFLAGS} ${PETSC_CCPPFLAGS} ${CPPFLAGS} -c -o $@ $<
+
+thermoembo1d.o: thermoembo1d.c
+	${CXX} ${CXXFLAGS} ${PETSC_CCPPFLAGS} ${CPPFLAGS} -c -o $@ $<
+
 thermoembo: thermoembo.o chkopts
 	-${CLINKER} -o thermoembo-${PETSC_ARCH} thermoembo.o ${PETSC_TS_LIB} ${VTK_LIB}
 
