@@ -149,17 +149,22 @@ ENV LD_LIBRARY_PATH=/usr/lib:/usr/lib/x86_64-linux-gnu/openmpi/lib:${LD_LIBRARY_
 RUN cd /work/tutorials && make thermoembo thermoembo1d thermoembo-debug thermoembo1d-debug
 
 # ── Python environment (Miniconda) ────────────────────────────────────────────
-# Miniconda provides Python 3.10+ on Ubuntu 16.04 without requiring a PPA.
-# The pipeline scientific stack is installed via conda-forge; tetgen is pip-only.
-RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+# Pin the installer to the last 2022 release (22.11.1-1).  Conda 23.1.0+
+# (February 2023) added an explicit GLIBC >=2.28 check; Ubuntu 16.04 only
+# ships GLIBC 2.23, so any newer installer aborts immediately.
+#
+# vtk is capped at 9.2.* — the last series whose conda-forge builds target
+# the cos7 sysroot (GLIBC 2.17).  VTK 9.3+ migrated to cos8 (GLIBC 2.28).
+# pyvista <0.40 is the last branch compatible with vtk 9.2.
+RUN wget -q "https://repo.anaconda.com/miniconda/Miniconda3-py310_22.11.1-1-Linux-x86_64.sh" \
         -O /tmp/miniconda.sh \
  && bash /tmp/miniconda.sh -b -p /opt/conda \
  && rm /tmp/miniconda.sh
 ENV PATH=/opt/conda/bin:${PATH}
 
 RUN conda install -y -c conda-forge \
-        nibabel pyvista pymeshfix scipy scikit-image \
-        meshio netcdf4 vtk numpy pandas \
+        nibabel "vtk=9.2.*" "pyvista<0.40" pymeshfix \
+        scipy scikit-image meshio netcdf4 numpy pandas \
  && pip install tetgen \
  && conda clean -afy
 
