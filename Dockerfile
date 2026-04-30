@@ -148,24 +148,30 @@ ENV LD_LIBRARY_PATH=/usr/lib:/usr/lib/x86_64-linux-gnu/openmpi/lib:${LD_LIBRARY_
 
 RUN cd /work/tutorials && make thermoembo thermoembo1d thermoembo-debug thermoembo1d-debug
 
-# ── Python environment (Miniconda) ────────────────────────────────────────────
-# Pin the installer to the last 2022 release (22.11.1-1).  Conda 23.1.0+
-# (February 2023) added an explicit GLIBC >=2.28 check; Ubuntu 16.04 only
-# ships GLIBC 2.23, so any newer installer aborts immediately.
-#
+# ── Python environment (Miniforge) ───────────────────────────────────────────
+# Miniforge defaults to conda-forge and ships mamba for faster solving.
 # vtk is capped at 9.2.* — the last series whose conda-forge builds target
 # the cos7 sysroot (GLIBC 2.17).  VTK 9.3+ migrated to cos8 (GLIBC 2.28).
 # pyvista <0.40 is the last branch compatible with vtk 9.2.
-RUN wget -q "https://repo.anaconda.com/miniconda/Miniconda3-py310_22.11.1-1-Linux-x86_64.sh" \
-        -O /tmp/miniconda.sh \
- && bash /tmp/miniconda.sh -b -p /opt/conda \
- && rm /tmp/miniconda.sh
+RUN wget -q "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" \
+        -O /tmp/miniforge.sh \
+ && bash /tmp/miniforge.sh -b -p /opt/conda \
+ && rm /tmp/miniforge.sh
 ENV PATH=/opt/conda/bin:${PATH}
 
-RUN conda install -y -c conda-forge \
-        nibabel "vtk=9.2.*" "pyvista<0.40" pymeshfix \
-        scipy scikit-image meshio netcdf4 numpy pandas \
- && pip install tetgen \
+# conda handles lightweight packages; vtk/pyvista/tetgen installed via pip
+# because the vtk conda-forge package pulls in a huge dependency tree that
+# causes the libmamba SAT solver to stall on the python=3.11 constraint.
+# pip ships a self-contained vtk wheel (manylinux2014, glibc ≥2.17) that
+# installs in seconds and works on Ubuntu 16.04 (glibc 2.23).
+# tetgen capped at 0.6.4 and pymeshfix capped at 0.16.3 — the last releases
+# that ship manylinux2014 (glibc ≥2.17) pre-built wheels.  Newer versions
+# (tetgen ≥0.7, pymeshfix ≥0.17) switched to nanobind (C++17) and publish
+# manylinux_2_28 wheels only, which require glibc ≥2.28 (not available on
+# Ubuntu 16.04 / glibc 2.23).
+RUN mamba install -y python=3.10 \
+        nibabel scipy scikit-image meshio netcdf4 "numpy<2" pandas \
+ && pip install "vtk==9.2.6" "pyvista==0.38.6" "pymeshfix==0.16.3" "tetgen==0.6.4" \
  && conda clean -afy
 
 # ── Pipeline scripts ──────────────────────────────────────────────────────────
