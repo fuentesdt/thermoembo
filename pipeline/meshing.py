@@ -88,7 +88,7 @@ def extract_surface(data, affine, fill=True, close_iters=1):
     log("Extracting surface (marching cubes) ...")
     # Build in voxel-index space (spacing=1, origin=0); apply affine afterward
     # so any anisotropic spacing, axis flips, or rotation are handled uniformly.
-    grid            = pv.ImageData()
+    grid            = pv.UniformGrid()
     grid.dimensions = binary.shape
     grid.spacing    = (1.0, 1.0, 1.0)
     grid.origin     = (0.0, 0.0, 0.0)
