@@ -1,4 +1,5 @@
-# Builds and runs tutorials/thermoembo and tutorials/thermoembo1d
+# Builds the thermoembo C++ FEM solver and bundles the Python pipeline
+# (run_thermoembo.py) so the entire workflow runs inside one container.
 #
 # Version pins match the repository's PETSC_ARCH string:
 #   3.10.2-xenial-gcc-5.4.0-opt
@@ -10,13 +11,17 @@
 # Build:
 #   docker build -t thermoembo .
 #
-# Run (mount a working directory containing mesh + image files):
+# Run the full pipeline (mount a directory containing the labeled NIfTI):
 #   docker run --rm -v $(pwd):/data thermoembo \
-#     mpirun --allow-run-as-root -n 4 \
-#       /work/tutorials/thermoembo-3.10.2-xenial-gcc-5.4.0-opt \
-#       -dim 3 -mesh /data/mytetmesh.2.exo -vtk /data/output.vtk \
-#       -temp_petscspace_degree 1 -pres_petscspace_degree 1 \
-#       -ts_type beuler -ts_max_steps 100 -ts_dt 1.e-1
+#     /data/PreTxArtLoRes.vessellabel.nii.gz \
+#     --out-dir /data/thermoembo_run --steps 5
+#
+# Prepare meshes only (skip simulation):
+#   docker run --rm -v $(pwd):/data thermoembo \
+#     /data/label.nii.gz --out-dir /data/out --mesh-only
+#
+# Drop to a shell (override entrypoint):
+#   docker run --rm -it --entrypoint /bin/bash -v $(pwd):/data thermoembo
 
 FROM ubuntu:16.04
 
@@ -31,6 +36,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 # liblapack-dev / libblas-dev: BLAS+LAPACK for PETSc linear algebra
 # zlib1g-dev:       required by NetCDF (downloaded by PETSc)
 # python:           Python 2.7 — required by PETSc's configure script
+#
+# Debug / IDE tools:
+# gdb / cgdb:            debugger and curses TUI frontend
+# valgrind:              memory error detector and profiler
+# vim / exuberant-ctags / cscope: editor + code-navigation index generators
+# tmux:                  terminal multiplexer (split panes for gdb + editor)
+# strace / ltrace:       syscall / library-call tracing
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc g++ gfortran \
         make wget curl python \
@@ -40,7 +52,44 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libvtk5-dev \
         liblapack-dev libblas-dev \
         zlib1g-dev \
+        gdb cgdb valgrind \
+        vim exuberant-ctags cscope \
+        tmux strace ltrace \
+        less man-db \
     && rm -rf /var/lib/apt/lists/*
+
+# ── Vim configuration ────────────────────────────────────────────────────────
+RUN cat > /root/.vimrc <<'VIMRC'
+set number ruler showcmd laststatus=2
+set expandtab tabstop=4 shiftwidth=4 autoindent
+set hlsearch incsearch ignorecase smartcase
+set mouse=a
+set wildmenu
+set background=dark
+syntax on
+
+" ctags — search from current dir up to /work/tutorials
+set tags=./tags;/work/tutorials
+
+" cscope — auto-connect if database exists beside the source
+if has("cscope")
+  set csprg=/usr/bin/cscope
+  set csto=0 cst nocsverb
+  if filereadable("cscope.out")
+    cs add cscope.out
+  elseif filereadable("/work/tutorials/cscope.out")
+    cs add /work/tutorials/cscope.out
+  endif
+  set csverb
+  nmap <C-\>s :cs find s <C-R>=expand("<cword>")<CR><CR>
+  nmap <C-\>g :cs find g <C-R>=expand("<cword>")<CR><CR>
+  nmap <C-\>c :cs find c <C-R>=expand("<cword>")<CR><CR>
+  nmap <C-\>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
+endif
+
+" File tree with :Explore / :e .
+let g:netrw_liststyle=3 g:netrw_banner=0
+VIMRC
 
 # ── PETSc 3.10.2 ─────────────────────────────────────────────────────────────
 ENV PETSC_VERSION=3.10.2
@@ -97,7 +146,26 @@ COPY tutorials/ /work/tutorials/
 # OpenMPI runtime libs need LD_LIBRARY_PATH for mpirun at link time.
 ENV LD_LIBRARY_PATH=/usr/lib:/usr/lib/x86_64-linux-gnu/openmpi/lib:${LD_LIBRARY_PATH}
 
-RUN cd /work/tutorials && make thermoembo thermoembo1d
+RUN cd /work/tutorials && make thermoembo thermoembo1d thermoembo-debug thermoembo1d-debug
+
+# ── Python environment (Miniconda) ────────────────────────────────────────────
+# Miniconda provides Python 3.10+ on Ubuntu 16.04 without requiring a PPA.
+# The pipeline scientific stack is installed via conda-forge; tetgen is pip-only.
+RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+        -O /tmp/miniconda.sh \
+ && bash /tmp/miniconda.sh -b -p /opt/conda \
+ && rm /tmp/miniconda.sh
+ENV PATH=/opt/conda/bin:${PATH}
+
+RUN conda install -y -c conda-forge \
+        nibabel pyvista pymeshfix scipy scikit-image \
+        meshio netcdf4 vtk numpy pandas \
+ && pip install tetgen \
+ && conda clean -afy
+
+# ── Pipeline scripts ──────────────────────────────────────────────────────────
+COPY pipeline/ /work/pipeline/
+ENV PYTHONPATH=/work/pipeline:${PYTHONPATH}
 
 # ── Runtime environment ───────────────────────────────────────────────────────
 # Allow mpirun as root inside the container (common in HPC containers)
@@ -105,4 +173,5 @@ ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
 WORKDIR /data
-CMD ["/bin/bash"]
+ENTRYPOINT ["python", "/work/pipeline/run_thermoembo.py"]
+CMD ["--help"]

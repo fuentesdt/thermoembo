@@ -1,5 +1,5 @@
 
-all: thermoembo thermoembo1d
+all: thermoembo thermoembo1d thermoembo-debug thermoembo1d-debug
 CFLAGS          =
 FFLAGS          =
 CPPFLAGS	= -I/usr/include/vtk-5.10
@@ -29,6 +29,23 @@ thermoembo: thermoembo.o chkopts
 
 thermoembo1d: thermoembo1d.o chkopts
 	-${CLINKER} -o thermoembo1d-${PETSC_ARCH} thermoembo1d.o ${PETSC_TS_LIB} ${VTK_LIB}
+
+# ── Debug builds (-O0 -g, no inlining) ───────────────────────────────────────
+# CXXFLAGS is omitted so PETSc's -O2 optimisation flags do not override -O0.
+# PETSC_CCPPFLAGS provides all necessary include paths and defines.
+DEBUG_FLAGS = -O0 -g3 -fno-omit-frame-pointer
+
+thermoembo-debug.o: thermoembo.c
+	${CXX} ${DEBUG_FLAGS} ${PETSC_CCPPFLAGS} ${CPPFLAGS} -c -o $@ $<
+
+thermoembo1d-debug.o: thermoembo1d.c
+	${CXX} ${DEBUG_FLAGS} ${PETSC_CCPPFLAGS} ${CPPFLAGS} -c -o $@ $<
+
+thermoembo-debug: thermoembo-debug.o chkopts
+	-${CLINKER} -o thermoembo-${PETSC_ARCH}-debug thermoembo-debug.o ${PETSC_TS_LIB} ${VTK_LIB}
+
+thermoembo1d-debug: thermoembo1d-debug.o chkopts
+	-${CLINKER} -o thermoembo1d-${PETSC_ARCH}-debug thermoembo1d-debug.o ${PETSC_TS_LIB} ${VTK_LIB}
 
 phasemodel: phasemodel.o chkopts
 	-${CLINKER} -o phasemodel phasemodel.o ${PETSC_TS_LIB} ${VTK_LIB}

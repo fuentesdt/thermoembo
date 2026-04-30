@@ -9,8 +9,9 @@ vesseldata/
 examplemesh/
 couplemesh/
 
-# Python / analysis scripts not used by the solver
-*.py
+# Root-level Python / analysis scripts not used by the solver
+# (/*.py matches only the build-context root, not pipeline/ subdirectory)
+/*.py
 *.csv
 *.yaml
 *.sql
@@ -19,4 +20,4 @@ couplemesh/
 # Git metadata
 .git/
 
-# Only tutorials/ and Dockerfile are needed for the build
+# tutorials/ and pipeline/ are needed for the build
