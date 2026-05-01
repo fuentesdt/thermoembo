@@ -107,12 +107,18 @@ typedef struct {
   IS   isnotstate;
   CoeffType      variableCoefficient;
   PetscErrorCode (**exactFuncs)(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nf, PetscScalar *u, void *ctx);
-  /* 1D centerline data */
+  /* 1D inflow centerline data (source term — hepatic artery) */
   PetscInt       n1d;
-  PetscReal     *xyz1d_m;   /* [3*n1d] node coordinates in meters */
-  PetscReal     *p1d_atm;   /* [n1d]   vessel pressure in atm */
-  PetscReal     *r1d_m;     /* [n1d]   vessel radius in meters */
+  PetscReal     *xyz1d_m;      /* [3*n1d] node coordinates in meters */
+  PetscReal     *p1d_atm;      /* [n1d]   vessel pressure in atm */
+  PetscReal     *r1d_m;        /* [n1d]   vessel radius in meters */
   char           vtpfile[2048];
+  /* 1D outflow centerline data (sink term — hepatic veins); n1d_out=0 disables */
+  PetscInt       n1d_out;
+  PetscReal     *xyz1d_out_m;  /* [3*n1d_out] */
+  PetscReal     *p1d_out_atm;  /* [n1d_out]   */
+  PetscReal     *r1d_out_m;    /* [n1d_out]   */
+  char           vtpfile_out[2048];
 } AppCtx;
 
 PetscErrorCode TSUpdateArrhenius(TS ts, PetscReal stagetime, PetscInt stageindex, Vec *Y)
@@ -400,14 +406,52 @@ static PetscErrorCode gv_func(PetscInt dim, PetscReal time, const PetscReal x[],
   return 0;
 }
 
+static PetscInt nearest1d_out(const PetscReal x[], const AppCtx *ctx)
+{
+  PetscInt  kmin = 0;
+  PetscReal d2min = PETSC_MAX_REAL;
+  for (PetscInt k = 0; k < ctx->n1d_out; k++) {
+    PetscReal dx = x[0] - ctx->xyz1d_out_m[3*k];
+    PetscReal dy = x[1] - ctx->xyz1d_out_m[3*k+1];
+    PetscReal dz = x[2] - ctx->xyz1d_out_m[3*k+2];
+    PetscReal d2 = dx*dx + dy*dy + dz*dz;
+    if (d2 < d2min) { d2min = d2; kmin = k; }
+  }
+  return kmin;
+}
+
+static PetscErrorCode p1d_out_func(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
+{
+  AppCtx *options = (AppCtx *)ctx;
+  if (options->n1d_out <= 0) { *u = 0.0; return 0; }
+  *u = options->p1d_out_atm[nearest1d_out(x, options)];
+  return 0;
+}
+
+static PetscErrorCode gv_out_func(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
+{
+  AppCtx   *options = (AppCtx *)ctx;
+  if (options->n1d_out <= 0) { *u = 0.0; return 0; }
+  PetscInt  k  = nearest1d_out(x, options);
+  PetscReal dx = x[0] - options->xyz1d_out_m[3*k];
+  PetscReal dy = x[1] - options->xyz1d_out_m[3*k+1];
+  PetscReal dz = x[2] - options->xyz1d_out_m[3*k+2];
+  PetscReal d2 = dx*dx + dy*dy + dz*dz;
+  PetscReal sigma = options->r1d_out_m[k];
+  *u = options->parameters[PARAM_VESSEL_COUPLING] * PetscExpReal(-0.5*d2/(sigma*sigma + _globalepsilon));
+  return 0;
+}
+
 static void f0_p(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
                  const PetscInt aOff[], const PetscInt aOff_x[], const PetscScalar a[], const PetscScalar a_t[], const PetscScalar a_x[],
                  PetscReal t, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar f0[])
 { // break PetscFEIntegrateResidual_Basic
   f0[0] = -constants[PARAM_PRESSURE_SOURCE] * u[FIELD_SATURATION];
-  /* 1D vessel coupling: G_v*(p_3d - p_1d).  Positive when p_3d > p_1d (flow into vessel). */
+  /* Inflow coupling: G_v_in*(p_3d - p_1d_in).  Negative when p_1d_in > p_3d (source). */
   if (NfAux >= 2) f0[0] += a[aOff[1]] * (u[uOff[FIELD_PRESSURE]] - a[aOff[0]]);
+  /* Outflow coupling: G_v_out*(p_3d - p_1d_out).  Positive when p_3d > p_1d_out (sink). */
+  if (NfAux >= 4) f0[0] += a[aOff[3]] * (u[uOff[FIELD_PRESSURE]] - a[aOff[2]]);
 }
 static void f1_p(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                  const PetscInt uOff[], const PetscInt uOff_x[], const PetscScalar u[], const PetscScalar u_t[], const PetscScalar u_x[],
@@ -436,6 +480,7 @@ static void g0_pp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
                   PetscReal t, PetscReal u_tShift, const PetscReal x[], PetscInt numConstants, const PetscScalar constants[], PetscScalar g0[])
 {
   g0[0] = (NfAux >= 2) ? a[aOff[1]] : 0.0;
+  if (NfAux >= 4) g0[0] += a[aOff[3]];  /* add outflow Gv_out */
 }
 
 static void g0_ps(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -1127,6 +1172,11 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->p1d_atm = NULL;
   options->r1d_m   = NULL;
   strcpy(options->vtpfile, "\0");
+  options->n1d_out     = 0;
+  options->xyz1d_out_m = NULL;
+  options->p1d_out_atm = NULL;
+  options->r1d_out_m   = NULL;
+  strcpy(options->vtpfile_out, "\0");
 
   // set initial parameters
   // FIXME - need units for all parameters
@@ -1264,9 +1314,11 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscOptionsReal("-vesselcoupling", "vessel-tissue coupling conductance amplitude [1/s/atm]", "thermoembo1d.c", options->parameters[PARAM_VESSEL_COUPLING], &options->parameters[PARAM_VESSEL_COUPLING], NULL);CHKERRQ(ierr);
   {
     PetscBool vtpflg = PETSC_FALSE;
-    ierr = PetscOptionsString("-vtp1d", "centerline VTP file (from resistance_lumping.py)", "thermoembo1d.c", options->vtpfile, options->vtpfile, sizeof(options->vtpfile), &vtpflg);CHKERRQ(ierr);
+    /* -vtp1d_in (preferred) or -vtp1d (backward-compat alias) both load inflow VTP */
+    ierr = PetscOptionsString("-vtp1d",    "inflow centerline VTP (alias for -vtp1d_in)", "thermoembo1d.c", options->vtpfile, options->vtpfile, sizeof(options->vtpfile), &vtpflg);CHKERRQ(ierr);
+    ierr = PetscOptionsString("-vtp1d_in", "inflow centerline VTP (from resistance_lumping.py)", "thermoembo1d.c", options->vtpfile, options->vtpfile, sizeof(options->vtpfile), &vtpflg);CHKERRQ(ierr);
     if (vtpflg) {
-      ierr = PetscPrintf(PETSC_COMM_WORLD, "loading centerline VTP: %s\n", options->vtpfile);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "loading inflow centerline VTP: %s\n", options->vtpfile);CHKERRQ(ierr);
       vtkSmartPointer<vtkXMLPolyDataReader> vtpreader = vtkSmartPointer<vtkXMLPolyDataReader>::New();
       vtpreader->SetFileName(options->vtpfile);
       vtpreader->Update();
@@ -1289,7 +1341,37 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
         options->p1d_atm[k] = parr ? parr->GetComponent(k,0) * 133.322/101325.0 : options->parameters[PARAM_BASELINEPRESSURE];
         options->r1d_m[k]   = rarr ? rarr->GetComponent(k,0) * 1.e-3            : 1.e-3;
       }
-      ierr = PetscPrintf(PETSC_COMM_WORLD, "loaded %d centerline nodes\n", (int)npts);CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "loaded %d inflow centerline nodes\n", (int)npts);CHKERRQ(ierr);
+    }
+  }
+  {
+    PetscBool vtpflg_out = PETSC_FALSE;
+    ierr = PetscOptionsString("-vtp1d_out", "outflow centerline VTP (hepatic veins)", "thermoembo1d.c", options->vtpfile_out, options->vtpfile_out, sizeof(options->vtpfile_out), &vtpflg_out);CHKERRQ(ierr);
+    if (vtpflg_out) {
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "loading outflow centerline VTP: %s\n", options->vtpfile_out);CHKERRQ(ierr);
+      vtkSmartPointer<vtkXMLPolyDataReader> vtpreader_out = vtkSmartPointer<vtkXMLPolyDataReader>::New();
+      vtpreader_out->SetFileName(options->vtpfile_out);
+      vtpreader_out->Update();
+      vtkPolyData  *pd_out   = vtpreader_out->GetOutput();
+      vtkIdType     npts_out = pd_out->GetNumberOfPoints();
+      options->n1d_out = (PetscInt)npts_out;
+      ierr = PetscMalloc1(3*npts_out, &options->xyz1d_out_m);CHKERRQ(ierr);
+      ierr = PetscMalloc1(  npts_out, &options->p1d_out_atm);CHKERRQ(ierr);
+      ierr = PetscMalloc1(  npts_out, &options->r1d_out_m  );CHKERRQ(ierr);
+      double coord_out[3];
+      for (vtkIdType k = 0; k < npts_out; k++) {
+        pd_out->GetPoint(k, coord_out);
+        options->xyz1d_out_m[3*k]   = coord_out[0] * 1.e-3;
+        options->xyz1d_out_m[3*k+1] = coord_out[1] * 1.e-3;
+        options->xyz1d_out_m[3*k+2] = coord_out[2] * 1.e-3;
+      }
+      vtkDataArray *parr_out = pd_out->GetPointData()->GetArray("pressure_mmhg");
+      vtkDataArray *rarr_out = pd_out->GetPointData()->GetArray("radius_mm");
+      for (vtkIdType k = 0; k < npts_out; k++) {
+        options->p1d_out_atm[k] = parr_out ? parr_out->GetComponent(k,0) * 133.322/101325.0 : options->parameters[PARAM_BASELINEPRESSURE];
+        options->r1d_out_m[k]   = rarr_out ? rarr_out->GetComponent(k,0) * 1.e-3            : 1.e-3;
+      }
+      ierr = PetscPrintf(PETSC_COMM_WORLD, "loaded %d outflow centerline nodes\n", (int)npts_out);CHKERRQ(ierr);
     }
   }
   PetscReal         max_time;               /* phase field max time allowed */
@@ -1351,8 +1433,10 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_ARTIFICIALDIFFUSION          = %12.5e\n",options->parameters[PARAM_ARTIFICIALDIFFUSION          ]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_SATURATIONARTIFICIALDIFFUSION= %12.5e\n",options->parameters[PARAM_SATURATIONARTIFICIALDIFFUSION]);CHKERRQ(ierr);
   ierr = PetscPrintf(PETSC_COMM_WORLD, "PARAM_VESSEL_COUPLING [1/s/atm]    = %12.5e\n",options->parameters[PARAM_VESSEL_COUPLING              ]);CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "VTP1D FILE                         = %s\n"    ,options->vtpfile                                        );CHKERRQ(ierr);
-  ierr = PetscPrintf(PETSC_COMM_WORLD, "N1D CENTERLINE NODES               = %d\n"   ,(int)options->n1d                                       );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "VTP1D INFLOW FILE                  = %s\n"    ,options->vtpfile                                        );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "N1D INFLOW NODES                   = %d\n"   ,(int)options->n1d                                       );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "VTP1D OUTFLOW FILE                 = %s\n"    ,options->vtpfile_out                                    );CHKERRQ(ierr);
+  ierr = PetscPrintf(PETSC_COMM_WORLD, "N1D OUTFLOW NODES                  = %d\n"   ,(int)options->n1d_out                                   );CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1528,7 +1612,7 @@ static PetscErrorCode Setup1DAux(DM dm, AppCtx *ctx)
 {
   DM              dmAux;
   PetscDS         prob, probAux;
-  PetscFE         fe0, feAux[2];
+  PetscFE         fe0, feAux[4];
   PetscQuadrature q;
   Vec             aux;
   MPI_Comm        comm;
@@ -1542,24 +1626,34 @@ static PetscErrorCode Setup1DAux(DM dm, AppCtx *ctx)
   ierr = PetscDSGetDiscretization(prob, FIELD_PRESSURE, (PetscObject *)&fe0);CHKERRQ(ierr);
   ierr = PetscFEGetQuadrature(fe0, &q);CHKERRQ(ierr);
 
-  /* Create P1 FE objects for the two aux fields: p1d (vessel pressure) and Gv (coupling) */
-  ierr = PetscFECreateDefault(comm, ctx->dim, 1, ctx->simplex, "p1d_", PETSC_DEFAULT, &feAux[0]);CHKERRQ(ierr);
+  /* 4 aux fields: [0] inflow pressure, [1] inflow Gv, [2] outflow pressure, [3] outflow Gv */
+  ierr = PetscFECreateDefault(comm, ctx->dim, 1, ctx->simplex, "p1d_in_",  PETSC_DEFAULT, &feAux[0]);CHKERRQ(ierr);
   ierr = PetscFESetQuadrature(feAux[0], q);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)feAux[0], "vessel_pressure");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)feAux[0], "inflow_pressure");CHKERRQ(ierr);
 
-  ierr = PetscFECreateDefault(comm, ctx->dim, 1, ctx->simplex, "gv_", PETSC_DEFAULT, &feAux[1]);CHKERRQ(ierr);
+  ierr = PetscFECreateDefault(comm, ctx->dim, 1, ctx->simplex, "gv_in_",   PETSC_DEFAULT, &feAux[1]);CHKERRQ(ierr);
   ierr = PetscFESetQuadrature(feAux[1], q);CHKERRQ(ierr);
-  ierr = PetscObjectSetName((PetscObject)feAux[1], "vessel_conductance");CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)feAux[1], "inflow_conductance");CHKERRQ(ierr);
+
+  ierr = PetscFECreateDefault(comm, ctx->dim, 1, ctx->simplex, "p1d_out_", PETSC_DEFAULT, &feAux[2]);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(feAux[2], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)feAux[2], "outflow_pressure");CHKERRQ(ierr);
+
+  ierr = PetscFECreateDefault(comm, ctx->dim, 1, ctx->simplex, "gv_out_",  PETSC_DEFAULT, &feAux[3]);CHKERRQ(ierr);
+  ierr = PetscFESetQuadrature(feAux[3], q);CHKERRQ(ierr);
+  ierr = PetscObjectSetName((PetscObject)feAux[3], "outflow_conductance");CHKERRQ(ierr);
 
   /* Clone the primary DM topology and attach the aux DS */
   ierr = DMClone(dm, &dmAux);CHKERRQ(ierr);
   ierr = DMGetDS(dmAux, &probAux);CHKERRQ(ierr);
   ierr = PetscDSSetDiscretization(probAux, 0, (PetscObject)feAux[0]);CHKERRQ(ierr);
   ierr = PetscDSSetDiscretization(probAux, 1, (PetscObject)feAux[1]);CHKERRQ(ierr);
+  ierr = PetscDSSetDiscretization(probAux, 2, (PetscObject)feAux[2]);CHKERRQ(ierr);
+  ierr = PetscDSSetDiscretization(probAux, 3, (PetscObject)feAux[3]);CHKERRQ(ierr);
 
   /* Project 1D centerline data onto a local vector on the aux DM */
-  PetscErrorCode (*auxFuncs[2])(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *) = {p1d_func, gv_func};
-  void *auxCtxs[2] = {ctx, ctx};
+  PetscErrorCode (*auxFuncs[4])(PetscInt, PetscReal, const PetscReal[], PetscInt, PetscScalar *, void *) = {p1d_func, gv_func, p1d_out_func, gv_out_func};
+  void *auxCtxs[4] = {ctx, ctx, ctx, ctx};
   ierr = DMCreateLocalVector(dmAux, &aux);CHKERRQ(ierr);
   ierr = DMProjectFunctionLocal(dmAux, 0.0, auxFuncs, auxCtxs, INSERT_ALL_VALUES, aux);CHKERRQ(ierr);
 
@@ -1571,6 +1665,8 @@ static PetscErrorCode Setup1DAux(DM dm, AppCtx *ctx)
   ierr = VecDestroy(&aux);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&feAux[0]);CHKERRQ(ierr);
   ierr = PetscFEDestroy(&feAux[1]);CHKERRQ(ierr);
+  ierr = PetscFEDestroy(&feAux[2]);CHKERRQ(ierr);
+  ierr = PetscFEDestroy(&feAux[3]);CHKERRQ(ierr);
   ierr = DMDestroy(&dmAux);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
@@ -1739,7 +1835,7 @@ int main(int argc, char **argv)
   ierr = CreateMesh(PETSC_COMM_WORLD, &dm, &ctx);CHKERRQ(ierr);
   ierr = DMSetApplicationContext(dm, &ctx);CHKERRQ(ierr);
   ierr = SetupDiscretization(dm, &ctx);CHKERRQ(ierr);
-  if (ctx.n1d > 0) {ierr = Setup1DAux(dm, &ctx);CHKERRQ(ierr);}
+  if (ctx.n1d > 0 || ctx.n1d_out > 0) {ierr = Setup1DAux(dm, &ctx);CHKERRQ(ierr);}
 
   // get index subsets
   ierr = DMCreateFieldIS(dm, &ctx.numFields, &ctx.fieldNames, &ctx.fields);CHKERRQ(ierr);
@@ -2045,9 +2141,12 @@ int main(int argc, char **argv)
   ierr = PetscFree(ctx.fields);CHKERRQ(ierr);
   ierr = DMDestroy(&dm);CHKERRQ(ierr);
   ierr = PetscFree(ctx.exactFuncs);CHKERRQ(ierr);
-  if (ctx.xyz1d_m) {ierr = PetscFree(ctx.xyz1d_m);CHKERRQ(ierr);}
-  if (ctx.p1d_atm) {ierr = PetscFree(ctx.p1d_atm);CHKERRQ(ierr);}
-  if (ctx.r1d_m)   {ierr = PetscFree(ctx.r1d_m);CHKERRQ(ierr);}
+  if (ctx.xyz1d_m)     {ierr = PetscFree(ctx.xyz1d_m);CHKERRQ(ierr);}
+  if (ctx.p1d_atm)     {ierr = PetscFree(ctx.p1d_atm);CHKERRQ(ierr);}
+  if (ctx.r1d_m)       {ierr = PetscFree(ctx.r1d_m);CHKERRQ(ierr);}
+  if (ctx.xyz1d_out_m) {ierr = PetscFree(ctx.xyz1d_out_m);CHKERRQ(ierr);}
+  if (ctx.p1d_out_atm) {ierr = PetscFree(ctx.p1d_out_atm);CHKERRQ(ierr);}
+  if (ctx.r1d_out_m)   {ierr = PetscFree(ctx.r1d_out_m);CHKERRQ(ierr);}
   ierr = PetscFinalize();
   return ierr;
 }

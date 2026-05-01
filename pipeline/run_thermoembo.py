@@ -38,6 +38,7 @@ Dependencies
 """
 
 import argparse
+import glob
 import os
 import subprocess
 import sys
@@ -54,6 +55,8 @@ from skimage.morphology import skeletonize
 from centerline import skel_to_vtp
 from meshing import load_nii, extract_surface, process_surface, generate_tet_mesh, write_outputs
 
+import resistance_lumping
+
 
 THERMOEMBO_EXE = "/work/tutorials/thermoembo1d-3.10.2-xenial-gcc-5.4.0-opt"
 
@@ -62,17 +65,18 @@ def log(msg):
     print(f"[run_thermoembo] {msg}", flush=True)
 
 
-# ── Step 1: skeletonize label==2 ──────────────────────────────────────────────
+# ── Step 1: skeletonize vessel by label ───────────────────────────────────────
 
-def make_vessel_skeleton(nii_path, out_nii):
-    """Extract label==2 from NIfTI, skeletonise, write result NIfTI."""
-    log("Skeletonising vessel mask (label==2) ...")
+def make_label_skeleton(nii_path, out_nii, label_val=2):
+    """Extract voxels where label == label_val, skeletonise, write NIfTI."""
+    log(f"Skeletonising vessel mask (label=={label_val}) ...")
     nii    = nib.load(nii_path)
     data   = np.asarray(nii.dataobj)
-    binary = (data == 2)
+    binary = (data == label_val)
     log(f"  Vessel voxels  : {int(binary.sum())}")
     if not binary.any():
-        sys.exit("Error: no label==2 voxels found in input")
+        log(f"Warning: no label=={label_val} voxels found — skipping")
+        return False
 
     skel = skeletonize(binary)          # Lee 1994 thinning (3-D)
     log(f"  Skeleton voxels: {int(skel.sum())}")
@@ -80,6 +84,7 @@ def make_vessel_skeleton(nii_path, out_nii):
     out = nib.Nifti1Image(skel.astype(np.uint8), nii.affine, nii.header)
     nib.save(out, out_nii)
     log(f"  Written        : {out_nii}")
+    return True
 
 
 # ── Step 3: write legacy VTK image (material file) ────────────────────────────
@@ -172,15 +177,17 @@ def vtu_to_exodus(vtu_path, exo_path):
 
 # ── Step 5: run solver ────────────────────────────────────────────────────────
 
-def _solver_cmd(abs_out, steps, dt, vesselcoupling):
+def _solver_cmd(abs_out, steps, dt, vesselcoupling,
+                vtp1d_in=None, vtp1d_out=None):
     """Return the argument list for thermoembo1d (both passes use the same args)."""
-    return [
+    vtp_in = vtp1d_in or os.path.join(abs_out, "centerline.vtp")
+    cmd = [
         THERMOEMBO_EXE,
         # --- mesh ---
         "-dim",  "3",
         "-mesh", os.path.join(abs_out, "mesh.exo"),
-        # --- 1-D vessel centerline ---
-        "-vtp1d",          os.path.join(abs_out, "centerline.vtp"),
+        # --- 1-D inflow vessel centerline ---
+        "-vtp1d_in",       vtp_in,
         "-vesselcoupling", str(vesselcoupling),
         # --- material image ---
         "-vtk", os.path.join(abs_out, "vessel.vtk"),
@@ -230,9 +237,13 @@ def _solver_cmd(abs_out, steps, dt, vesselcoupling):
         "-disppressure",     "0.0",
         "-baselinepressure", "1.0",
     ]
+    if vtp1d_out:
+        cmd += ["-vtp1d_out", vtp1d_out]
+    return cmd
 
 
-def run_solver(out_dir, steps, dt, vesselcoupling):
+def run_solver(out_dir, steps, dt, vesselcoupling,
+               vtp1d_in=None, vtp1d_out=None):
     """
     Launch thermoembo1d in two passes:
       Pass 1 — phase-field presolve: writes result.0000.0001.dat
@@ -244,7 +255,8 @@ def run_solver(out_dir, steps, dt, vesselcoupling):
     """
     abs_out  = os.path.abspath(out_dir)
     dat_file = os.path.join(out_dir, "result.0000.0001.dat")
-    cmd      = _solver_cmd(abs_out, steps, dt, vesselcoupling)
+    cmd      = _solver_cmd(abs_out, steps, dt, vesselcoupling,
+                           vtp1d_in=vtp1d_in, vtp1d_out=vtp1d_out)
 
     log("Pass 1 — phase-field presolve ...")
     if os.path.exists(dat_file):
@@ -267,6 +279,110 @@ def run_solver(out_dir, steps, dt, vesselcoupling):
         log(f"Solution VTU files written to: {out_dir}/resultsolution*.vtu")
 
 
+# ── Phantom-dir mode: process all 00?_vessel_phantom.nii.gz ──────────────────
+
+def process_phantom(sample_id, phantom_dir, out_dir, args):
+    """
+    Full pipeline for one phantom sample.
+    phantom_dir: directory containing {id}_vessel_phantom.nii.gz and {id}_seed.fcsv
+    """
+    phantom_nii = os.path.join(phantom_dir, f"{sample_id}_vessel_phantom.nii.gz")
+    seed_fcsv   = os.path.join(phantom_dir, f"{sample_id}_seed.fcsv")
+    if not os.path.exists(phantom_nii):
+        log(f"  {sample_id}: {phantom_nii} not found — skipping")
+        return
+
+    sample_out = os.path.join(out_dir, sample_id)
+    os.makedirs(sample_out, exist_ok=True)
+
+    def p(name): return os.path.join(sample_out, name)
+
+    log(f"{'='*60}")
+    log(f"Processing sample {sample_id}")
+
+    # ── 1a. Inflow skeleton (label==2) ───────────────────────────────────────
+    inflow_skel_nii = p(f"{sample_id}_inflow_skel.nii.gz")
+    inflow_raw_vtp  = p(f"{sample_id}_inflow_raw.vtp")
+    inflow_vtp      = p(f"{sample_id}_inflow_centerline.vtp")
+    if make_label_skeleton(phantom_nii, inflow_skel_nii, label_val=2):
+        log("Extracting inflow centerline ...")
+        skel_to_vtp(inflow_skel_nii, inflow_raw_vtp)
+        seed_mm = (resistance_lumping.read_fcsv_seed(seed_fcsv)
+                   if os.path.exists(seed_fcsv) else None)
+        if seed_mm is None:
+            log("  No seed FCSV found — omitting injection BC")
+        log("Running resistance lumping on inflow ...")
+        resistance_lumping.solve(
+            vtp_in=inflow_raw_vtp,
+            vtp_out=inflow_vtp,
+            opts={
+                'label_path':    phantom_nii,
+                'label_val':     2,
+                'p_in_mmhg':     836.0,    # 1.1 atm — HA root (max-radius leaf)
+                'p_out_mmhg':    760.0,    # 1.0 atm — terminal branches
+                'p_seed_mmhg':   882.0,    # 1.16 atm — injection site
+                'seed_coord_mm': seed_mm,
+            })
+    else:
+        inflow_vtp = None
+
+    # ── 1b. Outflow skeleton (label==3) ─────────────────────────────────────
+    outflow_skel_nii = p(f"{sample_id}_outflow_skel.nii.gz")
+    outflow_raw_vtp  = p(f"{sample_id}_outflow_raw.vtp")
+    outflow_vtp      = p(f"{sample_id}_outflow_centerline.vtp")
+    if make_label_skeleton(phantom_nii, outflow_skel_nii, label_val=3):
+        log("Extracting outflow centerline ...")
+        skel_to_vtp(outflow_skel_nii, outflow_raw_vtp)
+        log("Running resistance lumping on outflow ...")
+        resistance_lumping.solve(
+            vtp_in=outflow_raw_vtp,
+            vtp_out=outflow_vtp,
+            opts={
+                'label_path':  phantom_nii,
+                'label_val':   3,
+                'p_in_mmhg':   752.0,    # 0.99 atm — IVC end (max-radius leaf)
+                'p_out_mmhg':  760.0,    # 1.0 atm — tissue terminal branches
+            })
+    else:
+        outflow_vtp = None
+
+    # ── 2. 3-D liver tet mesh ─────────────────────────────────────────────────
+    mesh_vtu = p("mesh.vtu")
+    mesh_exo = p("mesh.exo")
+    vessel_vtk = p("vessel.vtk")
+    log("Generating 3-D liver tet mesh ...")
+    data, affine = load_nii(phantom_nii)
+    surface_raw  = extract_surface(data, affine)
+    surface      = process_surface(surface_raw, decimate=args.decimate)
+    vol          = generate_tet_mesh(surface,
+                                     min_dihedral=args.tet_dihedral,
+                                     max_vol=args.maxvol)
+    write_outputs(surface, vol, sample_out)
+
+    if not os.path.exists(mesh_vtu):
+        log(f"  Warning: meshing failed for {sample_id} — skipping solver")
+        return
+
+    # ── 3. VTU → Exodus ───────────────────────────────────────────────────────
+    vtu_to_exodus(mesh_vtu, mesh_exo)
+
+    # ── 4. Material VTK image ─────────────────────────────────────────────────
+    make_vessel_vtk(phantom_nii, vessel_vtk)
+
+    log(f"Mesh preparation complete for {sample_id}:")
+    for f in [f for f in [inflow_vtp, outflow_vtp, mesh_vtu, mesh_exo, vessel_vtk] if f and os.path.exists(f)]:
+        size = os.path.getsize(f) / 1024
+        log(f"  {os.path.basename(f):35s}  {size:8.1f} kB")
+
+    if args.mesh_only:
+        log("--mesh-only specified; skipping simulation run.")
+        return
+
+    # ── 5. Run thermoembo1d ───────────────────────────────────────────────────
+    run_solver(sample_out, args.steps, args.dt, args.vesselcoupling,
+               vtp1d_in=inflow_vtp, vtp1d_out=outflow_vtp)
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
@@ -275,8 +391,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__)
 
-    ap.add_argument("nii",
+    # Single-file mode (original)
+    ap.add_argument("nii", nargs='?', default=None,
                     help="Labeled NIfTI (.nii or .nii.gz) with label 1=liver, 2=vessel")
+
+    # Phantom-dir mode (new)
+    ap.add_argument("--phantom-dir", default=None, metavar="DIR",
+                    help="Directory containing 00?_vessel_phantom.nii.gz and 00?_seed.fcsv")
+    ap.add_argument("--phantom-ids", default=None, metavar="IDS",
+                    help="Comma-separated IDs to process (default: all found in --phantom-dir)")
+
     ap.add_argument("--out-dir",       default="thermoembo_run",  metavar="DIR",
                     help="Output directory (default: thermoembo_run)")
     ap.add_argument("--decimate",      type=float, default=0.90,  metavar="R",
@@ -294,7 +418,30 @@ def main():
     ap.add_argument("--mesh-only",     action="store_true",
                     help="Prepare meshes only — skip simulation run")
 
-    args     = ap.parse_args()
+    args = ap.parse_args()
+
+    # ── Phantom-dir mode ────────────────────────────────────────────────────
+    if args.phantom_dir is not None:
+        phantom_dir = os.path.abspath(args.phantom_dir)
+        out_dir     = os.path.abspath(args.out_dir)
+        os.makedirs(out_dir, exist_ok=True)
+
+        if args.phantom_ids:
+            ids = [s.strip() for s in args.phantom_ids.split(',')]
+        else:
+            found = glob.glob(os.path.join(phantom_dir, '*_vessel_phantom.nii.gz'))
+            ids   = sorted(os.path.basename(f).split('_vessel')[0] for f in found)
+        if not ids:
+            sys.exit(f"Error: no *_vessel_phantom.nii.gz found in {phantom_dir}")
+        log(f"Phantom IDs to process: {ids}")
+        for sid in ids:
+            process_phantom(sid, phantom_dir, out_dir, args)
+        return
+
+    # ── Single-file mode (original) ─────────────────────────────────────────
+    if args.nii is None:
+        ap.error("Provide either a NIfTI file or --phantom-dir")
+
     nii_path = os.path.abspath(args.nii)
     out_dir  = os.path.abspath(args.out_dir)
 
@@ -311,7 +458,7 @@ def main():
     vessel_vtk     = os.path.join(out_dir, "vessel.vtk")
 
     # ── 1. Skeletonise vessel ────────────────────────────────────────────────
-    make_vessel_skeleton(nii_path, skel_nii)
+    make_label_skeleton(nii_path, skel_nii, label_val=2)
 
     # ── 2. 1-D centerline mesh ───────────────────────────────────────────────
     log("Extracting centerline ...")
@@ -348,7 +495,8 @@ def main():
         return
 
     # ── 6. Run thermoembo1d ──────────────────────────────────────────────────
-    run_solver(out_dir, args.steps, args.dt, args.vesselcoupling)
+    run_solver(out_dir, args.steps, args.dt, args.vesselcoupling,
+               vtp1d_in=centerline_vtp)
 
 
 if __name__ == "__main__":
