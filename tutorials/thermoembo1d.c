@@ -659,9 +659,7 @@ static void f0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   //PetscPrintf(PETSC_COMM_WORLD, "f0: u_t = %12.5e beta = %12.5e %12.5e %12.5e   ",u_t[FIELD_TEMPERATURE],beta[0], beta[1], beta[2] );
   double advection=0.0;
   for (comp = 0; comp < dim; ++comp) advection += u_x[uOff_x[FIELD_TEMPERATURE]+ comp] * beta[comp];
-  double boundaryadvection=0.0;
-  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * beta[comp];
-  f0[0] = u_t[FIELD_TEMPERATURE] + advection  -  constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION] + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  )* boundaryadvection ;
+  f0[0] = u_t[FIELD_TEMPERATURE] + advection - constants[PARAM_TEMPERATURE_SOURCE]*u[FIELD_SATURATION];
 
 }
 
@@ -675,9 +673,7 @@ static void g0_temp(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
   computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
 
-  double boundaryadvection=0.0;
-  for (comp = 0; comp < dim; ++comp) boundaryadvection += u_x[uOff_x[FIELD_PHASE]+ comp] * beta[comp];
-  g0[0] = u_tShift*1.0  - boundaryadvection ;
+  g0[0] = u_tShift;
 }
 
 
@@ -743,7 +739,7 @@ static void g1_temppres(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   PetscReal  beta[3], dbetads[3],dbetadgradp, dbetadgrads ;
   computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
 
-  for (d = 0; d < dim; ++d) g1[d] = dbetadgradp * (u_x[uOff_x[FIELD_TEMPERATURE]+d] + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  ) * u_x[uOff_x[FIELD_PHASE]+ d]    );
+  for (d = 0; d < dim; ++d) g1[d] = dbetadgradp * u_x[uOff_x[FIELD_TEMPERATURE]+d];
 
 }
 
@@ -783,9 +779,7 @@ static void g0_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
 
   double  innerprod = 0.0;
   for (d = 0; d < dim; ++d)  innerprod = innerprod + u_x[uOff_x[FIELD_TEMPERATURE]+d]  * dbetads[d];
-  double  derivboundary = 0.0;
-  for (d = 0; d < dim; ++d)  derivboundary = derivboundary + u_x[uOff_x[FIELD_PHASE]+d]  * dbetads[d];
-  g0[0] = -  constants[PARAM_TEMPERATURE_SOURCE] + innerprod  + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  ) * derivboundary  ;
+  g0[0] = -constants[PARAM_TEMPERATURE_SOURCE] + innerprod;
 }
 
 static void g1_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
@@ -799,7 +793,7 @@ static void g1_tempsat(PetscInt dim, PetscInt Nf, PetscInt NfAux,
   computebetau(uOff_x, u, u_x,constants,beta,dbetads,&dbetadgradp,&dbetadgrads);
 
   for (d = 0; d < dim; ++d) {
-    g1[d] =  dbetadgrads * (u_x[uOff_x[FIELD_TEMPERATURE]+d] + ( constants[PARAM_USALT] - u[FIELD_TEMPERATURE]  ) * u_x[uOff_x[FIELD_PHASE]+ d]    );
+    g1[d] = dbetadgrads * u_x[uOff_x[FIELD_TEMPERATURE]+d];
   }
 }
 
@@ -1727,7 +1721,9 @@ PetscErrorCode KSPPostSolve_ZeroSearch(KSP ksp, Vec b, Vec x, void *ctx)
   AppCtx *options = (AppCtx *)ctx;
 
   PetscFunctionBegin;
-  //ierr = VecPointwiseMult(x,x,options->solvedirection);CHKERRQ(ierr);
+  /* Zero the Newton update at Dirichlet DOFs (vessel P/S/T + phase + damage)
+     so those values remain at their initialised Dirichlet values throughout. */
+  ierr = VecISSet(x, options->isnotstate, 0.0);CHKERRQ(ierr);
   PetscFunctionReturn(0);
 }
 
@@ -1921,7 +1917,14 @@ int main(int argc, char **argv)
      Vec        temperaturevector,   pressurevector, pressurework;
      ierr = VecGetSubVector(u, ctx.fields[FIELD_TEMPERATURE], &temperaturevector);CHKERRQ(ierr);
      ierr = VecGetSubVector(u, ctx.fields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     // smooth BC
+     // smooth BC: T = phase*(USALT-UARTERY)+UARTERY  (vessel→USALT, tissue→UARTERY)
+     // Use the phase field (already in u) as the interpolation weight.
+     {
+       Vec phasevec;
+       ierr = VecGetSubVector(u, ctx.fields[FIELD_PHASE], &phasevec);CHKERRQ(ierr);
+       ierr = VecCopy(phasevec, temperaturevector);CHKERRQ(ierr);
+       ierr = VecRestoreSubVector(u, ctx.fields[FIELD_PHASE], &phasevec);CHKERRQ(ierr);
+     }
      ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
      ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
      ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
