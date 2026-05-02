@@ -125,16 +125,20 @@ def make_vessel_vtk(nii_path, out_vtk):
     log(f"  Spacing (mm)   : {spacing.round(4).tolist()}")
     log(f"  Dimensions     : {list(nii.shape)}")
 
-    # Zero-filled scalar array — phase=0 everywhere at t=0
-    n_pts = int(np.prod(nii.shape))
-    zeros = np.zeros(n_pts, dtype=np.float32)
+    # Vessel mask: label==2 → phase=1.0 (Dirichlet BC nodes), else 0.0 (free DOFs).
+    # Flip axes with negative diagonal so spacing is always positive in the VTK image.
+    data = np.asarray(nii.dataobj).astype(np.float32)
+    vessel_mask = (data == 2).astype(np.float32)
+    for ax in range(3):
+        if signs[ax] < 0:
+            vessel_mask = np.flip(vessel_mask, axis=ax)
 
     img = vtk.vtkImageData()
     img.SetDimensions(nii.shape)
     img.SetSpacing(spacing.tolist())
     img.SetOrigin(origin.tolist())
 
-    arr = numpy_to_vtk(zeros, deep=True, array_type=vtk.VTK_FLOAT)
+    arr = numpy_to_vtk(vessel_mask.ravel(order='F'), deep=True, array_type=vtk.VTK_FLOAT)
     arr.SetName("phase")
     img.GetPointData().SetScalars(arr)
 
@@ -220,19 +224,6 @@ def _solver_cmd(abs_out, steps, dt, vesselcoupling,
         "-ksp_converged_reason",
         "-snes_converged_reason",
         "-ts_max_snes_failures", "-1",
-        # --- phase-field presolve (run 1 only; result cached to .dat) ---
-        "-phasepresolve_snes_type",              "ksponly",
-        "-phasepresolve_ksp_type",               "preonly",
-        "-phasepresolve_pc_type",                "fieldsplit",
-        "-phasepresolve_pc_fieldsplit_type",      "additive",
-        "-phasepresolve_fieldsplit_d_ksp_type",   "preonly",
-        "-phasepresolve_fieldsplit_d_pc_type",    "none",
-        "-phasepresolve_fieldsplit_1_ksp_type",   "preonly",
-        "-phasepresolve_fieldsplit_1_pc_type",    "bjacobi",
-        "-phasepresolve_ts_type",                "beuler",
-        "-phasepresolve_ts_max_steps",           "3",
-        "-phasepresolve_snes_converged_reason",
-        "-phasepresolve_ts_max_snes_failures",   "-1",
         # --- misc ---
         "-disppressure",     "0.0",
         "-baselinepressure", "1.0",
@@ -277,35 +268,19 @@ def _rewrite_vtu_files(out_dir, pattern):
 def run_solver(out_dir, steps, dt, vesselcoupling,
                vtp1d_in=None, vtp1d_out=None):
     """
-    Launch thermoembo1d in two passes:
-      Pass 1 — phase-field presolve: writes result.0000.0001.dat
-      Pass 2 — main coupled solve:   reads the .dat, runs <steps> time steps
-
-    thermoembo1d detects which pass to run based on whether the .dat file
-    exists (PetscTestFile); both passes use the same command-line arguments.
+    Launch thermoembo1d once.  Phase field is initialised directly from the
+    vessel-label image (vessel=1, tissue=0); no binary pre-solve cache.
     Solution VTU snapshots: resultsolution000.NNNN.vtu
     """
-    abs_out  = os.path.abspath(out_dir)
-    dat_file = os.path.join(out_dir, "result.0000.0001.dat")
-    cmd      = _solver_cmd(abs_out, steps, dt, vesselcoupling,
-                           vtp1d_in=vtp1d_in, vtp1d_out=vtp1d_out)
+    abs_out = os.path.abspath(out_dir)
+    cmd     = _solver_cmd(abs_out, steps, dt, vesselcoupling,
+                          vtp1d_in=vtp1d_in, vtp1d_out=vtp1d_out)
 
-    log("Pass 1 — phase-field presolve ...")
-    if os.path.exists(dat_file):
-        log("  Phase solution cache found — skipping presolve.")
-    else:
-        log("  " + " ".join(cmd))
-        r = subprocess.run(cmd)
-        if r.returncode != 0:
-            log(f"  Warning: pass 1 exited with code {r.returncode}")
-        else:
-            log(f"  Phase solution saved: {dat_file}")
-
-    log("Pass 2 — main coupled solve ...")
+    log("Running thermoembo1d ...")
     log("  " + " ".join(cmd))
     r = subprocess.run(cmd)
     if r.returncode != 0:
-        log(f"Warning: thermoembo1d pass 2 exited with code {r.returncode}")
+        log(f"Warning: thermoembo1d exited with code {r.returncode}")
     else:
         log("thermoembo1d completed successfully")
         log(f"Solution VTU files written to: {out_dir}/resultsolution*.vtu")

@@ -87,13 +87,11 @@ typedef struct {
   PetscInt          max_steps; /* phase field max steps */
   PetscReal         lengthscale; /* image usually in mm, convert image to meters*/
   PetscBool         simplex;
-  PetscBool         solvesystem; /* solve phase field first then solve full system */
   PetscBool         debugfd; /* debugging jacobian... */
   PetscBool      fieldBC;
   char              imagefile[2048];   /* The vtk Image file */
   char              meshfile[2048];   /* The fem mesh file */
   char              filenosuffix[2048] ;
-  char              phasefieldsolution[2048];
   double            parameters[NUMPARAMETERS] ; //{param1, param2, ...}
   double            temperaturescaling ; //normalize temperature to [0,1]
   double bounds[6];
@@ -533,7 +531,7 @@ static PetscErrorCode vessel_pres(PetscInt dim, PetscReal time, const PetscReal 
 static PetscErrorCode baseline_pres(PetscInt dim, PetscReal time, const PetscReal x[], PetscInt Nc, PetscScalar *u, void *ctx)
 {
   AppCtx *options = (AppCtx *)ctx;
-  *u = options->solvesystem ? options->parameters[PARAM_BASELINEPRESSURE] : 0.0;
+  *u = options->parameters[PARAM_BASELINEPRESSURE];
   return 0;
 }
 
@@ -1165,7 +1163,6 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   options->simplex = PETSC_TRUE;
   options->variableCoefficient = COEFF_NONE;
   options->fieldBC             = PETSC_FALSE;
-  options->solvesystem         = PETSC_FALSE;
   options->debugfd             = PETSC_FALSE;
   options->n1d     = 0;
   options->xyz1d_m = NULL;
@@ -1386,10 +1383,6 @@ static PetscErrorCode ProcessOptions(MPI_Comm comm, AppCtx *options)
   MPI_Comm_size(PETSC_COMM_WORLD,&mpisize);
   MPI_Comm_rank(PETSC_COMM_WORLD,&mpirank);
 
-  ierr = PetscSNPrintf(options->phasefieldsolution,sizeof(options->phasefieldsolution),"%s.%04d.%04d.dat",options->filenosuffix,options->refine,mpisize);CHKERRQ(ierr);
-  ierr = PetscTestFile(options->phasefieldsolution, 'r', &options->solvesystem);CHKERRQ(ierr);
-  //options->solvesystem         = PETSC_FALSE;
-
   // update solve parameters
   options->parameters[PARAM_KMURATIOOIL        ] = tissue_permeability/oil_viscosity  *atmosphericpressure; // [m^2/atm/s]
   options->parameters[PARAM_KMURATIOBLOOD      ] = tissue_permeability/water_viscosity*atmosphericpressure; // [m^2/atm/s]
@@ -1506,17 +1499,7 @@ static PetscErrorCode SetupProblem(PetscDS prob, AppCtx *ctx)
 
   PetscFunctionBeginUser;
   
-  if( ctx->solvesystem == PETSC_FALSE ) 
-   { //  solve phase feild on all state variables
-     ierr = PetscDSSetResidual(prob, FIELD_TEMPERATURE, f0_phas, f1_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetJacobian(prob, FIELD_TEMPERATURE, FIELD_TEMPERATURE, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetResidual(prob,    FIELD_PRESSURE, f0_phas, f1_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetJacobian(prob,    FIELD_PRESSURE,    FIELD_PRESSURE, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetResidual(prob, FIELD_SATURATION, f0_phas, f1_phas);CHKERRQ(ierr);
-     ierr = PetscDSSetJacobian(prob, FIELD_SATURATION, FIELD_SATURATION, g0_phas, NULL, NULL, g3_phas);CHKERRQ(ierr);
-   }
-  else  
-   {
+  {
     // temperature equations
     // debug
     // ierr = PetscDSSetResidual(  prob, FIELD_TEMPERATURE, f0_damg, NULL);CHKERRQ(ierr);
@@ -1864,63 +1847,12 @@ int main(int argc, char **argv)
   ierr = KSPGetPC(myksp,&mypc);CHKERRQ(ierr);
 
 
-  // solve in multiple steps
-  if( ctx.solvesystem == PETSC_FALSE ) 
-    {/* solve and write phase field solution to disk in vector in binary format */
-
-     // same application context for each field
-     void          *ctxarray[ctx.numFields];
+  // initialize all fields from image (vessel label -> phase=1, tissue -> phase=0)
+  {
+     void *ctxarray[ctx.numFields];
      ctxarray[0] = &ctx; ctxarray[1] = &ctx; ctxarray[2] = &ctx; ctxarray[3] = &ctx; ctxarray[4] = &ctx;
-
-     // setup initial conditions
      ierr = DMProjectFunction(dm, t, ctx.exactFuncs, ctxarray, INSERT_ALL_VALUES, u);CHKERRQ(ierr);
-
-     // setup ts options
-     ierr = TSSetOptionsPrefix(ts,"phasepresolve_");CHKERRQ(ierr);
-     ierr = TSSetFromOptions(ts);CHKERRQ(ierr);
-
-     // PCApply_FieldSplit
-     // PCFieldSplitSetDefaults
-     // use damage a dummy field to 'solve'
-     ierr = PCFieldSplitSetIS(mypc,"d",ctx.fields[FIELD_DAMAGE]);CHKERRQ(ierr);
-
-     char              prevtkfilenametemplate[PETSC_MAX_PATH_LEN];
-     ierr = PetscSNPrintf(prevtkfilenametemplate,sizeof(prevtkfilenametemplate),"%spre%03d.%%04d.vtu",ctx.filenosuffix,ctx.refine);CHKERRQ(ierr);
-     ierr = TSMonitorSet(ts,TSMonitorSolutionVTK,&prevtkfilenametemplate,NULL);CHKERRQ(ierr);
-     ierr = TSSetPostStage(ts,TSUpdatePhase);CHKERRQ(ierr);
-
-     // set pc to do nothing
-     //ierr = SNESSetUp(mysnes);CHKERRQ(ierr);
-     //ierr = KSPSetUp(myksp);CHKERRQ(ierr);
-     //int numsplit;
-     //KSP *ksplist;
-     //PC  shellpc;
-     //ierr = PCFieldSplitGetSubKSP(mypc,&numsplit ,&ksplist);
-     //ierr = KSPGetPC(ksplist[1],&shellpc);CHKERRQ(ierr);
-     //ierr = PCShellSetApply(shellpc,DoNothingShellPCApply);CHKERRQ(ierr);
-     //ierr = PetscFree(ksplist);CHKERRQ(ierr);
-
-     PetscViewer    viewer;
-     ierr = TSSetTimeStep(ts,ctx.time_step);CHKERRQ(ierr);
-     ierr = TSSolve(ts, u);CHKERRQ(ierr);
-
-     // save to disk
-     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,ctx.phasefieldsolution,FILE_MODE_WRITE,&viewer); CHKERRQ(ierr);
-     ierr = VecView(u,viewer); CHKERRQ(ierr);
- 
-     //  clean up
-     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
-     ierr = PetscPrintf(PETSC_COMM_WORLD,"phase solution saved to binary vector %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
-    } 
-  else
-    {
-
-     /* Read in previously computed solution in binary format */
-     PetscViewer    viewer;
-     ierr = PetscPrintf(PETSC_COMM_WORLD,"reading vector in binary from %s...\n",ctx.phasefieldsolution); CHKERRQ(ierr);
-     ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,ctx.phasefieldsolution,FILE_MODE_READ,&viewer); CHKERRQ(ierr);
-     ierr = VecLoad(u,viewer); CHKERRQ(ierr);
-     ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
+  }
 
      // solve outside the phase field
      ierr = PetscMalloc1(ctx.numFields, &ctx.subfields);CHKERRQ(ierr);
@@ -2103,14 +2035,19 @@ int main(int argc, char **argv)
      ierr = DMTSSetIFunctionLocal(dm, subspaceDMPlexTSComputeIFunctionFEM, &ctx);CHKERRQ(ierr);
      ierr = DMTSSetIJacobianLocal(dm, subspaceDMPlexTSComputeIJacobianFEM, &ctx);CHKERRQ(ierr);
 
-     int numsplit;
-     KSP *ksplist;
-     ierr = PCFieldSplitGetSubKSP(mypc,&numsplit ,&ksplist);
-     for(PetscInt iiksp = 0 ; iiksp < numsplit ; iiksp++) 
-        {
-         ierr = KSPSetType(ksplist[iiksp],KSPPREONLY);CHKERRQ(ierr);
-         ksplist[iiksp]->viewReason = PETSC_FALSE;
-        }
+     {
+       PetscBool isFS;
+       ierr = PetscObjectTypeCompare((PetscObject)mypc, PCFIELDSPLIT, &isFS); CHKERRQ(ierr);
+       if (isFS) {
+         int numsplit;
+         KSP *ksplist;
+         ierr = PCFieldSplitGetSubKSP(mypc, &numsplit, &ksplist); CHKERRQ(ierr);
+         for (PetscInt iiksp = 0; iiksp < numsplit; iiksp++) {
+           ierr = KSPSetType(ksplist[iiksp], KSPPREONLY); CHKERRQ(ierr);
+           ksplist[iiksp]->viewReason = PETSC_FALSE;
+         }
+       }
+     }
 
      // solve on subspace
      ierr = TSSolve(ts, u);CHKERRQ(ierr);
@@ -2123,9 +2060,8 @@ int main(int argc, char **argv)
      ierr = VecDestroy(&ctx.solvedirection);CHKERRQ(ierr);
      ierr = VecDestroy(&ctx.locDirection);CHKERRQ(ierr);
 
-     for(PetscInt iii = 0 ; iii < ctx.numFields; iii++) 
+     for(PetscInt iii = 0 ; iii < ctx.numFields; iii++)
           ierr = ISDestroy(&ctx.subfields[iii]);CHKERRQ(ierr);
-    } 
 
   // clean up
   ierr = VecViewFromOptions(u, NULL, "-sol_vec_view");CHKERRQ(ierr);
