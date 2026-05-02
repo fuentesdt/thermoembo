@@ -12,16 +12,16 @@
 #   docker build -t thermoembo .
 #
 # Run the full pipeline (mount a directory containing the labeled NIfTI):
-#   docker run --rm -v $(pwd):/data thermoembo \
+#   docker run --rm --user $(id -u):$(id -g) -v $(pwd):/data thermoembo \
 #     /data/PreTxArtLoRes.vessellabel.nii.gz \
 #     --out-dir /data/thermoembo_run --steps 5
 #
 # Prepare meshes only (skip simulation):
-#   docker run --rm -v $(pwd):/data thermoembo \
+#   docker run --rm --user $(id -u):$(id -g) -v $(pwd):/data thermoembo \
 #     /data/label.nii.gz --out-dir /data/out --mesh-only
 #
 # Drop to a shell (override entrypoint):
-#   docker run --rm -it --entrypoint /bin/bash -v $(pwd):/data thermoembo
+#   docker run --rm -it --user $(id -u):$(id -g) --entrypoint /bin/bash -v $(pwd):/data thermoembo
 
 FROM ubuntu:16.04
 
@@ -176,6 +176,7 @@ RUN mamba install -y python=3.10 \
 
 # ── Pipeline scripts ──────────────────────────────────────────────────────────
 COPY pipeline/ /work/pipeline/
+RUN chmod +x /work/pipeline/entrypoint.sh
 ENV PYTHONPATH=/work/pipeline:${PYTHONPATH}
 
 # ── Runtime environment ───────────────────────────────────────────────────────
@@ -184,5 +185,5 @@ ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
 WORKDIR /data
-ENTRYPOINT ["python", "/work/pipeline/run_thermoembo.py"]
+ENTRYPOINT ["/work/pipeline/entrypoint.sh"]
 CMD ["--help"]

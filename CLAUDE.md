@@ -33,6 +33,23 @@ make vessel
 cd venogram/ && make
 ```
 
+## Docker
+
+Build the image once:
+
+```bash
+docker build -t thermoembo .
+```
+
+Run the full pipeline — always pass `--user $(id -u):$(id -g)` so output files are owned by the host user, not root:
+
+```bash
+docker run --rm --user $(id -u):$(id -g) \
+  -v $(pwd):/data thermoembo \
+  /data/004_vessel_phantom.nii.gz \
+  --out-dir /data/thermoembo_run --steps 5
+```
+
 ## Running the Solver
 
 ```bash
