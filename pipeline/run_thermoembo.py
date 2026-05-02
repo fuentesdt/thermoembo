@@ -106,7 +106,7 @@ def make_vessel_vtk(nii_path, out_vtk):
     to the minimum world corner so that ComputeStructuredCoordinates maps FEM
     world coordinates to correct voxel indices.
     """
-    log("Writing VTK material image (zero initial phase field) ...")
+    log("Writing VTK material image (vessel label==2 → phase=1.0) ...")
     nii    = nib.load(nii_path)
     affine = nii.affine.astype(np.float64)
 
@@ -210,17 +210,19 @@ def _solver_cmd(abs_out, steps, dt, vesselcoupling,
         "-ts_monitor",
         "-modulowrite",  "1",           # write VTU every time step
         # --- main solve ---
-        # The C code calls PCFieldSplitSetIS("p"/"s"/"u") then
-        # PCFieldSplitGetSubKSP() unconditionally.  For a non-fieldsplit PC
-        # this call is a no-op and the outer KSP runs unmodified.
-        # GMRES with no preconditioner converges in the test case because the
-        # initial condition (zero phase field everywhere) gives a zero RHS for
-        # the first step, and subsequent steps remain well-conditioned.
-        "-snes_type",   "ksponly",
-        "-ksp_type",    "gmres",
-        "-ksp_max_it",  "500",
-        "-ksp_rtol",    "1e-3",
-        "-pc_type",     "none",
+        # ILU(2) handles the large-dt (backward Euler) Jacobian of this
+        # 5-field coupled system; without sufficient fill the factorisation
+        # is too inaccurate and GMRES stalls.  The nonzero shift protects
+        # against near-zero pivots on MatZeroRowsIS Dirichlet BC rows.
+        "-snes_type",               "ksponly",
+        "-ksp_type",                "gmres",
+        "-ksp_gmres_restart",       "200",
+        "-ksp_max_it",              "1000",
+        "-ksp_rtol",                "1e-4",
+        "-pc_type",                 "ilu",
+        "-pc_factor_levels",        "2",
+        "-pc_factor_shift_type",    "NONZERO",
+        "-pc_factor_shift_amount",  "1e-10",
         "-ksp_converged_reason",
         "-snes_converged_reason",
         "-ts_max_snes_failures", "-1",
@@ -263,6 +265,58 @@ def _rewrite_vtu_files(out_dir, pattern):
     for f in files:
         _rewrite_vtu_base64(f)
     log(f"  Done.")
+
+
+def evaluate_label_temperature(out_dir, nii_path, label_val=5):
+    """
+    For each resultsolution*.vtu, report mean temperature at mesh nodes whose
+    corresponding NIfTI voxel has label==label_val.
+    Mesh coordinates are in metres; NIfTI affine is in mm — multiply by 1e3.
+    """
+    vtu_files = sorted(glob.glob(os.path.join(out_dir, "resultsolution*.vtu")))
+    if not vtu_files:
+        return
+
+    nii    = nib.load(nii_path)
+    labels = np.asarray(nii.dataobj)
+    if not (labels == label_val).any():
+        log(f"Label=={label_val} not present in {os.path.basename(nii_path)}; "
+            f"skipping temperature evaluation")
+        return
+
+    inv_aff = np.linalg.inv(nii.affine)        # affine is mm; coords must be mm
+    shape   = np.array(labels.shape)
+
+    log(f"Mean temperature in label=={label_val} region:")
+    for vtu_path in vtu_files:
+        m   = pv.read(vtu_path)
+        pts = m.points * 1e3                   # m → mm
+        ph  = np.hstack([pts, np.ones((len(pts), 1))])
+        vox = (inv_aff @ ph.T).T[:, :3]
+        idx = np.clip(np.round(vox).astype(int), 0, shape - 1)
+        mask = labels[idx[:, 0], idx[:, 1], idx[:, 2]] == label_val
+        if not mask.any():
+            log(f"  {os.path.basename(vtu_path)}: no label=={label_val} nodes in mesh")
+            continue
+        temp = m.point_data["solutiontemperature.0"][mask]
+        step = os.path.basename(vtu_path).replace("resultsolution", "step").replace(".vtu", "")
+        log(f"  {step}: n={mask.sum():5d}  mean={np.mean(temp):.4f}  "
+            f"min={np.min(temp):.4f}  max={np.max(temp):.4f}")
+
+
+def _fix_ownership(out_dir, reference_path):
+    """When running as root inside Docker, chown out_dir to match the input file owner."""
+    if os.getuid() != 0:
+        return
+    try:
+        st = os.stat(reference_path)
+        if st.st_uid == 0:
+            return  # input also root-owned — nothing to fix
+        for fname in os.listdir(out_dir):
+            os.chown(os.path.join(out_dir, fname), st.st_uid, st.st_gid)
+        log(f"Fixed output ownership → {st.st_uid}:{st.st_gid}")
+    except Exception as e:
+        log(f"Warning: could not fix output ownership: {e}")
 
 
 def run_solver(out_dir, steps, dt, vesselcoupling,
@@ -505,6 +559,11 @@ def main():
     # ── 6. Run thermoembo1d ──────────────────────────────────────────────────
     run_solver(out_dir, args.steps, args.dt, args.vesselcoupling,
                vtp1d_in=centerline_vtp)
+
+    # ── 7. Evaluate mean temperature in tumor region ─────────────────────────
+    evaluate_label_temperature(out_dir, nii_path, label_val=5)
+
+    _fix_ownership(out_dir, nii_path)
 
 
 if __name__ == "__main__":
