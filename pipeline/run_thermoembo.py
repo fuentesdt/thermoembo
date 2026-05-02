@@ -561,7 +561,7 @@ def main():
                vtp1d_in=centerline_vtp)
 
     # ── 7. Evaluate mean temperature in tumor region ─────────────────────────
-    evaluate_label_temperature(out_dir, nii_path, label_val=5)
+    evaluate_label_temperature(out_dir, nii_path, label_val=4)
 
     _fix_ownership(out_dir, nii_path)
 
