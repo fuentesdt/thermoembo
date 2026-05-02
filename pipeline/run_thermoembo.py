@@ -242,6 +242,38 @@ def _solver_cmd(abs_out, steps, dt, vesselcoupling,
     return cmd
 
 
+def _rewrite_vtu_base64(path):
+    """
+    Re-write a VTU file written by VTK 5.10 (raw appended, may contain null
+    bytes that are invalid in XML 1.0) to inline base64 binary so ParaView
+    can open it without XML parse errors.  Overwrites the file.
+
+    SetDataModeToBinary() writes each DataArray's data inline as base64
+    (format="binary") rather than in an AppendedData section.  This avoids
+    the VTK underscore-marker / Expat interaction that causes parse failures
+    in ParaView 5.11 even with encoding="base64" appended mode.
+    """
+    r = vtk.vtkXMLUnstructuredGridReader()
+    r.SetFileName(path)
+    r.Update()
+    w = vtk.vtkXMLUnstructuredGridWriter()
+    w.SetFileName(path)
+    w.SetInputData(r.GetOutput())
+    w.SetDataModeToBinary()       # inline base64 per DataArray, no AppendedData
+    w.SetCompressorTypeToNone()   # skip zlib — keeps XML structure simple
+    w.Write()
+
+
+def _rewrite_vtu_files(out_dir, pattern):
+    files = sorted(glob.glob(os.path.join(out_dir, pattern)))
+    if not files:
+        return
+    log(f"Converting {len(files)} VTU file(s) to base64 for ParaView ...")
+    for f in files:
+        _rewrite_vtu_base64(f)
+    log(f"  Done.")
+
+
 def run_solver(out_dir, steps, dt, vesselcoupling,
                vtp1d_in=None, vtp1d_out=None):
     """
@@ -277,6 +309,7 @@ def run_solver(out_dir, steps, dt, vesselcoupling,
     else:
         log("thermoembo1d completed successfully")
         log(f"Solution VTU files written to: {out_dir}/resultsolution*.vtu")
+        _rewrite_vtu_files(out_dir, "result*.vtu")
 
 
 # ── Phantom-dir mode: process all 00?_vessel_phantom.nii.gz ──────────────────
