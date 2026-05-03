@@ -229,6 +229,7 @@ def _solver_cmd(abs_out, steps, dt, vesselcoupling,
         # --- misc ---
         "-disppressure",     "0.0",
         "-baselinepressure", "1.0",
+        "-gamma",            "0.087", # 10× default gammaconst → stronger heat source
     ]
     if vtp1d_out:
         cmd += ["-vtp1d_out", vtp1d_out]
@@ -298,10 +299,12 @@ def evaluate_label_temperature(out_dir, nii_path, label_val=5):
         if not mask.any():
             log(f"  {os.path.basename(vtu_path)}: no label=={label_val} nodes in mesh")
             continue
-        temp = m.point_data["solutiontemperature.0"][mask]
+        temp     = m.point_data["solutiontemperature.0"][mask]
+        temp_all = m.point_data["solutiontemperature.0"]
         step = os.path.basename(vtu_path).replace("resultsolution", "step").replace(".vtu", "")
-        log(f"  {step}: n={mask.sum():5d}  mean={np.mean(temp):.4f}  "
-            f"min={np.min(temp):.4f}  max={np.max(temp):.4f}")
+        log(f"  {step}: label{label_val} n={mask.sum():5d}  mean={np.mean(temp):.4f}  "
+            f"min={np.min(temp):.4f}  max={np.max(temp):.4f}  "
+            f"| all_nodes max={np.max(temp_all):.4f} mean={np.mean(temp_all):.4f}")
 
 
 def _fix_ownership(out_dir, reference_path):
@@ -475,8 +478,8 @@ def main():
                     help="thermoembo1d time steps (default 5)")
     ap.add_argument("--dt",            type=float, default=60.0,  metavar="S",
                     help="thermoembo1d time-step size in seconds (default 60)")
-    ap.add_argument("--vesselcoupling",type=float, default=1.0e-4,metavar="G",
-                    help="Vessel-tissue coupling conductance [1/s/atm] (default 1e-4)")
+    ap.add_argument("--vesselcoupling",type=float, default=1.0e-3,metavar="G",
+                    help="Vessel-tissue coupling conductance [1/s/atm] (default 1e-3)")
     ap.add_argument("--mesh-only",     action="store_true",
                     help="Prepare meshes only — skip simulation run")
 

@@ -1927,8 +1927,11 @@ int main(int argc, char **argv)
      }
      ierr = VecScale(temperaturevector,ctx.parameters[PARAM_USALT] - ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
      ierr = VecShift(temperaturevector,                              ctx.parameters[PARAM_UARTERY]);CHKERRQ(ierr);
-     ierr = VecScale(pressurevector,ctx.parameters[PARAM_BOUNDARYPRESSURE] - ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
-     ierr = VecShift(pressurevector,                                         ctx.parameters[PARAM_BASELINEPRESSURE]);CHKERRQ(ierr);
+     /* Set all pressure DOFs (vessel and tissue) to BOUNDARYPRESSURE.
+        Tissue DOFs are overridden to BASELINEPRESSURE a few lines below
+        via ctx.subfields[FIELD_PRESSURE], yielding vessel=BOUNDARYPRESSURE,
+        tissue=BASELINEPRESSURE without a VecCopy size-mismatch. */
+     ierr = VecSet(pressurevector, ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
      // strong boundary
      // ierr = VecSet(temperaturevector,ctx.parameters[PARAM_USALT]           );CHKERRQ(ierr);
      // ierr = VecSet(pressurevector,   ctx.parameters[PARAM_BOUNDARYPRESSURE]);CHKERRQ(ierr);
@@ -1977,37 +1980,26 @@ int main(int argc, char **argv)
      ierr = PCFieldSplitSetIS(mypc,"u",ctx.subfields[FIELD_TEMPERATURE]);CHKERRQ(ierr);
      ierr = KSPSetPostSolve(myksp,KSPPostSolve_ZeroSearch,&ctx);CHKERRQ(ierr);
 
-     // get initial pressure for saturation solve
-     // following SNESSolve_KSPONLY
-     Vec          uinit,rinit,sinit;
+     // Initialize TS/SNES/KSP and set up PC so that PCFieldSplitGetSubKSP
+     // succeeds below.  The PCApply pressure pre-solve was removed because it
+     // called PCApply with the STANDARD (non-subspace) Jacobian, which produced
+     // O(10^4 atm) corrections for tissue pressure DOFs and caused temperature
+     // blow-up at step 1.  The smooth BC already provides a correct pressure IC.
+     Vec          uinit,rinit;
      ierr = VecDuplicate(u, &uinit);CHKERRQ(ierr);
      ierr = VecCopy(u, uinit);CHKERRQ(ierr);
-     ierr = VecDuplicate(u, &sinit);CHKERRQ(ierr);
      ierr = VecDuplicate(u, &rinit);CHKERRQ(ierr);
-     // initialize
      ierr = TSSetSolution(ts,u);CHKERRQ(ierr);
      ierr = TSSetUp(ts);CHKERRQ(ierr);
      ierr = SNESSetUp(mysnes);CHKERRQ(ierr);
-     // ierr = TSStep(ts);CHKERRQ(ierr);
      ierr = SNESComputeFunction(mysnes,uinit,rinit);CHKERRQ(ierr);
      Mat myjmat, mypmat;
      ierr = SNESGetJacobian(mysnes,&myjmat,&mypmat,NULL,NULL);CHKERRQ(ierr);
      ierr = SNESComputeJacobian(mysnes,uinit,myjmat,mypmat);CHKERRQ(ierr);
      ierr = KSPSetOperators(myksp,myjmat,mypmat);CHKERRQ(ierr);
-     //ierr = KSPSolve(myksp,rinit,sinit);CHKERRQ(ierr);
-     // pc performs a single block solve
-     ierr = PCApply(mypc,rinit,sinit);CHKERRQ(ierr);
-     // ierr = VecAXPY(X,-1.0,Y);CHKERRQ(ierr);
-
-     // update pressure 
-     ierr = VecGetSubVector(u    , ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     ierr = VecGetSubVector(sinit, ctx.subfields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
-     ierr = VecAXPY(pressurevector,-1.0,pressurework);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(u    , ctx.subfields[FIELD_PRESSURE],    &pressurevector);CHKERRQ(ierr);
-     ierr = VecRestoreSubVector(sinit, ctx.subfields[FIELD_PRESSURE],    &pressurework);CHKERRQ(ierr);
+     ierr = PCSetUp(mypc);CHKERRQ(ierr);
      ierr = VecDestroy(&uinit);CHKERRQ(ierr);
      ierr = VecDestroy(&rinit);CHKERRQ(ierr);
-     ierr = VecDestroy(&sinit);CHKERRQ(ierr);
 
      // solve full problem 
      ierr = TSSetTime(ts, 0.0);CHKERRQ(ierr);
