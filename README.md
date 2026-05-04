@@ -41,7 +41,7 @@ All four live in `/work/tutorials/` inside the container.
 Mount a directory containing the labeled NIfTI and pass it as the first argument:
 
 ```bash
-docker run --rm \
+docker run --rm  --user $(id -u):$(id -g) \
   -v $(pwd):/data \
   thermoembo \
   /data/PreTxArtLoRes.vessellabel.nii.gz \
