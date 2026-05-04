@@ -3,33 +3,73 @@ run_thermoembo.py — Prepare and launch a thermoembo1d coupled 1D-3D simulation
 
 Pipeline
 --------
-  1. Extract label==2 vessel mask → skeletonize → vessel_skeleton.nii.gz
-  2. centerline.skel_to_vtp()  → centerline.vtp  (1-D vessel graph)
-  3. meshing.*                 → mesh.vtu         (3-D liver tet mesh)
-  4. Convert mesh.vtu → mesh.exo                  (mm → m, meshio/netCDF4)
-  5. Write vessel.vtk  (legacy VTK image from NIfTI label, mm coords)
-  6. Run thermoembo1d directly (two-pass: phase presolve + main solve)
+  1a. Extract label==2 (inflow) mask  → skeletonize → {id}_inflow_skel.nii.gz
+  1b. Extract label==3 (outflow) mask → skeletonize → {id}_outflow_skel.nii.gz
+      (outflow skeleton is optional; step is skipped if label==3 is absent)
+  2a. skel_to_vtp() on inflow  → raw inflow VTP graph
+  2b. resistance_lumping.solve() on inflow  → {id}_inflow_centerline.vtp
+      Node pressures set by Hagen-Poiseuille resistance lumping (see below).
+  2c. skel_to_vtp() on outflow → raw outflow VTP graph
+  2d. resistance_lumping.solve() on outflow → {id}_outflow_centerline.vtp
+  3.  meshing.*  → surface.vtp + mesh.vtu   (3-D liver tet mesh, mm)
+  4.  vtu_to_exodus()           → mesh.exo  (mm → m, for PETSc)
+  5.  make_vessel_vtk()         → vessel.vtk (binary label-2 phase-field IC)
+  6.  run_solver()              → resultsolution000.NNNN.vtu per time step
 
 Inputs
 ------
   <nii>  — labeled NIfTI (.nii or .nii.gz)
-    label == 1 : liver parenchyma
-    label == 2 : vessel lumen
+    label == 1 : liver parenchyma  (3-D mesh domain)
+    label == 2 : inflow vessel lumen  (hepatic artery / embolic injection site)
+    label == 3 : outflow vessel lumen (portal vein / venous drainage), optional
+    label == 4 : tumor target  (temperature and concentration evaluated here)
+
+Resistance lumping (1-D solve)
+------------------------------
+  Node pressures along each vessel centerline are pre-computed by solving a
+  sparse Hagen-Poiseuille conductance system  K·p = q  before the 3-D FEM
+  solve begins.  This replaces the uniform-pressure Dirichlet BC with a
+  physiologically consistent pressure gradient along the vessel tree.
+
+  Method (resistance_lumping.py):
+    1. Read the raw skeleton VTP graph (nodes = centerline points, edges = line
+       cells).  Vessel radii at each node are derived from the distance
+       transform of the binary label mask (scipy distance_transform_edt with
+       true anisotropic voxel spacing).
+    2. Disconnected sub-graphs are bridged with minimum-spanning-tree (MST)
+       phantom edges connecting inter-component leaf pairs, ensuring a single
+       connected conductance network with the fewest spurious parallel paths.
+    3. Conductance of each edge: G_ij = π r⁴ / (8 μ L), where r = mean radius
+       of the two endpoints, L = Euclidean edge length, μ = blood viscosity.
+    4. Boundary conditions:
+         Inflow  — root node (max-radius leaf): P = 836 mmHg (1.10 atm, HA)
+                   injection-site seed (from .fcsv): P = 882 mmHg (1.16 atm)
+                   terminal branches: P = 760 mmHg (1.00 atm, tissue)
+         Outflow — max-radius leaf: P = 752 mmHg (0.99 atm, IVC)
+                   terminal branches: P = 760 mmHg (1.00 atm, tissue)
+    5. The linear system K·p = q is solved with scipy.sparse.linalg.spsolve.
+       The resulting nodal pressures (mmHg) are written as a point-data array
+       "Pressure_mmHg" to the output VTP and converted to atm when read by the
+       3-D solver via -vtp1d_in / -vtp1d_out.
 
 Outputs (written to --out-dir, default: thermoembo_run/)
-  vessel_skeleton.nii.gz   skeletonised label-2 volume
-  centerline.vtp           1-D vessel centerline mesh
-  surface.vtp              decimated liver surface
-  mesh.vtu                 tetrahedral volume mesh  (mm)
-  mesh.exo                 Exodus mesh              (m, for PETSc/thermoembo1d)
-  vessel.vtk               legacy VTK image (mm, material field)
-  result*.vtu              thermoembo1d solution snapshots
+  {id}_inflow_centerline.vtp    1-D inflow centerline with lumped pressures
+  {id}_outflow_centerline.vtp   1-D outflow centerline with lumped pressures
+  surface.vtp                   decimated liver surface
+  mesh.vtu                      tetrahedral volume mesh (mm)
+  mesh.exo                      Exodus II mesh (m, for PETSc/thermoembo1d)
+  vessel.vtk                    binary vessel mask (phase-field IC, mm)
+  resultsolution000.NNNN.vtu    solution snapshots per time step
+  dashboard.html                Chart.js viewer: tumor T and concentration vs t
 
 Usage
 -----
-  python run_thermoembo.py prepost/PreTxArtLoRes.vessellabel.nii.gz
-  python run_thermoembo.py prepost/PreTxArtLoRes.vessellabel.nii.gz \\
-      --out-dir thermoembo_run --decimate 0.90 --maxvol 5000 --steps 5
+  # Single NIfTI
+  python run_thermoembo.py label.nii.gz --out-dir thermoembo_run --steps 5
+
+  # Batch phantom directory
+  python run_thermoembo.py --phantom-dir /data --phantom-ids 001,002,003,004 \\
+      --out-dir thermoembo_run --steps 5
 
 Dependencies
 ------------
