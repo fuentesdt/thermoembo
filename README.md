@@ -106,6 +106,12 @@ One sub-directory is created per phantom ID (e.g. `001/`, `002/`), each containi
 | `<ID>/resultsolution000.NNNN.vtu` | Solution snapshots per time step |
 | `dashboard.html` | Combined dashboard: 2 charts (temperature + concentration) × number of phantoms |
 
+Transfer results (excluding large VTU solution snapshots):
+
+```bash
+rsync -av --exclude='*.vtu' thermoembo_run/ user@host:/dest/thermoembo_run/
+```
+
 ### Key solver parameters
 
 The pipeline passes the following fixed PETSc flags to `thermoembo1d`:
