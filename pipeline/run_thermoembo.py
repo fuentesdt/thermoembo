@@ -268,43 +268,215 @@ def _rewrite_vtu_files(out_dir, pattern):
     log(f"  Done.")
 
 
-def evaluate_label_temperature(out_dir, nii_path, label_val=5):
+def _collect_label_timeseries(out_dir, nii_path, label_val, dt):
     """
-    For each resultsolution*.vtu, report mean temperature at mesh nodes whose
-    corresponding NIfTI voxel has label==label_val.
-    Mesh coordinates are in metres; NIfTI affine is in mm — multiply by 1e3.
+    Read each resultsolution*.vtu once and collect temperature and concentration
+    statistics for mesh nodes whose NIfTI voxel has label==label_val.
+
+    Returns a dict with lists: times, temp_mean/min/max, conc_mean/min/max.
+    Returns None if no VTU files exist or the label is absent.
     """
     vtu_files = sorted(glob.glob(os.path.join(out_dir, "resultsolution*.vtu")))
     if not vtu_files:
-        return
+        return None
 
-    nii    = nib.load(nii_path)
-    labels = np.asarray(nii.dataobj)
+    nii     = nib.load(nii_path)
+    labels  = np.asarray(nii.dataobj)
     if not (labels == label_val).any():
         log(f"Label=={label_val} not present in {os.path.basename(nii_path)}; "
-            f"skipping temperature evaluation")
-        return
+            f"skipping evaluation")
+        return None
 
-    inv_aff = np.linalg.inv(nii.affine)        # affine is mm; coords must be mm
+    inv_aff = np.linalg.inv(nii.affine)   # affine is in mm; mesh coords converted to mm
     shape   = np.array(labels.shape)
 
-    log(f"Mean temperature in label=={label_val} region:")
+    times = []
+    temp_mean, temp_min, temp_max = [], [], []
+    conc_mean, conc_min, conc_max = [], [], []
+
     for vtu_path in vtu_files:
+        # parse step index from "resultsolution000.NNNN.vtu" → NNNN
+        stem     = os.path.basename(vtu_path)
+        step_idx = int(stem.split(".")[-2])
+        t        = step_idx * dt
+
         m   = pv.read(vtu_path)
-        pts = m.points * 1e3                   # m → mm
+        pts = m.points * 1e3                  # m → mm
         ph  = np.hstack([pts, np.ones((len(pts), 1))])
         vox = (inv_aff @ ph.T).T[:, :3]
         idx = np.clip(np.round(vox).astype(int), 0, shape - 1)
         mask = labels[idx[:, 0], idx[:, 1], idx[:, 2]] == label_val
         if not mask.any():
-            log(f"  {os.path.basename(vtu_path)}: no label=={label_val} nodes in mesh")
+            log(f"  {stem}: no label=={label_val} nodes in mesh")
             continue
-        temp     = m.point_data["solutiontemperature.0"][mask]
+
+        temp = m.point_data["solutiontemperature.0"][mask]
+        conc = m.point_data["solutionconcentration.0"][mask]
         temp_all = m.point_data["solutiontemperature.0"]
-        step = os.path.basename(vtu_path).replace("resultsolution", "step").replace(".vtu", "")
-        log(f"  {step}: label{label_val} n={mask.sum():5d}  mean={np.mean(temp):.4f}  "
-            f"min={np.min(temp):.4f}  max={np.max(temp):.4f}  "
-            f"| all_nodes max={np.max(temp_all):.4f} mean={np.mean(temp_all):.4f}")
+
+        times.append(t)
+        temp_mean.append(float(np.mean(temp)))
+        temp_min.append(float(np.min(temp)))
+        temp_max.append(float(np.max(temp)))
+        conc_mean.append(float(np.mean(conc)))
+        conc_min.append(float(np.min(conc)))
+        conc_max.append(float(np.max(conc)))
+
+        step_tag = stem.replace("resultsolution", "step").replace(".vtu", "")
+        log(f"  {step_tag}: label{label_val} n={mask.sum():5d}  "
+            f"temp mean={np.mean(temp):.4f} min={np.min(temp):.4f} max={np.max(temp):.4f}  "
+            f"conc mean={np.mean(conc):.4f} min={np.min(conc):.4f} max={np.max(conc):.4f}  "
+            f"| all_nodes temp max={np.max(temp_all):.4f} mean={np.mean(temp_all):.4f}")
+
+    if not times:
+        return None
+
+    return dict(
+        times=times,
+        temp_mean=temp_mean, temp_min=temp_min, temp_max=temp_max,
+        conc_mean=conc_mean, conc_min=conc_min, conc_max=conc_max,
+    )
+
+
+def _write_dashboard(out_path, named_series, label_val):
+    """
+    Write a self-contained HTML dashboard with two Chart.js line graphs per entry:
+    temperature over time and concentration over time for the given label region.
+
+    named_series: list of (name_str, series_dict) tuples.
+      - Single run: pass [("", series)] — charts rendered without a phantom prefix.
+      - Phantom-dir run: pass [("001", s1), ("002", s2), ...] — each pair is headed
+        with the phantom ID, producing 2 × len(named_series) total charts.
+
+    Chart.js is loaded from jsDelivr CDN — requires internet on first open.
+    """
+    import json
+
+    entries_js = json.dumps([{"id": name, "series": s} for name, s in named_series])
+
+    # Build canvas elements in Python so they exist before JS runs.
+    canvas_html = ""
+    for name, _ in named_series:
+        safe_id     = (name or "run").replace(" ", "_")
+        prefix      = f"Phantom {name} — " if name else ""
+        canvas_html += (
+            f'\n<h2>{prefix}Temperature over time (hK)</h2>\n'
+            f'<canvas id="tempChart_{safe_id}"></canvas>\n'
+            f'<h2>{prefix}Concentration over time</h2>\n'
+            f'<canvas id="concChart_{safe_id}"></canvas>\n'
+        )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thermoembo Dashboard — Label {label_val}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+  body {{
+    font-family: sans-serif;
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    color: #222;
+  }}
+  h1 {{ font-size: 1.4rem; margin-bottom: 0.25rem; }}
+  h2 {{ font-size: 1.1rem; color: #444; margin-top: 2.5rem; }}
+  canvas {{ margin-bottom: 1rem; }}
+</style>
+</head>
+<body>
+<h1>Thermoembo — Label {label_val} (tumor) region</h1>
+<p style="color:#666;font-size:0.9rem">
+  Shaded band = min/max across label nodes. Line = mean.
+</p>
+{canvas_html}
+<script>
+const entries = {entries_js};
+
+function makeChart(canvasId, yLabel, times, meanData, minData, maxData, rgbColor) {{
+  const alpha = 'rgba(' + rgbColor + ',0.15)';
+  const solid = 'rgba(' + rgbColor + ',1)';
+  new Chart(document.getElementById(canvasId), {{
+    type: 'line',
+    data: {{
+      labels: times,
+      datasets: [
+        {{
+          label: yLabel + ' max',
+          data: maxData,
+          borderColor: 'transparent',
+          backgroundColor: alpha,
+          fill: '+1',
+          pointRadius: 0,
+          order: 3,
+        }},
+        {{
+          label: yLabel + ' mean',
+          data: meanData,
+          borderColor: solid,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 4,
+          fill: false,
+          order: 1,
+        }},
+        {{
+          label: yLabel + ' min',
+          data: minData,
+          borderColor: 'transparent',
+          backgroundColor: alpha,
+          fill: '-1',
+          pointRadius: 0,
+          order: 3,
+        }},
+      ],
+    }},
+    options: {{
+      responsive: true,
+      plugins: {{
+        legend: {{
+          labels: {{ filter: item => item.text.includes('mean') }},
+        }},
+        tooltip: {{
+          callbacks: {{ title: ctx => 'Time: ' + ctx[0].label + ' s' }},
+        }},
+      }},
+      scales: {{
+        x: {{
+          title: {{ display: true, text: 'Time (s)' }},
+          type: 'linear',
+          ticks: {{ callback: v => v + ' s' }},
+        }},
+        y: {{ title: {{ display: true, text: yLabel }} }},
+      }},
+    }},
+  }});
+}}
+
+entries.forEach(e => {{
+  const safeId = (e.id || 'run').replace(/\\s+/g, '_');
+  const d = e.series;
+  makeChart('tempChart_' + safeId, 'Temperature (hK)',
+            d.times, d.temp_mean, d.temp_min, d.temp_max, '220,50,50');
+  makeChart('concChart_' + safeId, 'Concentration',
+            d.times, d.conc_mean, d.conc_min, d.conc_max, '50,100,220');
+}});
+</script>
+</body>
+</html>"""
+    with open(out_path, "w") as f:
+        f.write(html)
+    log(f"Dashboard written: {out_path} ({len(named_series) * 2} charts)")
+
+
+def evaluate_label_temperature(out_dir, nii_path, label_val=5, dt=60.0):
+    """
+    Log temperature and concentration statistics per time step for the label region,
+    and return the collected time-series dict (or None if unavailable).
+    """
+    log(f"Mean temperature in label=={label_val} region:")
+    return _collect_label_timeseries(out_dir, nii_path, label_val, dt)
 
 
 def _fix_ownership(out_dir, reference_path):
@@ -447,6 +619,10 @@ def process_phantom(sample_id, phantom_dir, out_dir, args):
     run_solver(sample_out, args.steps, args.dt, args.vesselcoupling,
                vtp1d_in=inflow_vtp, vtp1d_out=outflow_vtp)
 
+    # ── 6. Collect tumor temperature/concentration time-series ────────────────
+    series = evaluate_label_temperature(sample_out, phantom_nii, label_val=4, dt=args.dt)
+    return series
+
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
@@ -499,8 +675,13 @@ def main():
         if not ids:
             sys.exit(f"Error: no *_vessel_phantom.nii.gz found in {phantom_dir}")
         log(f"Phantom IDs to process: {ids}")
+        all_series = []
         for sid in ids:
-            process_phantom(sid, phantom_dir, out_dir, args)
+            series = process_phantom(sid, phantom_dir, out_dir, args)
+            if series:
+                all_series.append((sid, series))
+        if all_series:
+            _write_dashboard(os.path.join(out_dir, "dashboard.html"), all_series, label_val=4)
         return
 
     # ── Single-file mode (original) ─────────────────────────────────────────
@@ -563,8 +744,10 @@ def main():
     run_solver(out_dir, args.steps, args.dt, args.vesselcoupling,
                vtp1d_in=centerline_vtp)
 
-    # ── 7. Evaluate mean temperature in tumor region ─────────────────────────
-    evaluate_label_temperature(out_dir, nii_path, label_val=4)
+    # ── 7. Evaluate mean temperature/concentration in tumor region ──────────
+    series = evaluate_label_temperature(out_dir, nii_path, label_val=4, dt=args.dt)
+    if series:
+        _write_dashboard(os.path.join(out_dir, "dashboard.html"), [("", series)], label_val=4)
 
     _fix_ownership(out_dir, nii_path)
 
