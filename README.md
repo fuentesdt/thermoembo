@@ -78,7 +78,7 @@ docker run --rm -v $(pwd):/data thermoembo \
   /data/label.nii.gz --out-dir /data/out --mesh-only
 ```
 
-**Outputs written to `--out-dir`:**
+**Outputs written to `--out-dir` (single-file mode):**
 
 | File | Description |
 |------|-------------|
@@ -89,6 +89,22 @@ docker run --rm -v $(pwd):/data thermoembo \
 | `mesh.exo` | Exodus II mesh (metres, for PETSc) |
 | `vessel.vtk` | Zero-filled phase-field initial image |
 | `resultsolution000.NNNN.vtu` | Solution snapshots per time step |
+| `dashboard.html` | Interactive Chart.js dashboard: temperature and concentration in tumor (label 4) over time |
+
+**Outputs written to `--out-dir` (phantom-dir mode):**
+
+One sub-directory is created per phantom ID (e.g. `001/`, `002/`), each containing the same per-phantom files as single-file mode:
+
+| File | Description |
+|------|-------------|
+| `<ID>/` | Sub-directory for each phantom ID |
+| `<ID>/<ID>_inflow_centerline.vtp` | Inflow 1-D centerline with resistance-lumped pressures |
+| `<ID>/<ID>_outflow_centerline.vtp` | Outflow 1-D centerline with resistance-lumped pressures (if label 3 present) |
+| `<ID>/mesh.vtu` | Tetrahedral volume mesh (mm) |
+| `<ID>/mesh.exo` | Exodus II mesh (metres, for PETSc) |
+| `<ID>/vessel.vtk` | Zero-filled phase-field initial image |
+| `<ID>/resultsolution000.NNNN.vtu` | Solution snapshots per time step |
+| `dashboard.html` | Combined dashboard: 2 charts (temperature + concentration) × number of phantoms |
 
 ### Key solver parameters
 
