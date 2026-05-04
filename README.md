@@ -8,7 +8,14 @@ pipeline that prepares the mesh inputs from a labeled NIfTI volume.
 ## Prerequisites
 
 - Docker (any recent version)
-- A labeled NIfTI volume: `label 1` = liver parenchyma, `label 2` = vessel lumen
+- A labeled NIfTI volume with the following label convention:
+
+| Label | Tissue |
+|-------|--------|
+| 1 | Liver parenchyma |
+| 2 | Inflow vessel lumen (embolic injection site) |
+| 3 | Outflow vessel lumen (optional) |
+| 4 | Tumor (target — temperature evaluated here) |
 
 ## Building the image
 
@@ -45,19 +52,22 @@ docker run --rm \
 **All options:**
 
 ```
-usage: run_thermoembo.py [-h] [--out-dir DIR] [--decimate R] [--maxvol MM3]
+usage: run_thermoembo.py [-h] [--phantom-dir DIR] [--phantom-ids IDS]
+                         [--out-dir DIR] [--decimate R] [--maxvol MM3]
                          [--tet-dihedral DEG] [--steps N] [--dt S]
                          [--vesselcoupling G] [--mesh-only]
-                         nii
+                         [nii]
 
-  nii                 Labeled NIfTI (label 1=liver, 2=vessel)
+  nii                 Labeled NIfTI (label 1=liver, 2=inflow vessel, 3=outflow vessel, 4=tumor)
+  --phantom-dir DIR   Directory of phantom NIfTI files; process all matching *_vessel_phantom.nii.gz
+  --phantom-ids IDS   Comma-separated phantom IDs to process (e.g. 001,004); requires --phantom-dir
   --out-dir DIR       Output directory (default: thermoembo_run)
   --decimate R        Surface decimation ratio, 0–1 (default 0.90 = keep 10%)
   --maxvol MM3        TetGen max tet volume mm³ (default 5000)
   --tet-dihedral DEG  TetGen min dihedral angle (default 15)
   --steps N           Time steps (default 5)
   --dt S              Time-step size in seconds (default 60)
-  --vesselcoupling G  Vessel–tissue coupling conductance [1/s/atm] (default 1e-4)
+  --vesselcoupling G  Gaussian 1D–3D coupling amplitude (default 1e-3)
   --mesh-only         Prepare meshes only; skip simulation
 ```
 
@@ -79,6 +89,22 @@ docker run --rm -v $(pwd):/data thermoembo \
 | `mesh.exo` | Exodus II mesh (metres, for PETSc) |
 | `vessel.vtk` | Zero-filled phase-field initial image |
 | `resultsolution000.NNNN.vtu` | Solution snapshots per time step |
+
+### Key solver parameters
+
+The pipeline passes the following fixed PETSc flags to `thermoembo1d`:
+
+| Flag | Value | Effect |
+|------|-------|--------|
+| `-gamma` | `0.087` | Heat-of-reaction rate constant (10× default); drives tumour heating |
+| `-vesselcoupling` | `1e-3` | Gaussian 1D–3D coupling amplitude; set via `--vesselcoupling` |
+| `-baselinepressure` | `1.0` | Tissue pressure boundary condition (atm) |
+| `-snes_type` | `ksponly` | Single linearisation per time step (backward Euler) |
+| `-pc_type` | `ilu` | ILU(2) preconditioner with NONZERO diagonal shift |
+
+**Expected output:** with default settings (5 steps, dt=60 s) the mean temperature
+in the label==4 tumour region increases by ≥10 % above the 37 °C body temperature
+baseline (0.37 hK → ≥ 0.407 hK).
 
 ---
 
@@ -139,13 +165,16 @@ Inside gdb:
 ```gdb
 (gdb) set args -dim 3 \
                -mesh /data/dbg_run/mesh.exo \
-               -vtp1d /data/dbg_run/centerline.vtp \
-               -vesselcoupling 1e-4 \
+               -vtp1d_in /data/dbg_run/centerline.vtp \
+               -vesselcoupling 1e-3 \
                -vtk  /data/dbg_run/vessel.vtk \
                -o    /data/dbg_run/result \
                -temp_petscspace_degree 1 -pres_petscspace_degree 1 \
                -ts_type beuler -ts_max_steps 3 -ts_dt 60.0 \
-               -snes_type ksponly -ksp_type gmres -pc_type none
+               -gamma 0.087 \
+               -snes_type ksponly -ksp_type gmres \
+               -pc_type ilu -pc_factor_levels 2 \
+               -pc_factor_shift_type NONZERO -pc_factor_shift_amount 1e-10
 
 (gdb) break ThermoEmbodiesRHSFunction   # break on a function in thermoembo1d.c
 (gdb) run
@@ -233,12 +262,14 @@ vim /work/tutorials/thermoembo1d.c
 valgrind --leak-check=full --track-origins=yes \
   /work/tutorials/thermoembo1d-3.10.2-xenial-gcc-5.4.0-opt-debug \
   -dim 3 -mesh /data/dbg_run/mesh.exo \
-  -vtp1d /data/dbg_run/centerline.vtp \
+  -vtp1d_in /data/dbg_run/centerline.vtp \
   -vtk /data/dbg_run/vessel.vtk \
   -o /data/dbg_run/result \
   -temp_petscspace_degree 1 -pres_petscspace_degree 1 \
   -ts_type beuler -ts_max_steps 2 -ts_dt 60.0 \
-  -snes_type ksponly -ksp_type gmres -pc_type none
+  -gamma 0.087 \
+  -snes_type ksponly -ksp_type gmres \
+  -pc_type ilu -pc_factor_levels 2
 ```
 
 > Use the debug binary with valgrind — the `-O0 -g3` flags give valgrind
@@ -256,13 +287,16 @@ mpirun --allow-run-as-root -n 4 \
   /work/tutorials/thermoembo1d-3.10.2-xenial-gcc-5.4.0-opt \
   -dim 3 \
   -mesh /data/mytetmesh.exo \
-  -vtp1d /data/centerline.vtp \
-  -vesselcoupling 1e-4 \
+  -vtp1d_in /data/centerline.vtp \
+  -vesselcoupling 1e-3 \
   -vtk /data/vessel.vtk \
   -o /data/result \
   -temp_petscspace_degree 1 -pres_petscspace_degree 1 \
-  -ts_type beuler -ts_max_steps 11150 -ts_dt 0.1 \
-  -snes_type ksponly -ksp_type gmres -pc_type none \
+  -ts_type beuler -ts_max_steps 11150 -ts_dt 60.0 \
+  -gamma 0.087 \
+  -snes_type ksponly -ksp_type gmres \
+  -pc_type ilu -pc_factor_levels 2 \
+  -pc_factor_shift_type NONZERO -pc_factor_shift_amount 1e-10 \
   -ts_monitor -modulowrite 100
 ```
 
@@ -278,8 +312,7 @@ docker run thermoembo <label.nii.gz> [options]
               ├─ centerline.skel_to_vtp()   → centerline.vtp
               ├─ meshing.*                  → surface.vtp + mesh.vtu
               ├─ vtu_to_exodus()            → mesh.exo (metres)
-              ├─ make_vessel_vtk()          → vessel.vtk
+              ├─ make_vessel_vtk()          → vessel.vtk (binary label-2 mask)
               └─ run_solver() ─────────────→ /work/tutorials/thermoembo1d-...-opt
-                   pass 1: phase presolve  → result.0000.0001.dat
-                   pass 2: coupled solve   → resultsolution*.vtu
+                   single-pass coupled solve → resultsolution000.NNNN.vtu
 ```
